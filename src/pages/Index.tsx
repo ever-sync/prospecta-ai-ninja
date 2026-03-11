@@ -1,0 +1,205 @@
+import { useState } from 'react';
+import { Download, Sparkles, Building2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { SearchFilters } from '@/components/SearchFilters';
+import { ResultsTable } from '@/components/ResultsTable';
+import { BusinessAnalysisPanel } from '@/components/BusinessAnalysisPanel';
+import { Business, SearchFilters as Filters } from '@/types/business';
+import { exportToCSV } from '@/utils/exportCSV';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+
+const Index = () => {
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
+  const { toast } = useToast();
+
+  const handleSearch = async (filters: Filters) => {
+    setIsLoading(true);
+    setHasSearched(true);
+    setSelectedBusiness(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('search-businesses', {
+        body: { 
+          niches: filters.niches, 
+          location: filters.location, 
+          radius: filters.radius 
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const results = data.businesses || [];
+      setBusinesses(results);
+
+      toast({
+        title: 'Busca concluída',
+        description: `${results.length} empresa(s) encontrada(s) em ${filters.location}`,
+      });
+    } catch (error) {
+      console.error('Error searching businesses:', error);
+      toast({
+        title: 'Erro na busca',
+        description: error instanceof Error ? error.message : 'Erro ao buscar empresas',
+        variant: 'destructive',
+      });
+      setBusinesses([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleExport = () => {
+    if (businesses.length === 0) return;
+    exportToCSV(businesses);
+    toast({
+      title: 'Exportação concluída',
+      description: 'O arquivo CSV foi baixado com sucesso.',
+    });
+  };
+
+  const handleSelectBusiness = (business: Business) => {
+    setSelectedBusiness(business);
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center glow-primary">
+                <Sparkles className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-foreground">Prospecta IA</h1>
+                <p className="text-xs text-muted-foreground">Prospecção inteligente de clientes</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              IA Conectada
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-8">
+        <div className="grid lg:grid-cols-[380px_1fr] gap-8">
+          {/* Filters Panel */}
+          <aside className="space-y-6">
+            <Card className="p-6 bg-card border-border sticky top-24">
+              <h2 className="text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-primary" />
+                Filtros de Busca
+              </h2>
+              <SearchFilters onSearch={handleSearch} isLoading={isLoading} />
+            </Card>
+          </aside>
+
+          {/* Results Panel */}
+          <section className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Resultados</h2>
+                {hasSearched && (
+                  <p className="text-sm text-muted-foreground">
+                    {businesses.length} empresa(s) encontrada(s)
+                  </p>
+                )}
+              </div>
+              {businesses.length > 0 && (
+                <Button
+                  onClick={handleExport}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Exportar CSV
+                </Button>
+              )}
+            </div>
+
+            {/* AI Suggestion Panel */}
+            {selectedBusiness && (
+              <BusinessAnalysisPanel
+                business={selectedBusiness}
+                onClose={() => setSelectedBusiness(null)}
+              />
+            )}
+
+            {!hasSearched ? (
+              <Card className="p-12 bg-card border-border">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-secondary mx-auto flex items-center justify-center">
+                    <Building2 className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-medium text-foreground">
+                      Comece sua prospecção
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Selecione os filtros ao lado e clique em buscar para encontrar potenciais clientes.
+                    </p>
+                  </div>
+                  <div className="pt-4 border-t border-border mt-6">
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      <span>IA disponível para sugestões de abordagem personalizadas</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ) : isLoading ? (
+              <Card className="p-12 bg-card border-border">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 mx-auto flex items-center justify-center">
+                    <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-medium text-foreground">
+                      Buscando empresas...
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Consultando bases de dados e APIs
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            ) : (
+              <Card className="bg-card border-border overflow-hidden">
+                <ResultsTable 
+                  businesses={businesses} 
+                  onSelectBusiness={handleSelectBusiness}
+                />
+              </Card>
+            )}
+          </section>
+        </div>
+      </main>
+
+      {/* Footer Note */}
+      <footer className="border-t border-border mt-12 py-6">
+        <div className="container mx-auto px-4">
+          <p className="text-xs text-muted-foreground text-center">
+            Dados de demonstração. Conecte sua API do Google Places para resultados reais. IA powered by Lovable.
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default Index;

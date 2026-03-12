@@ -86,6 +86,22 @@ export const AppLayout = () => {
                   <span className="hidden sm:inline">{label}</span>
                 </Button>
               ))}
+              {isAdmin && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/admin')}
+                  className={cn(
+                    'gap-2 text-sm',
+                    location.pathname === '/admin'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span className="hidden sm:inline">Admin</span>
+                </Button>
+              )}
             </nav>
 
             <Button

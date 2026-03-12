@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
-import TemplatesManager from '@/components/TemplatesManager';
+
 
 const PLANS = [
   { key: 'free' as const, name: 'Gratuito', price: 'R$ 0', features: ['50 apresentações/mês', '2 campanhas', '50 emails/mês', 'Suporte por email'] },
@@ -123,10 +123,9 @@ const Settings = () => {
       </h1>
 
       <Tabs defaultValue="empresa" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="empresa">🏢 Empresa</TabsTrigger>
           <TabsTrigger value="faturamento">💳 Faturamento</TabsTrigger>
-          <TabsTrigger value="templates">📝 Templates</TabsTrigger>
           <TabsTrigger value="integracoes">⚙️ Integrações</TabsTrigger>
         </TabsList>
 
@@ -289,10 +288,8 @@ const Settings = () => {
           </div>
         </TabsContent>
 
-        {/* Templates Tab */}
-        <TabsContent value="templates">
-          <TemplatesManager />
-        </TabsContent>
+
+
 
         {/* Integrations Tab */}
         <TabsContent value="integracoes">

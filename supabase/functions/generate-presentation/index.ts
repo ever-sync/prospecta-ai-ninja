@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { analysis, business, dna, profile } = await req.json();
+    const { analysis, business, dna, profile, template, tone: requestedTone, customInstructions } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
@@ -17,9 +17,35 @@ Deno.serve(async (req) => {
     const companyName = profile?.company_name || 'Nossa Empresa';
     const logoUrl = profile?.company_logo_url || '';
 
+    const templateStyles: Record<string, string> = {
+      'modern-dark': 'Fundo escuro (#0a0a0f), accent indigo (#6366f1), tipografia moderna, bordas arredondadas, visual tech.',
+      'clean-light': 'Fundo branco (#ffffff), texto escuro (#1a1a2e), accent azul (#3b82f6), tipografia elegante serif, muito espaço em branco, minimalista.',
+      'corporate': 'Fundo cinza claro (#f8f9fa), accent azul corporativo (#1e40af), layout formal com seções bem delimitadas, estilo enterprise.',
+      'bold-gradient': 'Gradientes fortes (roxo para azul), tipografia grande e impactante, cards com glassmorphism, visual ousado.',
+    };
+
+    const toneDescriptions: Record<string, string> = {
+      'professional': 'Tom profissional e objetivo, focado em dados e resultados.',
+      'consultive': 'Tom consultivo e educativo, explicando o "porquê" de cada recomendação.',
+      'urgent': 'Tom urgente, destacando riscos e oportunidades perdidas, criando senso de urgência.',
+      'friendly': 'Tom amigável e acessível, usando linguagem simples e encorajadora.',
+      'technical': 'Tom técnico e detalhado, com termos específicos da área e métricas aprofundadas.',
+    };
+
+    const selectedTemplate = template || 'modern-dark';
+    const selectedTone = requestedTone || dna?.tone || 'professional';
+    const styleGuide = templateStyles[selectedTemplate] || templateStyles['modern-dark'];
+    const toneGuide = toneDescriptions[selectedTone] || toneDescriptions['professional'];
+
     const systemPrompt = `Você é um designer de apresentações comerciais. Gere HTML completo e estilizado para uma apresentação de prospecção.
 
-A apresentação deve ser profissional, moderna, com cores escuras (#0a0a0f fundo, #6366f1 accent), responsiva, e incluir:
+ESTILO VISUAL: ${styleGuide}
+
+TOM DE COMUNICAÇÃO: ${toneGuide}
+
+${customInstructions ? `INSTRUÇÕES ADICIONAIS DO USUÁRIO: ${customInstructions}` : ''}
+
+A apresentação deve ser responsiva e incluir:
 1. Header com logo/nome da empresa que prospecta
 2. Resumo executivo
 3. Scores visuais (barras de progresso coloridas)
@@ -38,7 +64,6 @@ EMPRESA PROSPECTORA:
 - Serviços: ${(dna?.services || []).join(', ') || 'Marketing Digital'}
 - Diferenciais: ${(dna?.differentials || []).join(', ') || 'Não informado'}
 - Proposta de valor: ${dna?.value_proposition || 'Não informado'}
-- Tom: ${dna?.tone || 'Profissional'}
 
 EMPRESA ANALISADA:
 - Nome: ${business.name}

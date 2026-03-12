@@ -8,6 +8,7 @@ import { AppLayout } from "@/components/AppLayout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import DNA from "./pages/DNA";
+import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import Presentations from "./pages/Presentations";
 import PresentationView from "./pages/PresentationView";

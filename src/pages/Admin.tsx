@@ -11,6 +11,7 @@ import { Navigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { AdminCharts, type PeriodDays } from '@/components/admin/AdminCharts';
 import PlanManager from '@/components/admin/PlanManager';
+import ApiUsageMonitor from '@/components/admin/ApiUsageMonitor';
 
 interface AdminStats {
   totals: {

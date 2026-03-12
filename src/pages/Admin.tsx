@@ -269,6 +269,10 @@ const Admin = () => {
           </div>
         </TabsContent>
 
+        <TabsContent value="custos">
+          <ApiUsageMonitor />
+        </TabsContent>
+
         <TabsContent value="planos">
           <PlanManager />
         </TabsContent>

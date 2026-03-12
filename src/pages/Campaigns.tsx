@@ -564,6 +564,7 @@ const Campaigns = () => {
         campaignName={previewCampaign?.name || ''}
         onConfirmSend={confirmSendCampaign}
         sending={sending}
+        sendAsAudio={sendAsAudio}
       />
 
       {/* Campaigns List */}

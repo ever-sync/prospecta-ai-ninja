@@ -525,7 +525,7 @@ const Campaigns = () => {
       ) : (
         <div className="grid gap-4">
           {campaigns.map(c => (
-            <Card key={c.id} className="p-6 bg-card border-border">
+            <Card key={c.id} className="p-6">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">

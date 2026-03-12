@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { analysis, business, dna, profile, testimonials, template, tone: requestedTone, customInstructions, publicId } = await req.json();
+    const { analysis, business, dna, profile, testimonials, clientLogos, template, tone: requestedTone, customInstructions, publicId } = await req.json();
 
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
     const respondFnUrl = `${SUPABASE_URL}/functions/v1/respond-presentation`;

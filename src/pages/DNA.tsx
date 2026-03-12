@@ -1,7 +1,8 @@
-import { Dna, Quote } from 'lucide-react';
+import { Dna, Quote, ImageIcon } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DNAFormTab from '@/components/DNAFormTab';
 import TestimonialsTab from '@/components/TestimonialsTab';
+import ClientLogosTab from '@/components/ClientLogosTab';
 
 const DNA = () => {
   return (
@@ -21,6 +22,10 @@ const DNA = () => {
             <Quote className="w-4 h-4" />
             Testemunhos
           </TabsTrigger>
+          <TabsTrigger value="logos" className="flex-1 gap-2">
+            <ImageIcon className="w-4 h-4" />
+            Logos
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="dna">
@@ -29,6 +34,10 @@ const DNA = () => {
 
         <TabsContent value="testimonials">
           <TestimonialsTab />
+        </TabsContent>
+
+        <TabsContent value="logos">
+          <ClientLogosTab />
         </TabsContent>
       </Tabs>
     </div>

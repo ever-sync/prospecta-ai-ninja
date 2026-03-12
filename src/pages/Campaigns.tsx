@@ -403,7 +403,7 @@ const Campaigns = () => {
 
       {/* Create Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card">
           <DialogHeader>
             <DialogTitle className="text-foreground">Nova Campanha</DialogTitle>
           </DialogHeader>

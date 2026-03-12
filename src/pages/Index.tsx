@@ -24,6 +24,7 @@ const Index = () => {
   const [showProgress, setShowProgress] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { canUse, getRemainingUsage } = useSubscription();
   const navigate = useNavigate();
 
   const handleSearch = async (filters: Filters) => {

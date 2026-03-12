@@ -14,7 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      company_dna: {
+        Row: {
+          additional_info: string | null
+          created_at: string | null
+          differentials: string[] | null
+          id: string
+          services: string[] | null
+          target_audience: string | null
+          tone: string | null
+          updated_at: string | null
+          user_id: string
+          value_proposition: string | null
+        }
+        Insert: {
+          additional_info?: string | null
+          created_at?: string | null
+          differentials?: string[] | null
+          id?: string
+          services?: string[] | null
+          target_audience?: string | null
+          tone?: string | null
+          updated_at?: string | null
+          user_id: string
+          value_proposition?: string | null
+        }
+        Update: {
+          additional_info?: string | null
+          created_at?: string | null
+          differentials?: string[] | null
+          id?: string
+          services?: string[] | null
+          target_audience?: string | null
+          tone?: string | null
+          updated_at?: string | null
+          user_id?: string
+          value_proposition?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          company_logo_url: string | null
+          company_name: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          phone: string | null
+          user_id: string
+        }
+        Insert: {
+          company_logo_url?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          phone?: string | null
+          user_id: string
+        }
+        Update: {
+          company_logo_url?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          phone?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

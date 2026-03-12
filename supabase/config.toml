@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.respond-presentation]
 verify_jwt = false
+
+[functions.send-campaign-emails]
+verify_jwt = false

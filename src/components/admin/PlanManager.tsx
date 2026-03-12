@@ -245,7 +245,7 @@ const PlanManager = () => {
                     value={plan.stripe_product_id || ''}
                     onChange={(e) => updatePlan(plan.id, 'stripe_product_id', e.target.value || null)}
                     placeholder="prod_..."
-                    className="bg-secondary border-border font-mono text-xs"
+                    className="font-mono text-xs"
                   />
                 </div>
               </div>

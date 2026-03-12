@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Presentation, Eye, Send, Trash2, Loader2 } from 'lucide-react';
+import { Presentation, Eye, Send, Trash2, Loader2, RefreshCw } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SendPresentationDialog } from '@/components/SendPresentationDialog';
+import { RegeneratePresentationDialog } from '@/components/RegeneratePresentationDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +31,9 @@ const Presentations = () => {
   const [loading, setLoading] = useState(true);
   const [sendDialog, setSendDialog] = useState<{ open: boolean; publicUrl: string; name: string; phone: string }>({
     open: false, publicUrl: '', name: '', phone: '',
+  });
+  const [regenDialog, setRegenDialog] = useState<{ open: boolean; presentation: PresentationRow | null }>({
+    open: false, presentation: null,
   });
 
   const fetchPresentations = async () => {
@@ -63,8 +67,61 @@ const Presentations = () => {
     }
   };
 
-  const getPublicUrl = (publicId: string) => {
-    return `${window.location.origin}/presentation/${publicId}`;
+  const getPublicUrl = (publicId: string) =>
+    `${window.location.origin}/presentation/${publicId}`;
+
+  const handleRegenerate = async (template: string, tone: string, customInstructions: string) => {
+    const p = regenDialog.presentation;
+    if (!p || !user) return;
+
+    // Set status to analyzing
+    await supabase.from('presentations').update({ status: 'analyzing' } as any).eq('id', p.id);
+    setPresentations(prev => prev.map(x => x.id === p.id ? { ...x, status: 'analyzing' } : x));
+
+    try {
+      // Fetch DNA and profile
+      const [dnaRes, profileRes] = await Promise.all([
+        supabase.from('company_dna').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
+      ]);
+
+      const { data: genData, error: genError } = await supabase.functions.invoke('generate-presentation', {
+        body: {
+          analysis: p.analysis_data,
+          business: {
+            name: p.business_name,
+            address: p.business_address,
+            phone: p.business_phone,
+            website: p.business_website,
+            category: p.business_category,
+            rating: p.business_rating,
+          },
+          dna: dnaRes.data,
+          profile: profileRes.data,
+          template,
+          tone,
+          customInstructions,
+        },
+      });
+
+      if (genError) throw genError;
+
+      await supabase
+        .from('presentations')
+        .update({ presentation_html: genData.html, status: 'ready' } as any)
+        .eq('id', p.id);
+
+      setPresentations(prev =>
+        prev.map(x => x.id === p.id ? { ...x, status: 'ready' } : x)
+      );
+
+      toast({ title: 'Regenerada!', description: 'Apresentação atualizada com sucesso' });
+    } catch (err) {
+      console.error(err);
+      await supabase.from('presentations').update({ status: 'error' } as any).eq('id', p.id);
+      setPresentations(prev => prev.map(x => x.id === p.id ? { ...x, status: 'error' } : x));
+      toast({ title: 'Erro', description: 'Falha ao regenerar apresentação', variant: 'destructive' });
+    }
   };
 
   const statusBadge = (status: string) => {
@@ -101,6 +158,13 @@ const Presentations = () => {
         publicUrl={sendDialog.publicUrl}
         businessName={sendDialog.name}
         businessPhone={sendDialog.phone}
+      />
+
+      <RegeneratePresentationDialog
+        open={regenDialog.open}
+        onOpenChange={(open) => setRegenDialog(prev => ({ ...prev, open }))}
+        onRegenerate={handleRegenerate}
+        businessName={regenDialog.presentation?.business_name || ''}
       />
 
       {presentations.length === 0 ? (
@@ -149,10 +213,13 @@ const Presentations = () => {
                     <div className="flex items-center justify-end gap-1">
                       {p.status === 'ready' && (
                         <>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(getPublicUrl(p.public_id), '_blank')}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Visualizar" onClick={() => window.open(getPublicUrl(p.public_id), '_blank')}>
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSendDialog({
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Regenerar" onClick={() => setRegenDialog({ open: true, presentation: p })}>
+                            <RefreshCw className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Enviar" onClick={() => setSendDialog({
                             open: true,
                             publicUrl: getPublicUrl(p.public_id),
                             name: p.business_name,

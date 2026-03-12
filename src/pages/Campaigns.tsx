@@ -433,7 +433,7 @@ const Campaigns = () => {
             <div className="space-y-2">
               <Label>Template de Mensagem</Label>
               <Select value={formTemplateId} onValueChange={setFormTemplateId}>
-                <SelectTrigger className="bg-secondary border-border">
+                <SelectTrigger>
                   <SelectValue placeholder="Selecione um template (opcional)" />
                 </SelectTrigger>
                 <SelectContent>

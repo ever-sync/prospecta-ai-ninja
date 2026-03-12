@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts';
-import { Loader2, FileText, CheckCircle, TrendingUp, Eye } from 'lucide-react';
+import { Loader2, File, CircleCheck, ArrowUpRight, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface AnalysisScores {
@@ -28,16 +28,6 @@ const chartConfig = {
   layout: { label: 'Layout', color: 'hsl(var(--success))' },
   security: { label: 'Segurança', color: 'hsl(var(--warning))' },
   count: { label: 'Apresentações', color: 'hsl(var(--primary))' },
-};
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 16, scale: 0.97 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { delay: i * 0.08, duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const },
-  }),
 };
 
 const Dashboard = () => {
@@ -104,32 +94,23 @@ const Dashboard = () => {
     }));
 
   const statCards = [
-    { title: 'Total', value: total, icon: FileText, highlight: true },
-    { title: 'Prontas', value: ready, icon: CheckCircle },
-    { title: 'Score Médio', value: avgOverall, icon: TrendingUp },
+    { title: 'Total', value: total, icon: File, highlight: true },
+    { title: 'Prontas', value: ready, icon: CircleCheck },
+    { title: 'Score Médio', value: avgOverall, icon: ArrowUpRight },
     { title: 'Taxa de Abertura', value: `${openRate}%`, icon: Eye },
   ];
 
   return (
     <div className="p-4 lg:p-8 space-y-6">
-      <motion.h1
-        className="text-2xl font-bold text-foreground"
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        Dashboard
-      </motion.h1>
+      <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((s, i) => (
           <motion.div
             key={s.title}
-            custom={i}
-            variants={cardVariants}
-            initial="hidden"
-            animate="visible"
-            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.06, duration: 0.3 }}
           >
             <Card
               className={
@@ -143,7 +124,7 @@ const Dashboard = () => {
                   {s.title}
                 </CardTitle>
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${s.highlight ? 'bg-primary-foreground/20' : 'bg-accent'}`}>
-                  <s.icon className={`w-[18px] h-[18px] ${s.highlight ? 'text-primary-foreground' : 'text-accent-foreground'}`} />
+                  <s.icon className={`w-[18px] h-[18px] ${s.highlight ? 'text-primary-foreground' : 'text-accent-foreground'}`} strokeWidth={1.75} />
                 </div>
               </CardHeader>
               <CardContent>
@@ -191,10 +172,9 @@ const Dashboard = () => {
         ].map((section, i) => (
           <motion.div
             key={section.title}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 + i * 0.12, duration: 0.4 }}
-            whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            transition={{ delay: 0.25 + i * 0.08, duration: 0.3 }}
           >
             <Card className="border-0 shadow-card h-full">
               <CardHeader>

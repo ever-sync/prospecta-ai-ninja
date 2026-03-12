@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ChevronDown, ChevronUp, Phone, Tag, GripVertical, Plus, StickyNote, Trash2, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Phone, Tag, GripVertical, Plus, StickyNote, Trash2, Loader2, MessageCircle, Mail, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 

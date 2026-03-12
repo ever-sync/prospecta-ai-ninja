@@ -11,6 +11,7 @@ import DNA from "./pages/DNA";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import Presentations from "./pages/Presentations";
+import Campaigns from "./pages/Campaigns";
 import PresentationView from "./pages/PresentationView";
 import NotFound from "./pages/NotFound";
 

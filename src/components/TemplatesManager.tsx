@@ -219,16 +219,20 @@ const TemplatesManager = () => {
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="whatsapp" className="gap-2">
             <MessageSquare className="w-4 h-4" /> WhatsApp ({whatsappTemplates.length})
           </TabsTrigger>
           <TabsTrigger value="email" className="gap-2">
             <Mail className="w-4 h-4" /> Email ({emailTemplates.length})
           </TabsTrigger>
+          <TabsTrigger value="proposta" className="gap-2">
+            <FileText className="w-4 h-4" /> Proposta
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="whatsapp">{renderTemplateList(whatsappTemplates, 'whatsapp')}</TabsContent>
         <TabsContent value="email">{renderTemplateList(emailTemplates, 'email')}</TabsContent>
+        <TabsContent value="proposta"><ProposalTemplateTab /></TabsContent>
       </Tabs>
 
       {/* Editor Dialog */}

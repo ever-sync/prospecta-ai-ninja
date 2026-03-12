@@ -100,6 +100,7 @@ ${analysis?.website_screenshot ? `4.6. **Screenshot do Site Atual** — Incluir 
 6. **A Solução: Nossos Serviços** — Apresentar CADA serviço da empresa prospectora como solução direta para os problemas identificados. Conectar serviço → problema → benefício
 7. **Nossos Diferenciais** — Por que escolher esta empresa e não outra
 8. **Proposta de Valor** — A promessa principal da empresa prospectora
+${portfolioUrl ? `8.5. **Botão Portfólio** — Incluir um botão estilizado "📂 Acessar Portfólio" que abre o link "${portfolioUrl}" em nova aba (target="_blank"). Estilo: botão com borda, cor accent do template, cantos arredondados, centralizado, com ícone. Colocar abaixo da proposta de valor.` : ''}
 ${clientLogosBlock ? `${testimonialsBlock ? '9' : '9'}. **Nossos Clientes** — Seção "Empresas que confiam em nós" com os logos dos clientes dispostos em faixa horizontal centralizada` : ''}
 ${testimonialsBlock ? `${clientLogosBlock ? '10' : '9'}. **Depoimentos de Clientes** — Seção com os depoimentos reais (com foto se disponível), mostrando resultados de outros clientes` : ''}
 ${(() => { const next = 9 + (clientLogosBlock ? 1 : 0) + (testimonialsBlock ? 1 : 0); return `${next}`; })()}. **Seção de Resposta com DOIS botões lado a lado**:

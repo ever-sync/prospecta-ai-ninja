@@ -66,6 +66,7 @@ export type Database = {
           scheduled_at: string | null
           sent_at: string | null
           status: string
+          template_id: string | null
           updated_at: string | null
           user_id: string
         }
@@ -78,6 +79,7 @@ export type Database = {
           scheduled_at?: string | null
           sent_at?: string | null
           status?: string
+          template_id?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -90,10 +92,19 @@ export type Database = {
           scheduled_at?: string | null
           sent_at?: string | null
           status?: string
+          template_id?: string | null
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "message_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       client_logos: {
         Row: {
@@ -164,6 +175,45 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           value_proposition?: string | null
+        }
+        Relationships: []
+      }
+      message_templates: {
+        Row: {
+          body: string
+          channel: string
+          created_at: string | null
+          id: string
+          image_url: string | null
+          include_proposal_link: boolean | null
+          name: string
+          subject: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          channel?: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          include_proposal_link?: boolean | null
+          name?: string
+          subject?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          body?: string
+          channel?: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          include_proposal_link?: boolean | null
+          name?: string
+          subject?: string | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }

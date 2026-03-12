@@ -1,11 +1,13 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, LayoutDashboard, Search, Dna, Presentation, Megaphone, FileText, Settings, LogOut } from 'lucide-react';
+import { Sparkles, LayoutDashboard, Search, Dna, Presentation, Megaphone, FileText, Settings, LogOut, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { useState, useEffect } from 'react';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -26,8 +28,20 @@ const planBadgeConfig = {
 export const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { subscription, loading: subLoading } = useSubscription();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle()
+      .then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
 
   const plan = subscription?.plan || 'free';
   const badge = planBadgeConfig[plan];
@@ -72,6 +86,22 @@ export const AppLayout = () => {
                   <span className="hidden sm:inline">{label}</span>
                 </Button>
               ))}
+              {isAdmin && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/admin')}
+                  className={cn(
+                    'gap-2 text-sm',
+                    location.pathname === '/admin'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span className="hidden sm:inline">Admin</span>
+                </Button>
+              )}
             </nav>
 
             <Button

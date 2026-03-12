@@ -156,9 +156,12 @@ Gere o HTML completo da apresentação.`;
     // Clean up markdown code fences if present
     html = html.replace(/^```html\n?/i, '').replace(/\n?```$/i, '').trim();
 
-    // Replace placeholder with actual public ID
+    // Replace placeholders
     if (publicId) {
       html = html.replaceAll('PUBLIC_ID_PLACEHOLDER', publicId);
+    }
+    if (analysis?.google_maps_screenshot) {
+      html = html.replaceAll('GOOGLE_MAPS_SCREENSHOT_PLACEHOLDER', analysis.google_maps_screenshot);
     }
 
     return new Response(JSON.stringify({ success: true, html }), {

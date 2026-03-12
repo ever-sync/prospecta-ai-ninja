@@ -241,6 +241,22 @@ const Campaigns = () => {
       }
     }
 
+    // For Email: call edge function
+    if (campaign.channel === 'email') {
+      const { data, error } = await supabase.functions.invoke('send-campaign-emails', {
+        body: { campaign_id: campaign.id },
+      });
+
+      if (error) {
+        toast({ title: 'Erro ao enviar emails', description: error.message, variant: 'destructive' });
+        return;
+      }
+
+      toast({ title: 'Emails enviados!', description: `${data?.sent || 0} email(s) enviado(s)` });
+      fetchCampaigns();
+      return;
+    }
+
     // Update campaign status
     await supabase
       .from('campaigns')

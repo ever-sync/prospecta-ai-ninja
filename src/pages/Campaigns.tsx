@@ -57,8 +57,21 @@ const Campaigns = () => {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    if (user) fetchCampaigns();
+    if (user) {
+      fetchCampaigns();
+      fetchTemplates();
+    }
   }, [user]);
+
+  const fetchTemplates = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('message_templates')
+      .select('id, name, channel')
+      .eq('user_id', user.id)
+      .order('name');
+    setTemplates((data as any) || []);
+  };
 
   const fetchCampaigns = async () => {
     if (!user) return;

@@ -1,4 +1,4 @@
-import { useState, useEffect, DragEvent } from 'react';
+import { useState, useEffect, DragEvent, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
-import { Loader2, Search, Users, UserCheck, UserX, Clock, Filter, LayoutGrid, List, Phone, Tag, GripVertical, Plus, X, Palette } from 'lucide-react';
+import { Loader2, Search, Users, UserCheck, UserX, Clock, Filter, LayoutGrid, List, Plus, X, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { KanbanCard } from '@/components/KanbanCard';
 
 interface Lead {
   id: string;
@@ -53,6 +54,7 @@ const CRM = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
@@ -64,7 +66,6 @@ const CRM = () => {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      // Load stages
       const { data: stagesData } = await supabase
         .from('pipeline_stages')
         .select('*')
@@ -81,7 +82,6 @@ const CRM = () => {
       }
       setStages(finalStages);
 
-      // Load leads
       const { data: leadsData } = await supabase
         .from('presentations')
         .select('id, business_name, business_phone, business_website, business_category, status, lead_response, created_at, pipeline_stage_id')
@@ -93,10 +93,18 @@ const CRM = () => {
     load();
   }, [user]);
 
+  // Extract unique categories
+  const categories = useMemo(() => {
+    const cats = new Set<string>();
+    leads.forEach((l) => { if (l.business_category) cats.add(l.business_category); });
+    return Array.from(cats).sort();
+  }, [leads]);
+
   const filtered = leads.filter((l) => {
     const matchSearch = !search || l.business_name?.toLowerCase().includes(search.toLowerCase());
+    const matchCategory = categoryFilter === 'all' || l.business_category === categoryFilter;
     const matchStatus = statusFilter === 'all' || l.status === statusFilter;
-    return matchSearch && matchStatus;
+    return matchSearch && matchCategory && matchStatus;
   });
 
   const total = leads.length;
@@ -113,14 +121,8 @@ const CRM = () => {
 
   const getLeadsForStage = (stage: PipelineStage) => {
     return filtered.filter((l) => {
-      // If lead has a pipeline_stage_id, match by it
-      if (l.pipeline_stage_id) {
-        return l.pipeline_stage_id === stage.id;
-      }
-      // Otherwise match default stages by status
-      if (stage.is_default && stage.default_status) {
-        return (l.status || 'pending') === stage.default_status;
-      }
+      if (l.pipeline_stage_id) return l.pipeline_stage_id === stage.id;
+      if (stage.is_default && stage.default_status) return (l.status || 'pending') === stage.default_status;
       return false;
     });
   };
@@ -136,9 +138,7 @@ const CRM = () => {
     setDragOverColumn(stageId);
   };
 
-  const handleDragLeave = () => {
-    setDragOverColumn(null);
-  };
+  const handleDragLeave = () => setDragOverColumn(null);
 
   const handleDrop = async (e: DragEvent<HTMLDivElement>, stage: PipelineStage) => {
     e.preventDefault();
@@ -147,17 +147,11 @@ const CRM = () => {
     const lead = leads.find((l) => l.id === leadId);
     if (!lead) return;
 
-    // Build update object
     const updateData: Record<string, unknown> = { pipeline_stage_id: stage.id };
-    if (stage.is_default && stage.default_status) {
-      updateData.status = stage.default_status;
-    }
+    if (stage.is_default && stage.default_status) updateData.status = stage.default_status;
 
-    // Optimistic update
     setLeads((prev) => prev.map((l) =>
-      l.id === leadId
-        ? { ...l, pipeline_stage_id: stage.id, status: (stage.default_status || l.status) }
-        : l
+      l.id === leadId ? { ...l, pipeline_stage_id: stage.id, status: (stage.default_status || l.status) } : l
     ));
 
     const { error } = await supabase.from('presentations').update(updateData as any).eq('id', leadId);
@@ -180,10 +174,7 @@ const CRM = () => {
       is_default: false,
     }).select('*').single();
 
-    if (error) {
-      toast.error('Erro ao criar etapa');
-      return;
-    }
+    if (error) { toast.error('Erro ao criar etapa'); return; }
     setStages(prev => [...prev, data as PipelineStage]);
     setNewStageName('');
     setNewStageColor('#3b82f6');
@@ -192,7 +183,6 @@ const CRM = () => {
   };
 
   const handleDeleteStage = async (stage: PipelineStage) => {
-    // Move leads from this stage to "Pendente" (first default stage with default_status='pending')
     const pendingStage = stages.find(s => s.is_default && s.default_status === 'pending');
     if (pendingStage) {
       const affectedLeads = leads.filter(l => l.pipeline_stage_id === stage.id);
@@ -207,10 +197,7 @@ const CRM = () => {
     }
 
     const { error } = await supabase.from('pipeline_stages').delete().eq('id', stage.id);
-    if (error) {
-      toast.error('Erro ao remover etapa');
-      return;
-    }
+    if (error) { toast.error('Erro ao remover etapa'); return; }
     setStages(prev => prev.filter(s => s.id !== stage.id));
     setDeletingStage(null);
     toast.success('Etapa removida');
@@ -259,23 +246,11 @@ const CRM = () => {
             <div className="flex items-center gap-3">
               <CardTitle className="text-base">Pipeline de Leads</CardTitle>
               <div className="flex items-center bg-muted rounded-lg p-0.5">
-                <Button
-                  variant={viewMode === 'kanban' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-7 px-2.5 text-xs gap-1"
-                  onClick={() => setViewMode('kanban')}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                  Kanban
+                <Button variant={viewMode === 'kanban' ? 'default' : 'ghost'} size="sm" className="h-7 px-2.5 text-xs gap-1" onClick={() => setViewMode('kanban')}>
+                  <LayoutGrid className="w-3.5 h-3.5" /> Kanban
                 </Button>
-                <Button
-                  variant={viewMode === 'table' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-7 px-2.5 text-xs gap-1"
-                  onClick={() => setViewMode('table')}
-                >
-                  <List className="w-3.5 h-3.5" />
-                  Lista
+                <Button variant={viewMode === 'table' ? 'default' : 'ghost'} size="sm" className="h-7 px-2.5 text-xs gap-1" onClick={() => setViewMode('table')}>
+                  <List className="w-3.5 h-3.5" /> Lista
                 </Button>
               </div>
             </div>
@@ -284,14 +259,29 @@ const CRM = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input placeholder="Buscar lead..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 w-full sm:w-[220px]" />
               </div>
+              {/* Category filter - available in both views */}
+              {categories.length > 0 && (
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="h-9 w-full sm:w-[180px]">
+                    <Tag className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <SelectValue placeholder="Categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas categorias</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               {viewMode === 'table' && (
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="h-9 w-full sm:w-[160px]">
                     <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
-                    <SelectValue placeholder="Status" />
+                    <SelectValue placeholder="Etapa" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="all">Todas etapas</SelectItem>
                     {stages.map((s) => (
                       <SelectItem key={s.id} value={s.default_status || s.id}>{s.name}</SelectItem>
                     ))}
@@ -342,9 +332,7 @@ const CRM = () => {
                         <span className="text-sm font-semibold text-foreground truncate">{stage.name}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Badge variant="secondary" className="text-xs h-5 min-w-[20px] justify-center">
-                          {columnLeads.length}
-                        </Badge>
+                        <Badge variant="secondary" className="text-xs h-5 min-w-[20px] justify-center">{columnLeads.length}</Badge>
                         {!stage.is_default && (
                           <button
                             className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
@@ -359,54 +347,17 @@ const CRM = () => {
                     <div className="flex-1 p-2 pt-0 space-y-2 min-h-[120px]">
                       <AnimatePresence mode="popLayout">
                         {columnLeads.map((lead) => (
-                          <motion.div
-                            key={lead.id}
-                            layoutId={lead.id}
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.2 }}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e as unknown as DragEvent<HTMLDivElement>, lead.id)}
-                            className="bg-background rounded-lg border border-border p-3 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow group"
-                          >
-                            <div className="flex items-start gap-2">
-                              <GripVertical className="w-3.5 h-3.5 text-muted-foreground/40 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                              <div className="flex-1 min-w-0 space-y-1.5">
-                                <p className="text-sm font-medium text-foreground truncate">{lead.business_name || '—'}</p>
-                                {lead.business_category && (
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <Tag className="w-3 h-3" />
-                                    <span className="truncate">{lead.business_category}</span>
-                                  </div>
-                                )}
-                                {lead.business_phone && (
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <Phone className="w-3 h-3" />
-                                    <span>{lead.business_phone}</span>
-                                  </div>
-                                )}
-                                {lead.created_at && (
-                                  <p className="text-[10px] text-muted-foreground/60">
-                                    {new Date(lead.created_at).toLocaleDateString('pt-BR')}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </motion.div>
+                          <KanbanCard key={lead.id} lead={lead} onDragStart={handleDragStart} />
                         ))}
                       </AnimatePresence>
                       {columnLeads.length === 0 && (
-                        <div className="flex items-center justify-center h-20 text-xs text-muted-foreground/50">
-                          Arraste leads aqui
-                        </div>
+                        <div className="flex items-center justify-center h-20 text-xs text-muted-foreground/50">Arraste leads aqui</div>
                       )}
                     </div>
                   </div>
                 );
               })}
 
-              {/* Add Stage Button */}
               <div
                 className="flex-shrink-0 w-[260px] rounded-xl border-2 border-dashed border-muted-foreground/20 flex items-center justify-center min-h-[200px] cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all"
                 onClick={() => setShowAddStage(true)}
@@ -435,9 +386,7 @@ const CRM = () => {
                 <TableBody>
                   {filtered.map((lead) => {
                     const stage = stages.find(s =>
-                      lead.pipeline_stage_id
-                        ? s.id === lead.pipeline_stage_id
-                        : s.is_default && s.default_status === (lead.status || 'pending')
+                      lead.pipeline_stage_id ? s.id === lead.pipeline_stage_id : s.is_default && s.default_status === (lead.status || 'pending')
                     );
                     return (
                       <TableRow key={lead.id}>
@@ -482,11 +431,7 @@ const CRM = () => {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Nome da etapa</Label>
-              <Input
-                value={newStageName}
-                onChange={(e) => setNewStageName(e.target.value)}
-                placeholder="Ex: Negociação, Follow-up..."
-              />
+              <Input value={newStageName} onChange={(e) => setNewStageName(e.target.value)} placeholder="Ex: Negociação, Follow-up..." />
             </div>
             <div className="space-y-2">
               <Label>Cor</Label>
@@ -514,15 +459,11 @@ const CRM = () => {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Remover etapa</DialogTitle>
-            <DialogDescription>
-              Leads nessa etapa serão movidos para "Pendente". Deseja continuar?
-            </DialogDescription>
+            <DialogDescription>Leads nessa etapa serão movidos para "Pendente". Deseja continuar?</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeletingStage(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={() => deletingStage && handleDeleteStage(deletingStage)}>
-              Remover
-            </Button>
+            <Button variant="destructive" onClick={() => deletingStage && handleDeleteStage(deletingStage)}>Remover</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

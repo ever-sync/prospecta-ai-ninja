@@ -90,10 +90,11 @@ const Index = () => {
     setShowProgress(true);
 
     // Fetch DNA, profile and testimonials
-    const [{ data: dna }, { data: profile }, { data: testimonials }] = await Promise.all([
+    const [{ data: dna }, { data: profile }, { data: testimonials }, { data: clientLogos }] = await Promise.all([
       supabase.from('company_dna').select('*').eq('user_id', user.id).maybeSingle(),
       supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
       supabase.from('testimonials').select('name, company, testimonial, image_url').eq('user_id', user.id),
+      supabase.from('client_logos').select('company_name, logo_url').eq('user_id', user.id),
     ]);
 
     // Process each business sequentially
@@ -138,7 +139,7 @@ const Index = () => {
 
         // Step 3: Generate presentation HTML with public_id for response buttons
         const { data: genResult, error: genError } = await supabase.functions.invoke('generate-presentation', {
-          body: { analysis, business, dna, profile, testimonials, publicId: insertedRow.public_id },
+          body: { analysis, business, dna, profile, testimonials, clientLogos, publicId: insertedRow.public_id },
         });
 
         if (genError) throw new Error(genError.message);

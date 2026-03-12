@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { analysis, business, dna, profile, testimonials, template, tone: requestedTone, customInstructions, publicId } = await req.json();
+    const { analysis, business, dna, profile, testimonials, clientLogos, template, tone: requestedTone, customInstructions, publicId } = await req.json();
 
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
     const respondFnUrl = `${SUPABASE_URL}/functions/v1/respond-presentation`;
@@ -60,6 +60,14 @@ Deno.serve(async (req) => {
 ${testimonials.map((t: any, i: number) => `${i + 1}. "${t.testimonial}" — ${t.name}${t.company ? `, ${t.company}` : ''}${t.image_url ? ` (foto: ${t.image_url})` : ''}`).join('\n')}`;
     }
 
+    // Build client logos section
+    let clientLogosBlock = '';
+    if (clientLogos && clientLogos.length > 0) {
+      clientLogosBlock = `\n\nLOGOS DE CLIENTES (incluir na apresentação como seção "Empresas que confiam em nós" ou "Nossos Clientes"):
+Exibir os logos em uma faixa horizontal centralizada, com espaçamento uniforme. Cada logo deve ter max-height de 50px e ser exibido com <img> tag. Se houver nome da empresa, usar como alt text.
+${clientLogos.map((l: any, i: number) => `${i + 1}. ${l.company_name || 'Cliente'}: ${l.logo_url}`).join('\n')}`;
+    }
+
     const systemPrompt = `Você é um especialista em criar apresentações comerciais de vendas persuasivas. Seu objetivo é gerar uma apresentação HTML que VENDA os serviços da empresa prospectora para o lead analisado.
 
 OBJETIVO PRINCIPAL: A apresentação deve convencer o lead (empresa analisada) de que ele PRECISA contratar os serviços da empresa prospectora. Use os dados da análise para mostrar problemas e oportunidades, e então posicione os serviços como a solução ideal.
@@ -91,8 +99,9 @@ ${analysis?.website_screenshot ? `4.6. **Screenshot do Site Atual** — Incluir 
 6. **A Solução: Nossos Serviços** — Apresentar CADA serviço da empresa prospectora como solução direta para os problemas identificados. Conectar serviço → problema → benefício
 7. **Nossos Diferenciais** — Por que escolher esta empresa e não outra
 8. **Proposta de Valor** — A promessa principal da empresa prospectora
-${testimonialsBlock ? '9. **Depoimentos de Clientes** — Seção com os depoimentos reais (com foto se disponível), mostrando resultados de outros clientes' : ''}
-${testimonialsBlock ? '10' : '9'}. **Seção de Resposta com DOIS botões lado a lado**:
+${clientLogosBlock ? `${testimonialsBlock ? '9' : '9'}. **Nossos Clientes** — Seção "Empresas que confiam em nós" com os logos dos clientes dispostos em faixa horizontal centralizada` : ''}
+${testimonialsBlock ? `${clientLogosBlock ? '10' : '9'}. **Depoimentos de Clientes** — Seção com os depoimentos reais (com foto se disponível), mostrando resultados de outros clientes` : ''}
+${(() => { const next = 9 + (clientLogosBlock ? 1 : 0) + (testimonialsBlock ? 1 : 0); return `${next}`; })()}. **Seção de Resposta com DOIS botões lado a lado**:
    - Botão "✅ Aceito Receber Contato" — verde (#25D366), grande, que ao clicar executa um fetch POST para "${respondFnUrl}" com body JSON {"public_id":"PUBLIC_ID_PLACEHOLDER","response":"accepted"} e depois redireciona para a URL do WhatsApp: ${whatsappUrl || '[sem telefone]'}
    - Botão "❌ Recusar Proposta" — vermelho/cinza escuro, mesmo tamanho, que ao clicar executa um fetch POST para "${respondFnUrl}" com body JSON {"public_id":"PUBLIC_ID_PLACEHOLDER","response":"rejected"} e mostra mensagem "Obrigado pelo retorno. Se mudar de ideia, entre em contato!"
    
@@ -116,6 +125,7 @@ EMPRESA QUE ESTÁ VENDENDO (prospectora):
 - Email: ${profile?.email || 'Não informado'}
 - WhatsApp URL para CTA: ${whatsappUrl || 'Sem telefone cadastrado'}
 ${testimonialsBlock}
+${clientLogosBlock}
 
 LEAD (empresa analisada — potencial cliente):
 - Nome: ${business.name}

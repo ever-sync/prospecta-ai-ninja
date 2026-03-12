@@ -94,6 +94,7 @@ EMPRESA QUE ESTÁ VENDENDO (prospectora):
 - Informações adicionais: ${additionalInfo}
 - Telefone/contato: ${profile?.phone || 'Não informado'}
 - Email: ${profile?.email || 'Não informado'}
+- WhatsApp URL para CTA: ${whatsappUrl || 'Sem telefone cadastrado'}
 ${testimonialsBlock}
 
 LEAD (empresa analisada — potencial cliente):

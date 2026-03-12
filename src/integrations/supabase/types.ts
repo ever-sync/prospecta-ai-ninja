@@ -53,6 +53,54 @@ export type Database = {
         }
         Relationships: []
       }
+      presentations: {
+        Row: {
+          analysis_data: Json | null
+          business_address: string | null
+          business_category: string | null
+          business_name: string | null
+          business_phone: string | null
+          business_rating: number | null
+          business_website: string | null
+          created_at: string | null
+          id: string
+          presentation_html: string | null
+          public_id: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          analysis_data?: Json | null
+          business_address?: string | null
+          business_category?: string | null
+          business_name?: string | null
+          business_phone?: string | null
+          business_rating?: number | null
+          business_website?: string | null
+          created_at?: string | null
+          id?: string
+          presentation_html?: string | null
+          public_id?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          analysis_data?: Json | null
+          business_address?: string | null
+          business_category?: string | null
+          business_name?: string | null
+          business_phone?: string | null
+          business_rating?: number | null
+          business_website?: string | null
+          created_at?: string | null
+          id?: string
+          presentation_html?: string | null
+          public_id?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           company_logo_url: string | null

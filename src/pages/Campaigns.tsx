@@ -260,19 +260,22 @@ const Campaigns = () => {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('company_name')
+      .select('company_name, elevenlabs_voice_id')
       .eq('user_id', user.id)
       .single();
 
-    let template: { body: string; subject: string; image_url: string; include_proposal_link: boolean } | null = null;
+    let template: { body: string; subject: string; image_url: string; include_proposal_link: boolean; send_as_audio: boolean } | null = null;
     if ((campaign as any).template_id) {
       const { data: tpl } = await supabase
         .from('message_templates')
-        .select('body, subject, image_url, include_proposal_link')
+        .select('body, subject, image_url, include_proposal_link, send_as_audio')
         .eq('id', (campaign as any).template_id)
         .single();
       template = tpl as any;
     }
+
+    setSendAsAudio(template?.send_as_audio || false);
+    setVoiceId(profile?.elevenlabs_voice_id || null);
 
     const replaceVars = (text: string, pres: any, publicUrl: string) => {
       return text

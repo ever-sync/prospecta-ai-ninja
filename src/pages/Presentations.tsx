@@ -21,6 +21,7 @@ type PresentationRow = {
   business_rating: number | null;
   analysis_data: any;
   status: string;
+  lead_response: string;
   created_at: string;
 };
 

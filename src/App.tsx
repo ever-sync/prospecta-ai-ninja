@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import DNA from "./pages/DNA";
 import Dashboard from "./pages/Dashboard";
+import CRM from "./pages/CRM";
 import Settings from "./pages/Settings";
 import Presentations from "./pages/Presentations";
 import Campaigns from "./pages/Campaigns";
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/presentation/:publicId" element={<PresentationView />} />
           <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/crm" element={<CRM />} />
             <Route path="/search" element={<Index />} />
             <Route path="/dna" element={<DNA />} />
             <Route path="/presentations" element={<Presentations />} />

@@ -1,6 +1,6 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  BarChart3, LayoutGrid, SearchIcon, Fingerprint, FileBarChart,
+  BarChart3, LayoutGrid, Users, SearchIcon, Fingerprint, FileBarChart,
   Send, FileStack, Settings, LogOut, ShieldCheck, Menu,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const menuItems = [
   { path: '/', label: 'Dashboard', icon: LayoutGrid },
+  { path: '/crm', label: 'CRM', icon: Users },
   { path: '/search', label: 'Busca', icon: SearchIcon },
   { path: '/dna', label: 'DNA', icon: Fingerprint },
   { path: '/presentations', label: 'Apresentações', icon: FileBarChart },

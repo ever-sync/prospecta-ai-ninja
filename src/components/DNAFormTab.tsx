@@ -20,6 +20,8 @@ const DNAFormTab = () => {
   const [tone, setTone] = useState('');
   const [additionalInfo, setAdditionalInfo] = useState('');
   const [portfolioUrl, setPortfolioUrl] = useState('');
+  const [instagramUrl, setInstagramUrl] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
   const [newService, setNewService] = useState('');
   const [newDifferential, setNewDifferential] = useState('');
   const [saving, setSaving] = useState(false);
@@ -42,6 +44,8 @@ const DNAFormTab = () => {
           setTone(data.tone || '');
           setAdditionalInfo(data.additional_info || '');
           setPortfolioUrl((data as any).portfolio_url || '');
+          setInstagramUrl((data as any).instagram_url || '');
+          setLinkedinUrl((data as any).linkedin_url || '');
         }
       });
   }, [user]);
@@ -60,7 +64,7 @@ const DNAFormTab = () => {
 
   const completeness = () => {
     let filled = 0;
-    const total = 7;
+    const total = 9;
     if (services.length > 0) filled++;
     if (differentials.length > 0) filled++;
     if (targetAudience.trim()) filled++;
@@ -68,6 +72,8 @@ const DNAFormTab = () => {
     if (tone.trim()) filled++;
     if (additionalInfo.trim()) filled++;
     if (portfolioUrl.trim()) filled++;
+    if (instagramUrl.trim()) filled++;
+    if (linkedinUrl.trim()) filled++;
     return { filled, total, percent: Math.round((filled / total) * 100) };
   };
 
@@ -84,6 +90,8 @@ const DNAFormTab = () => {
       tone,
       additional_info: additionalInfo,
       portfolio_url: portfolioUrl,
+      instagram_url: instagramUrl,
+      linkedin_url: linkedinUrl,
       updated_at: new Date().toISOString(),
     };
 
@@ -205,6 +213,18 @@ const DNAFormTab = () => {
           <Label className="text-sm font-medium text-foreground">Link do Portfólio</Label>
           <Input value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://seusite.com/portfolio" className="bg-secondary border-border" />
           <p className="text-xs text-muted-foreground">O botão "Acessar Portfólio" será exibido na apresentação gerada.</p>
+        </div>
+
+        {/* Instagram */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">Instagram</Label>
+          <Input value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)} placeholder="https://instagram.com/suaempresa" className="bg-secondary border-border" />
+        </div>
+
+        {/* LinkedIn */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">LinkedIn</Label>
+          <Input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/company/suaempresa" className="bg-secondary border-border" />
         </div>
 
         <Button onClick={handleSave} disabled={saving} className="w-full gradient-primary text-primary-foreground font-semibold py-5 glow-primary gap-2">

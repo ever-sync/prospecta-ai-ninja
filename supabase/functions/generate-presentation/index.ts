@@ -37,8 +37,17 @@ Deno.serve(async (req) => {
 
     const selectedTemplate = template || 'modern-dark';
     const selectedTone = requestedTone || dna?.tone || 'professional';
-    const styleGuide = templateStyles[selectedTemplate] || templateStyles['modern-dark'];
     const toneGuide = toneDescriptions[selectedTone] || toneDescriptions['professional'];
+
+    let styleGuide: string;
+    if (selectedTemplate === 'custom') {
+      const bgColor = dna?.custom_bg_color || '#0c0c1d';
+      const textColor = dna?.custom_text_color || '#ffffff';
+      const buttonColor = dna?.custom_button_color || '#6366f1';
+      styleGuide = `Cores customizadas pelo usuário: fundo da página (${bgColor}), cor dos textos (${textColor}), cor dos botões e destaques (${buttonColor}). Use essas cores exatas. Tipografia moderna, bordas arredondadas, layout profissional.`;
+    } else {
+      styleGuide = templateStyles[selectedTemplate] || templateStyles['modern-dark'];
+    }
 
     // Build services section
     const services = (dna?.services || []).join(', ') || 'Serviços não informados';

@@ -90,10 +90,11 @@ const Index = () => {
     setShowProgress(true);
 
     // Fetch DNA, profile and testimonials
-    const [{ data: dna }, { data: profile }, { data: testimonials }] = await Promise.all([
+    const [{ data: dna }, { data: profile }, { data: testimonials }, { data: clientLogos }] = await Promise.all([
       supabase.from('company_dna').select('*').eq('user_id', user.id).maybeSingle(),
       supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
       supabase.from('testimonials').select('name, company, testimonial, image_url').eq('user_id', user.id),
+      supabase.from('client_logos').select('company_name, logo_url').eq('user_id', user.id),
     ]);
 
     // Process each business sequentially

@@ -160,6 +160,39 @@ export type Database = {
         }
         Relationships: []
       }
+      testimonials: {
+        Row: {
+          company: string
+          created_at: string | null
+          id: string
+          image_url: string | null
+          name: string
+          testimonial: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          company?: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          testimonial?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          company?: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          testimonial?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

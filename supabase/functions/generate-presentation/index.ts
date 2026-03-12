@@ -77,7 +77,7 @@ ESTRUTURA OBRIGATÓRIA DA APRESENTAÇÃO:
 7. **Nossos Diferenciais** — Por que escolher esta empresa e não outra
 8. **Proposta de Valor** — A promessa principal da empresa prospectora
 ${testimonialsBlock ? '9. **Depoimentos de Clientes** — Seção com os depoimentos reais (com foto se disponível), mostrando resultados de outros clientes' : ''}
-${testimonialsBlock ? '10' : '9'}. **Call-to-Action forte** — Botão/seção final com convite para agendar uma reunião, incluindo telefone/contato da empresa prospectora
+${testimonialsBlock ? '10' : '9'}. **Call-to-Action PRINCIPAL** — Um botão GRANDE e chamativo com o texto "✅ Aceito Receber Contato" que deve ser um link <a> apontando para a URL do WhatsApp: ${whatsappUrl || '[sem telefone cadastrado]'}. O botão deve ter estilo verde (#25D366), texto branco, bordas arredondadas, padding generoso, e ícone do WhatsApp (pode usar emoji 📱). Abaixo do botão, colocar texto "Clique para falar conosco pelo WhatsApp". Este botão deve ser o elemento MAIS visível da página.
 
 Use CSS inline e HTML puro (sem frameworks). Garanta que fique bonito e profissional em qualquer navegador.
 Retorne APENAS o HTML completo, começando com <!DOCTYPE html>.`;

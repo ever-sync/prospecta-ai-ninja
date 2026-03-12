@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
 export interface SubscriptionData {
-  plan: 'free' | 'pro' | 'enterprise';
+  plan: string;
   product_id: string | null;
   subscription_end: string | null;
   usage: {
@@ -18,21 +18,38 @@ export interface SubscriptionData {
   };
 }
 
-const PLAN_TIERS = {
-  pro: {
-    price_id: 'price_1TA7qdLxnwoSfHjZjHCtVj9K',
-    product_id: 'prod_U8Odcw8tJ1x18X',
-  },
-  enterprise: {
-    price_id: 'price_1TA7r1LxnwoSfHjZmlYCFwAB',
-    product_id: 'prod_U8OewqNe8GDZ5t',
-  },
-};
+export interface PlanData {
+  id: string;
+  name: string;
+  price_cents: number;
+  stripe_price_id: string | null;
+  stripe_product_id: string | null;
+  limit_presentations: number;
+  limit_campaigns: number;
+  limit_emails: number;
+  features: string[];
+  display_order: number;
+  is_active: boolean;
+}
 
 export const useSubscription = () => {
   const { user } = useAuth();
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
+  const [plans, setPlans] = useState<PlanData[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Fetch plans from DB
+  useEffect(() => {
+    const fetchPlans = async () => {
+      const { data } = await supabase
+        .from('plans')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order');
+      if (data) setPlans(data as PlanData[]);
+    };
+    fetchPlans();
+  }, []);
 
   const checkSubscription = useCallback(async () => {
     if (!user) return;
@@ -67,10 +84,11 @@ export const useSubscription = () => {
     return Math.max(0, limit - subscription.usage[resource]);
   }, [subscription]);
 
-  const startCheckout = async (plan: 'pro' | 'enterprise') => {
-    const tier = PLAN_TIERS[plan];
+  const startCheckout = async (planId: string) => {
+    const plan = plans.find(p => p.id === planId);
+    if (!plan?.stripe_price_id) throw new Error('Plan has no Stripe price');
     const { data, error } = await supabase.functions.invoke('create-checkout', {
-      body: { price_id: tier.price_id },
+      body: { price_id: plan.stripe_price_id },
     });
     if (error) throw error;
     if (data?.url) window.open(data.url, '_blank');
@@ -84,6 +102,7 @@ export const useSubscription = () => {
 
   return {
     subscription,
+    plans,
     loading,
     canUse,
     getRemainingUsage,

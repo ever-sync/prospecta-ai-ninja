@@ -4,11 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users, Presentation, Megaphone, Eye, Mail, TrendingUp, ShieldCheck } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { AdminCharts, type PeriodDays } from '@/components/admin/AdminCharts';
+import PlanManager from '@/components/admin/PlanManager';
 
 interface AdminStats {
   totals: {

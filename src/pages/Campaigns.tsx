@@ -389,7 +389,7 @@ const Campaigns = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="p-4 lg:p-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
           <Megaphone className="w-6 h-6 text-primary" />

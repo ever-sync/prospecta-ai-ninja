@@ -481,6 +481,17 @@ const Campaigns = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Preview Dialog */}
+      <CampaignPreviewDialog
+        open={showPreview}
+        onOpenChange={setShowPreview}
+        leads={previewLeads}
+        channel={previewCampaign?.channel || 'whatsapp'}
+        campaignName={previewCampaign?.name || ''}
+        onConfirmSend={confirmSendCampaign}
+        sending={sending}
+      />
+
       {/* Campaigns List */}
       {campaigns.length === 0 ? (
         <Card className="p-12 bg-card border-border text-center">

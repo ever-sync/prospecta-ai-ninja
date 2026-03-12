@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { analysis, business, dna, profile, template, tone: requestedTone, customInstructions } = await req.json();
+    const { analysis, business, dna, profile, testimonials, template, tone: requestedTone, customInstructions } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
@@ -37,7 +37,23 @@ Deno.serve(async (req) => {
     const styleGuide = templateStyles[selectedTemplate] || templateStyles['modern-dark'];
     const toneGuide = toneDescriptions[selectedTone] || toneDescriptions['professional'];
 
-    const systemPrompt = `Você é um designer de apresentações comerciais. Gere HTML completo e estilizado para uma apresentação de prospecção.
+    // Build services section
+    const services = (dna?.services || []).join(', ') || 'Serviços não informados';
+    const differentials = (dna?.differentials || []).join(', ') || 'Não informado';
+    const valueProposition = dna?.value_proposition || 'Não informado';
+    const targetAudience = dna?.target_audience || 'Não informado';
+    const additionalInfo = dna?.additional_info || '';
+
+    // Build testimonials section
+    let testimonialsBlock = '';
+    if (testimonials && testimonials.length > 0) {
+      testimonialsBlock = `\n\nDEPOIMENTOS DE CLIENTES (incluir na apresentação como prova social):
+${testimonials.map((t: any, i: number) => `${i + 1}. "${t.testimonial}" — ${t.name}${t.company ? `, ${t.company}` : ''}${t.image_url ? ` (foto: ${t.image_url})` : ''}`).join('\n')}`;
+    }
+
+    const systemPrompt = `Você é um especialista em criar apresentações comerciais de vendas persuasivas. Seu objetivo é gerar uma apresentação HTML que VENDA os serviços da empresa prospectora para o lead analisado.
+
+OBJETIVO PRINCIPAL: A apresentação deve convencer o lead (empresa analisada) de que ele PRECISA contratar os serviços da empresa prospectora. Use os dados da análise para mostrar problemas e oportunidades, e então posicione os serviços como a solução ideal.
 
 ESTILO VISUAL: ${styleGuide}
 
@@ -45,36 +61,47 @@ TOM DE COMUNICAÇÃO: ${toneGuide}
 
 ${customInstructions ? `INSTRUÇÕES ADICIONAIS DO USUÁRIO: ${customInstructions}` : ''}
 
-A apresentação deve ser responsiva e incluir:
-1. Header com logo/nome da empresa que prospecta
-2. Resumo executivo
-3. Scores visuais (barras de progresso coloridas)
-4. Detalhes de SEO, velocidade, layout, segurança
-5. Recomendações priorizadas
-6. Call-to-action final
+ESTRUTURA OBRIGATÓRIA DA APRESENTAÇÃO:
+1. **Header** — Logo e nome da empresa prospectora (quem está vendendo)
+2. **Saudação personalizada** — Dirigida ao lead pelo nome, mencionando o setor dele
+3. **Diagnóstico do Lead** — Resumo dos problemas encontrados na análise (scores, SEO, velocidade, etc.) apresentados de forma que o lead entenda o impacto no seu negócio
+4. **Scores visuais** — Barras de progresso coloridas mostrando os scores (vermelho=ruim, amarelo=médio, verde=bom)
+5. **Problemas detalhados e Oportunidades** — Para cada área problemática, explicar o impacto em linguagem de negócio (ex: "Seu site demora 8s para carregar — isso faz você perder 53% dos visitantes")
+6. **A Solução: Nossos Serviços** — Apresentar CADA serviço da empresa prospectora como solução direta para os problemas identificados. Conectar serviço → problema → benefício
+7. **Nossos Diferenciais** — Por que escolher esta empresa e não outra
+8. **Proposta de Valor** — A promessa principal da empresa prospectora
+${testimonialsBlock ? '9. **Depoimentos de Clientes** — Seção com os depoimentos reais (com foto se disponível), mostrando resultados de outros clientes' : ''}
+${testimonialsBlock ? '10' : '9'}. **Call-to-Action forte** — Botão/seção final com convite para agendar uma reunião, incluindo telefone/contato da empresa prospectora
 
-Use CSS inline e HTML puro (sem frameworks). Garanta que fique bonito em qualquer navegador.
+Use CSS inline e HTML puro (sem frameworks). Garanta que fique bonito e profissional em qualquer navegador.
 Retorne APENAS o HTML completo, começando com <!DOCTYPE html>.`;
 
-    const userPrompt = `Gere a apresentação HTML para:
+    const userPrompt = `Gere a apresentação HTML de vendas:
 
-EMPRESA PROSPECTORA:
+EMPRESA QUE ESTÁ VENDENDO (prospectora):
 - Nome: ${companyName}
 - Logo URL: ${logoUrl || 'Sem logo'}
-- Serviços: ${(dna?.services || []).join(', ') || 'Marketing Digital'}
-- Diferenciais: ${(dna?.differentials || []).join(', ') || 'Não informado'}
-- Proposta de valor: ${dna?.value_proposition || 'Não informado'}
+- Serviços oferecidos: ${services}
+- Diferenciais: ${differentials}
+- Proposta de valor: ${valueProposition}
+- Público-alvo: ${targetAudience}
+- Informações adicionais: ${additionalInfo}
+- Telefone/contato: ${profile?.phone || 'Não informado'}
+- Email: ${profile?.email || 'Não informado'}
+${testimonialsBlock}
 
-EMPRESA ANALISADA:
+LEAD (empresa analisada — potencial cliente):
 - Nome: ${business.name}
 - Endereço: ${business.address}
 - Telefone: ${business.phone}
 - Site: ${business.website || 'Sem site'}
-- Categoria: ${business.category}
-- Rating: ${business.rating || 'N/A'}
+- Categoria/Setor: ${business.category}
+- Rating Google: ${business.rating || 'N/A'}
 
-ANÁLISE:
+ANÁLISE TÉCNICA DO LEAD (use para mostrar os problemas e vender a solução):
 ${JSON.stringify(analysis, null, 2)}
+
+IMPORTANTE: A apresentação deve posicionar os serviços "${services}" como a solução para os problemas encontrados na análise. Cada problema deve ser conectado a um serviço específico. A apresentação é uma ferramenta de VENDAS.
 
 Gere o HTML completo da apresentação.`;
 

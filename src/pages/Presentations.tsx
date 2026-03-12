@@ -79,10 +79,11 @@ const Presentations = () => {
     setPresentations(prev => prev.map(x => x.id === p.id ? { ...x, status: 'analyzing' } : x));
 
     try {
-      // Fetch DNA and profile
-      const [dnaRes, profileRes] = await Promise.all([
+      // Fetch DNA, profile and testimonials
+      const [dnaRes, profileRes, testimonialsRes] = await Promise.all([
         supabase.from('company_dna').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('testimonials').select('name, company, testimonial, image_url').eq('user_id', user.id),
       ]);
 
       const { data: genData, error: genError } = await supabase.functions.invoke('generate-presentation', {
@@ -98,6 +99,7 @@ const Presentations = () => {
           },
           dna: dnaRes.data,
           profile: profileRes.data,
+          testimonials: testimonialsRes.data,
           template,
           tone,
           customInstructions,

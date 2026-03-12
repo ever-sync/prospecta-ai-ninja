@@ -219,7 +219,7 @@ const DNAFormTab = () => {
         {/* Portfolio URL */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Link do Portfólio</Label>
-          <Input value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://seusite.com/portfolio" className="bg-secondary border-border" />
+          <Input value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://seusite.com/portfolio" />
           <p className="text-xs text-muted-foreground">O botão "Acessar Portfólio" será exibido na apresentação gerada.</p>
         </div>
 

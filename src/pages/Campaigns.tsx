@@ -342,7 +342,7 @@ const Campaigns = () => {
             </div>
             <div className="space-y-2">
               <Label>Canal de Envio</Label>
-              <Select value={formChannel} onValueChange={setFormChannel}>
+              <Select value={formChannel} onValueChange={(v) => { setFormChannel(v); setFormTemplateId(''); }}>
                 <SelectTrigger className="bg-secondary border-border">
                   <SelectValue />
                 </SelectTrigger>

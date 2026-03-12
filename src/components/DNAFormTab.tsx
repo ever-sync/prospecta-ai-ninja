@@ -146,7 +146,7 @@ const DNAFormTab = () => {
               value={newService}
               onChange={(e) => setNewService(e.target.value)}
               placeholder="Ex: Criação de sites"
-              className="bg-secondary border-border"
+              className=""
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(services, setServices, newService, setNewService))}
             />
             <Button variant="outline" size="icon" onClick={() => addTag(services, setServices, newService, setNewService)}>

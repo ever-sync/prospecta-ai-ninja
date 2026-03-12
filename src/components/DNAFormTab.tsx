@@ -98,6 +98,8 @@ const DNAFormTab = () => {
       portfolio_url: portfolioUrl,
       instagram_url: instagramUrl,
       linkedin_url: linkedinUrl,
+      facebook_url: facebookUrl,
+      youtube_url: youtubeUrl,
       updated_at: new Date().toISOString(),
     };
 

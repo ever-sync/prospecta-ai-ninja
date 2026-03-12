@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, Copy, Image, Link2, MessageSquare, Mail, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Save, Copy, Image, Link2, MessageSquare, Mail, Loader2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import ProposalTemplateTab from '@/components/ProposalTemplateTab';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -219,16 +220,20 @@ const TemplatesManager = () => {
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="whatsapp" className="gap-2">
             <MessageSquare className="w-4 h-4" /> WhatsApp ({whatsappTemplates.length})
           </TabsTrigger>
           <TabsTrigger value="email" className="gap-2">
             <Mail className="w-4 h-4" /> Email ({emailTemplates.length})
           </TabsTrigger>
+          <TabsTrigger value="proposta" className="gap-2">
+            <FileText className="w-4 h-4" /> Proposta
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="whatsapp">{renderTemplateList(whatsappTemplates, 'whatsapp')}</TabsContent>
         <TabsContent value="email">{renderTemplateList(emailTemplates, 'email')}</TabsContent>
+        <TabsContent value="proposta"><ProposalTemplateTab /></TabsContent>
       </Tabs>
 
       {/* Editor Dialog */}

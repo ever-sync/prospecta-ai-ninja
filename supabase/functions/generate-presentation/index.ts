@@ -125,6 +125,7 @@ EMPRESA QUE ESTÁ VENDENDO (prospectora):
 - Email: ${profile?.email || 'Não informado'}
 - WhatsApp URL para CTA: ${whatsappUrl || 'Sem telefone cadastrado'}
 ${testimonialsBlock}
+${clientLogosBlock}
 
 LEAD (empresa analisada — potencial cliente):
 - Nome: ${business.name}

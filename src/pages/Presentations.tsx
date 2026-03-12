@@ -21,6 +21,7 @@ type PresentationRow = {
   business_rating: number | null;
   analysis_data: any;
   status: string;
+  lead_response: string;
   created_at: string;
 };
 
@@ -103,6 +104,7 @@ const Presentations = () => {
           template,
           tone,
           customInstructions,
+          publicId: p.public_id,
         },
       });
 
@@ -132,6 +134,14 @@ const Presentations = () => {
       case 'analyzing': return <Badge variant="secondary">Analisando</Badge>;
       case 'error': return <Badge variant="destructive">Erro</Badge>;
       default: return <Badge variant="secondary">Pendente</Badge>;
+    }
+  };
+
+  const responseBadge = (response: string) => {
+    switch (response) {
+      case 'accepted': return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Aceita</Badge>;
+      case 'rejected': return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Recusada</Badge>;
+      default: return <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-400 border-yellow-500/30">Aguardando</Badge>;
     }
   };
 
@@ -192,6 +202,7 @@ const Presentations = () => {
                 <TableHead className="text-foreground font-semibold">Categoria</TableHead>
                 <TableHead className="text-foreground font-semibold text-center">Score</TableHead>
                 <TableHead className="text-foreground font-semibold text-center">Status</TableHead>
+                <TableHead className="text-foreground font-semibold text-center">Resposta</TableHead>
                 <TableHead className="text-foreground font-semibold text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -211,6 +222,7 @@ const Presentations = () => {
                     <span className="text-lg font-bold text-primary">{overallScore(p.analysis_data)}</span>
                   </TableCell>
                   <TableCell className="text-center">{statusBadge(p.status)}</TableCell>
+                  <TableCell className="text-center">{responseBadge(p.lead_response)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       {p.status === 'ready' && (

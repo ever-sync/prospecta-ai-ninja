@@ -23,6 +23,7 @@ interface Template {
   body: string;
   image_url: string;
   include_proposal_link: boolean;
+  send_as_audio: boolean;
   created_at: string;
 }
 
@@ -55,6 +56,7 @@ const TemplatesManager = () => {
   const [formBody, setFormBody] = useState('');
   const [formImageUrl, setFormImageUrl] = useState('');
   const [formIncludeLink, setFormIncludeLink] = useState(true);
+  const [formSendAsAudio, setFormSendAsAudio] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -82,6 +84,7 @@ const TemplatesManager = () => {
       : '');
     setFormImageUrl('');
     setFormIncludeLink(true);
+    setFormSendAsAudio(false);
     setShowEditor(true);
   };
 
@@ -93,6 +96,7 @@ const TemplatesManager = () => {
     setFormBody(t.body);
     setFormImageUrl(t.image_url);
     setFormIncludeLink(t.include_proposal_link);
+    setFormSendAsAudio(t.send_as_audio || false);
     setShowEditor(true);
   };
 
@@ -108,6 +112,7 @@ const TemplatesManager = () => {
       body: formBody,
       image_url: formImageUrl,
       include_proposal_link: formIncludeLink,
+      send_as_audio: formChannel === 'whatsapp' ? formSendAsAudio : false,
       updated_at: new Date().toISOString(),
     };
 
@@ -192,6 +197,11 @@ const TemplatesManager = () => {
                   {t.image_url && (
                     <Badge variant="secondary" className="text-xs shrink-0">
                       <Image className="w-3 h-3 mr-1" /> Imagem
+                    </Badge>
+                  )}
+                  {t.send_as_audio && (
+                    <Badge variant="secondary" className="text-xs shrink-0 bg-primary/10 text-primary border-primary/20">
+                      🎙️ Áudio
                     </Badge>
                   )}
                 </div>
@@ -323,6 +333,17 @@ const TemplatesManager = () => {
               </div>
               <Switch checked={formIncludeLink} onCheckedChange={setFormIncludeLink} />
             </div>
+
+            {/* Send as audio - WhatsApp only */}
+            {formChannel === 'whatsapp' && (
+              <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                <div>
+                  <Label className="text-sm font-medium">🎙️ Enviar como Áudio</Label>
+                  <p className="text-xs text-muted-foreground">Converte o texto em áudio com sua voz clonada (ElevenLabs)</p>
+                </div>
+                <Switch checked={formSendAsAudio} onCheckedChange={setFormSendAsAudio} />
+              </div>
+            )}
 
             {/* Preview */}
             <div className="space-y-2">

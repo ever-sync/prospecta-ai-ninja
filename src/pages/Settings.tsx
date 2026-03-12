@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Upload, Building2, Settings2, Crown, Check, Loader2, ExternalLink } from 'lucide-react';
+import { Save, Upload, Building2, Settings2, Crown, Check, Loader2, ExternalLink, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,7 @@ const Settings = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [voiceId, setVoiceId] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
@@ -37,6 +38,7 @@ const Settings = () => {
           setEmail(data.email || '');
           setPhone(data.phone || '');
           setLogoUrl(data.company_logo_url || '');
+          setVoiceId(data.elevenlabs_voice_id || '');
         }
       });
   }, [user]);
@@ -71,7 +73,7 @@ const Settings = () => {
     setSaving(true);
     const { error } = await supabase
       .from('profiles')
-      .update({ company_name: companyName, email, phone, company_logo_url: logoUrl })
+      .update({ company_name: companyName, email, phone, company_logo_url: logoUrl, elevenlabs_voice_id: voiceId || null })
       .eq('user_id', user.id);
     if (error) {
       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
@@ -155,6 +157,16 @@ const Settings = () => {
             <div className="space-y-2">
               <Label htmlFor="settingsPhone" className="text-sm text-foreground">Telefone</Label>
               <Input id="settingsPhone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="voiceId" className="text-sm text-foreground flex items-center gap-2">
+                <Mic className="w-4 h-4 text-primary" />
+                Voice ID do ElevenLabs
+              </Label>
+              <Input id="voiceId" value={voiceId} onChange={(e) => setVoiceId(e.target.value)} placeholder="Cole aqui o ID da sua voz clonada" />
+              <p className="text-xs text-muted-foreground">
+                Clone sua voz no <a href="https://elevenlabs.io/voice-lab" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">ElevenLabs Voice Lab</a> e cole o Voice ID aqui para enviar áudios com sua voz.
+              </p>
             </div>
             <Button onClick={handleSave} disabled={saving} className="w-full gradient-primary text-primary-foreground font-semibold py-5 glow-primary gap-2">
               <Save className="w-4 h-4" />

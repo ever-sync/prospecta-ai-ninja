@@ -9,7 +9,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { analysis, business, dna, profile, testimonials, template, tone: requestedTone, customInstructions } = await req.json();
+    const { analysis, business, dna, profile, testimonials, template, tone: requestedTone, customInstructions, publicId } = await req.json();
+
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+    const respondFnUrl = `${SUPABASE_URL}/functions/v1/respond-presentation`;
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');

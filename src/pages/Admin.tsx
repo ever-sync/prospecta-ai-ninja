@@ -11,6 +11,7 @@ import { Navigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { AdminCharts, type PeriodDays } from '@/components/admin/AdminCharts';
 import PlanManager from '@/components/admin/PlanManager';
+import ApiUsageMonitor from '@/components/admin/ApiUsageMonitor';
 
 interface AdminStats {
   totals: {
@@ -155,6 +156,7 @@ const Admin = () => {
       <Tabs defaultValue="dashboard" className="space-y-6">
         <TabsList>
           <TabsTrigger value="dashboard">📊 Dashboard</TabsTrigger>
+          <TabsTrigger value="custos">💰 Custos & APIs</TabsTrigger>
           <TabsTrigger value="planos">👑 Planos</TabsTrigger>
         </TabsList>
 
@@ -265,6 +267,10 @@ const Admin = () => {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="custos">
+          <ApiUsageMonitor />
         </TabsContent>
 
         <TabsContent value="planos">

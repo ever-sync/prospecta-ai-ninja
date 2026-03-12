@@ -5,6 +5,20 @@ const corsHeaders = {
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+async function logApiUsage(userId: string, service: string, operation: string, costCents: number, metadata: Record<string, any> = {}) {
+  try {
+    const svc = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { persistSession: false } }
+    );
+    await svc.from('api_usage_logs').insert({
+      user_id: userId, service, operation,
+      cost_estimate_cents: costCents, metadata,
+    });
+  } catch (e) { console.error('Failed to log API usage:', e); }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -190,6 +204,11 @@ Deno.serve(async (req) => {
       } catch (emailErr) {
         console.error(`Error sending email to ${businessEmail}:`, emailErr);
       }
+    }
+
+    // Log API usage
+    if (sentCount > 0) {
+      await logApiUsage(user!.id, 'resend', 'send_email', sentCount * 0.1, { campaign_id, sentCount });
     }
 
     // Update campaign status

@@ -1,0 +1,1 @@
+DROP POLICY "Anon can update lead_response" ON public.presentations;

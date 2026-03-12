@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_logos: {
+        Row: {
+          company_name: string
+          created_at: string | null
+          id: string
+          logo_url: string
+          user_id: string
+        }
+        Insert: {
+          company_name?: string
+          created_at?: string | null
+          id?: string
+          logo_url: string
+          user_id: string
+        }
+        Update: {
+          company_name?: string
+          created_at?: string | null
+          id?: string
+          logo_url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       company_dna: {
         Row: {
           additional_info: string | null

@@ -14,6 +14,7 @@ interface SearchFiltersProps {
 
 export const SearchFilters = ({ onSearch, isLoading }: SearchFiltersProps) => {
   const [selectedNiches, setSelectedNiches] = useState<string[]>([]);
+  const [customNiche, setCustomNiche] = useState('');
   const [location, setLocation] = useState('');
   const [radius, setRadius] = useState(5);
 
@@ -23,6 +24,14 @@ export const SearchFilters = ({ onSearch, isLoading }: SearchFiltersProps) => {
         ? prev.filter(n => n !== value)
         : [...prev, value]
     );
+  };
+
+  const addCustomNiche = () => {
+    const trimmed = customNiche.trim();
+    if (trimmed && !selectedNiches.includes(trimmed)) {
+      setSelectedNiches(prev => [...prev, trimmed]);
+      setCustomNiche('');
+    }
   };
 
   const handleSearch = () => {
@@ -39,6 +48,18 @@ export const SearchFilters = ({ onSearch, isLoading }: SearchFiltersProps) => {
           <Target className="w-4 h-4 text-primary" />
           Nicho de Atuação
         </Label>
+        <div className="flex gap-2">
+          <Input
+            placeholder="Digite um nicho personalizado..."
+            value={customNiche}
+            onChange={(e) => setCustomNiche(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addCustomNiche()}
+            className="bg-secondary border-border focus:border-primary transition-colors"
+          />
+          <Button variant="outline" size="sm" onClick={addCustomNiche} disabled={!customNiche.trim()} className="shrink-0">
+            +
+          </Button>
+        </div>
         <div className="flex flex-wrap gap-2">
           {AVAILABLE_NICHES.map(niche => (
             <Badge
@@ -54,6 +75,19 @@ export const SearchFilters = ({ onSearch, isLoading }: SearchFiltersProps) => {
               {niche.label}
             </Badge>
           ))}
+          {/* Custom niches that aren't in the predefined list */}
+          {selectedNiches
+            .filter(n => !AVAILABLE_NICHES.some(an => an.value === n))
+            .map(n => (
+              <Badge
+                key={n}
+                variant="default"
+                className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+                onClick={() => toggleNiche(n)}
+              >
+                {n} ✕
+              </Badge>
+            ))}
         </div>
         {selectedNiches.length > 0 && (
           <p className="text-xs text-muted-foreground">

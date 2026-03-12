@@ -103,6 +103,10 @@ ${analysis?.website_screenshot ? `4.6. **Screenshot do Site Atual** — Incluir 
 7. **Nossos Diferenciais** — Por que escolher esta empresa e não outra
 8. **Proposta de Valor** — A promessa principal da empresa prospectora
 ${portfolioUrl ? `8.5. **Botão Portfólio** — Incluir um botão estilizado "📂 Acessar Portfólio" que abre o link "${portfolioUrl}" em nova aba (target="_blank"). Estilo: botão com borda, cor accent do template, cantos arredondados, centralizado, com ícone. Colocar abaixo da proposta de valor.` : ''}
+${(instagramUrl || linkedinUrl) ? `8.6. **Redes Sociais** — No rodapé ou após a proposta de valor, incluir ícones/links para as redes sociais:
+${instagramUrl ? `   - Instagram: link "${instagramUrl}" com ícone do Instagram (usar SVG inline simples ou emoji 📸)` : ''}
+${linkedinUrl ? `   - LinkedIn: link "${linkedinUrl}" com ícone do LinkedIn (usar SVG inline simples ou emoji 💼)` : ''}
+   Estilo: ícones lado a lado, centralizados, com hover effect sutil. Abrir em nova aba.` : ''}
 ${clientLogosBlock ? `${testimonialsBlock ? '9' : '9'}. **Nossos Clientes** — Seção "Empresas que confiam em nós" com os logos dos clientes dispostos em faixa horizontal centralizada` : ''}
 ${testimonialsBlock ? `${clientLogosBlock ? '10' : '9'}. **Depoimentos de Clientes** — Seção com os depoimentos reais (com foto se disponível), mostrando resultados de outros clientes` : ''}
 ${(() => { const next = 9 + (clientLogosBlock ? 1 : 0) + (testimonialsBlock ? 1 : 0); return `${next}`; })()}. **Seção de Resposta com DOIS botões lado a lado**:

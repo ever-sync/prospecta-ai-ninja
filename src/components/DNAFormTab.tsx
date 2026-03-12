@@ -195,7 +195,7 @@ const DNAFormTab = () => {
         {/* Target Audience */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Público-Alvo</Label>
-          <Textarea value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="Descreva seu público-alvo ideal..." className="bg-secondary border-border min-h-[80px]" />
+          <Textarea value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="Descreva seu público-alvo ideal..." className="min-h-[80px]" />
         </div>
 
         {/* Value Proposition */}

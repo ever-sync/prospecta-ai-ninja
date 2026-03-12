@@ -99,18 +99,18 @@ serve(async (req) => {
     const { data: dailyPresentations } = await supabase
       .from("presentations")
       .select("created_at")
-      .gte("created_at", isoThirty);
+      .gte("created_at", isoPeriod);
 
     const { data: dailyViews } = await supabase
       .from("presentation_views")
       .select("viewed_at")
-      .gte("viewed_at", isoThirty);
+      .gte("viewed_at", isoPeriod);
 
     const { data: dailyEmails } = await supabase
       .from("campaign_presentations")
       .select("sent_at")
       .eq("send_status", "sent")
-      .gte("sent_at", isoThirty);
+      .gte("sent_at", isoPeriod);
 
     // Build daily map
     const dailyMap = new Map<string, { presentations: number; views: number; emails: number }>();

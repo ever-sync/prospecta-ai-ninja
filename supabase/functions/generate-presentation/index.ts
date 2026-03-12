@@ -136,6 +136,8 @@ EMPRESA QUE ESTÁ VENDENDO (prospectora):
 - Portfólio URL: ${portfolioUrl || 'Não informado'}
 - Instagram: ${instagramUrl || 'Não informado'}
 - LinkedIn: ${linkedinUrl || 'Não informado'}
+- Facebook: ${facebookUrl || 'Não informado'}
+- YouTube: ${youtubeUrl || 'Não informado'}
 - Telefone/contato: ${profile?.phone || 'Não informado'}
 - Email: ${profile?.email || 'Não informado'}
 - WhatsApp URL para CTA: ${whatsappUrl || 'Sem telefone cadastrado'}

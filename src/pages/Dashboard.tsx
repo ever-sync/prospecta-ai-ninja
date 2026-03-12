@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts';
 import { Loader2, FileText, CheckCircle, TrendingUp, Eye } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface AnalysisScores {
   overall?: number;
@@ -27,6 +28,16 @@ const chartConfig = {
   layout: { label: 'Layout', color: 'hsl(var(--success))' },
   security: { label: 'Segurança', color: 'hsl(var(--warning))' },
   count: { label: 'Apresentações', color: 'hsl(var(--primary))' },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 16, scale: 0.97 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { delay: i * 0.08, duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const },
+  }),
 };
 
 const Dashboard = () => {
@@ -101,42 +112,55 @@ const Dashboard = () => {
 
   return (
     <div className="p-4 lg:p-8 space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+      <motion.h1
+        className="text-2xl font-bold text-foreground"
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        Dashboard
+      </motion.h1>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((s) => (
-          <Card
+        {statCards.map((s, i) => (
+          <motion.div
             key={s.title}
-            className={
-              s.highlight
-                ? 'bg-primary text-primary-foreground border-0 shadow-card'
-                : 'border-0 shadow-card'
-            }
+            custom={i}
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
           >
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className={`text-sm font-medium ${s.highlight ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                {s.title}
-              </CardTitle>
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${s.highlight ? 'bg-primary-foreground/20' : 'bg-accent'}`}>
-                <s.icon className={`w-[18px] h-[18px] ${s.highlight ? 'text-primary-foreground' : 'text-accent-foreground'}`} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className={`text-3xl font-bold ${s.highlight ? 'text-primary-foreground' : 'text-foreground'}`}>{s.value}</p>
-            </CardContent>
-          </Card>
+            <Card
+              className={
+                s.highlight
+                  ? 'bg-primary text-primary-foreground border-0 shadow-card h-full'
+                  : 'border-0 shadow-card h-full'
+              }
+            >
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className={`text-sm font-medium ${s.highlight ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                  {s.title}
+                </CardTitle>
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${s.highlight ? 'bg-primary-foreground/20' : 'bg-accent'}`}>
+                  <s.icon className={`w-[18px] h-[18px] ${s.highlight ? 'text-primary-foreground' : 'text-accent-foreground'}`} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className={`text-3xl font-bold ${s.highlight ? 'text-primary-foreground' : 'text-foreground'}`}>{s.value}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        <Card className="border-0 shadow-card">
-          <CardHeader>
-            <CardTitle className="text-base">Scores Médios por Categoria</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {readyPresentations.length === 0 ? (
-              <p className="text-muted-foreground text-sm py-8 text-center">Nenhuma análise concluída ainda</p>
-            ) : (
+        {[
+          {
+            title: 'Scores Médios por Categoria',
+            empty: readyPresentations.length === 0,
+            emptyMsg: 'Nenhuma análise concluída ainda',
+            chart: (
               <ChartContainer config={chartConfig} className="h-[260px] w-full">
                 <BarChart data={categories}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -146,18 +170,13 @@ const Dashboard = () => {
                   <Bar dataKey="score" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-card">
-          <CardHeader>
-            <CardTitle className="text-base">Apresentações por Semana</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {timeline.length === 0 ? (
-              <p className="text-muted-foreground text-sm py-8 text-center">Nenhuma apresentação criada ainda</p>
-            ) : (
+            ),
+          },
+          {
+            title: 'Apresentações por Semana',
+            empty: timeline.length === 0,
+            emptyMsg: 'Nenhuma apresentação criada ainda',
+            chart: (
               <ChartContainer config={chartConfig} className="h-[260px] w-full">
                 <LineChart data={timeline}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -167,9 +186,30 @@ const Dashboard = () => {
                   <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))' }} />
                 </LineChart>
               </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
+            ),
+          },
+        ].map((section, i) => (
+          <motion.div
+            key={section.title}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 + i * 0.12, duration: 0.4 }}
+            whileHover={{ y: -2, transition: { duration: 0.2 } }}
+          >
+            <Card className="border-0 shadow-card h-full">
+              <CardHeader>
+                <CardTitle className="text-base">{section.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {section.empty ? (
+                  <p className="text-muted-foreground text-sm py-8 text-center">{section.emptyMsg}</p>
+                ) : (
+                  section.chart
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
     </div>
   );

@@ -63,6 +63,42 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Step 1.5: Screenshot Google Maps reviews page
+    let googleMapsScreenshot: string | null = null;
+    if (FIRECRAWL_API_KEY && business.name) {
+      try {
+        const searchQuery = encodeURIComponent(`${business.name} ${business.address || ''}`);
+        const mapsUrl = `https://www.google.com/maps/search/${searchQuery}`;
+        
+        console.log('Taking Google Maps screenshot:', mapsUrl);
+        const screenshotRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: mapsUrl,
+            formats: ['screenshot'],
+            waitFor: 3000,
+          }),
+        });
+
+        if (screenshotRes.ok) {
+          const screenshotData = await screenshotRes.json();
+          const screenshotBase64 = screenshotData.data?.screenshot || screenshotData.screenshot;
+          if (screenshotBase64) {
+            googleMapsScreenshot = screenshotBase64;
+            console.log('Google Maps screenshot captured');
+          }
+        } else {
+          console.error('Google Maps screenshot failed:', screenshotRes.status);
+        }
+      } catch (e) {
+        console.error('Google Maps screenshot error:', e);
+      }
+    }
+
     // Step 2: AI analysis
     const htmlSnippet = scrapedContent?.html
       ? scrapedContent.html.substring(0, 8000)

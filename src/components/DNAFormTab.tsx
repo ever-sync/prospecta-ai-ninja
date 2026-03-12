@@ -41,6 +41,7 @@ const DNAFormTab = () => {
           setValueProposition(data.value_proposition || '');
           setTone(data.tone || '');
           setAdditionalInfo(data.additional_info || '');
+          setPortfolioUrl((data as any).portfolio_url || '');
         }
       });
   }, [user]);

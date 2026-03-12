@@ -48,6 +48,8 @@ const DNAFormTab = () => {
           setPortfolioUrl((data as any).portfolio_url || '');
           setInstagramUrl((data as any).instagram_url || '');
           setLinkedinUrl((data as any).linkedin_url || '');
+          setFacebookUrl((data as any).facebook_url || '');
+          setYoutubeUrl((data as any).youtube_url || '');
         }
       });
   }, [user]);

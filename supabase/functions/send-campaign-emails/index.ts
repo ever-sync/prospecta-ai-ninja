@@ -206,6 +206,11 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Log API usage
+    if (sentCount > 0) {
+      await logApiUsage(user!.id, 'resend', 'send_email', sentCount * 0.1, { campaign_id, sentCount });
+    }
+
     // Update campaign status
     await supabase
       .from('campaigns')

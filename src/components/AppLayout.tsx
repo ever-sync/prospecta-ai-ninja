@@ -1,7 +1,10 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Sparkles, LayoutDashboard, Search, Dna, Presentation, Megaphone, Settings, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -13,10 +16,20 @@ const navItems = [
   { path: '/settings', label: 'Configurações', icon: Settings },
 ];
 
+const planBadgeConfig = {
+  free: { label: 'Gratuito', className: 'border-border text-muted-foreground bg-secondary' },
+  pro: { label: 'Pro', className: 'border-primary/30 text-primary bg-primary/10' },
+  enterprise: { label: 'Enterprise', className: 'border-amber-500/30 text-amber-400 bg-amber-500/10' },
+};
+
 export const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { subscription, loading: subLoading } = useSubscription();
+
+  const plan = subscription?.plan || 'free';
+  const badge = planBadgeConfig[plan];
 
   return (
     <div className="min-h-screen bg-background">
@@ -28,6 +41,16 @@ export const AppLayout = () => {
                 <Sparkles className="w-4 h-4 text-primary-foreground" />
               </div>
               <span className="text-lg font-bold text-foreground">Prospecta IA</span>
+              {subLoading ? (
+                <Skeleton className="h-5 w-16 rounded-full" />
+              ) : (
+                <Badge
+                  className={cn('cursor-pointer text-[10px] px-2 py-0.5', badge.className)}
+                  onClick={() => navigate('/settings')}
+                >
+                  {badge.label}
+                </Badge>
+              )}
             </div>
 
             <nav className="flex items-center gap-1">

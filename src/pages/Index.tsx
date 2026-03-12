@@ -82,6 +82,25 @@ const Index = () => {
     const selected = businesses.filter(b => selectedIds.has(b.id));
     if (selected.length === 0) return;
 
+    if (!canUse('presentations')) {
+      toast({
+        title: 'Limite atingido',
+        description: 'Você atingiu o limite de apresentações do seu plano. Faça upgrade em Configurações → Faturamento.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const remaining = getRemainingUsage('presentations');
+    if (remaining !== null && remaining !== Infinity && selected.length > remaining) {
+      toast({
+        title: 'Limite insuficiente',
+        description: `Você pode gerar mais ${remaining} apresentação(ões). Selecione menos ou faça upgrade do plano.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Initialize progress items
     const items: AnalysisItem[] = selected.map(b => ({
       id: b.id,

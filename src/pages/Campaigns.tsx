@@ -227,6 +227,15 @@ const Campaigns = () => {
   const handleSendCampaign = async (campaign: Campaign) => {
     if (!user) return;
 
+    if (!canUse('emails')) {
+      toast({
+        title: 'Limite atingido',
+        description: 'Você atingiu o limite de envios do seu plano. Faça upgrade em Configurações → Faturamento.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const { data: cpRows } = await supabase
       .from('campaign_presentations')
       .select('id, presentation_id')

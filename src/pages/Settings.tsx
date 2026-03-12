@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
-import TemplatesManager from '@/components/TemplatesManager';
+
 
 const PLANS = [
   { key: 'free' as const, name: 'Gratuito', price: 'R$ 0', features: ['50 apresentações/mês', '2 campanhas', '50 emails/mês', 'Suporte por email'] },

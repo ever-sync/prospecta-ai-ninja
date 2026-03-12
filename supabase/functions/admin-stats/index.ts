@@ -182,6 +182,7 @@ serve(async (req) => {
         views: monthViews || 0,
         emails: monthEmails || 0,
       },
+      dailyStats,
       topUsers: topUsersList,
       recentPresentations: recentPresentations || [],
     }), {

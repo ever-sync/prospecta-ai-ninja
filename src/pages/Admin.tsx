@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { AdminCharts } from '@/components/admin/AdminCharts';
 
 interface AdminStats {
   totals: {

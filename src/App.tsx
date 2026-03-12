@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import DNA from "./pages/DNA";
 import Dashboard from "./pages/Dashboard";
+import CRM from "./pages/CRM";
 import Settings from "./pages/Settings";
 import Presentations from "./pages/Presentations";
 import Campaigns from "./pages/Campaigns";

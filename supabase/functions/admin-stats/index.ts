@@ -21,6 +21,12 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header");
 
+    let days = 30;
+    try {
+      const body = await req.json();
+      if (body?.days && [7, 30, 90].includes(body.days)) days = body.days;
+    } catch { /* no body or invalid json, use default */ }
+
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData.user) throw new Error("Unauthorized");

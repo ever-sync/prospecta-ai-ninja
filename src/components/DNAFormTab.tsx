@@ -64,7 +64,7 @@ const DNAFormTab = () => {
 
   const completeness = () => {
     let filled = 0;
-    const total = 7;
+    const total = 9;
     if (services.length > 0) filled++;
     if (differentials.length > 0) filled++;
     if (targetAudience.trim()) filled++;
@@ -72,6 +72,8 @@ const DNAFormTab = () => {
     if (tone.trim()) filled++;
     if (additionalInfo.trim()) filled++;
     if (portfolioUrl.trim()) filled++;
+    if (instagramUrl.trim()) filled++;
+    if (linkedinUrl.trim()) filled++;
     return { filled, total, percent: Math.round((filled / total) * 100) };
   };
 

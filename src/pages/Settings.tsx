@@ -123,10 +123,9 @@ const Settings = () => {
       </h1>
 
       <Tabs defaultValue="empresa" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="empresa">🏢 Empresa</TabsTrigger>
           <TabsTrigger value="faturamento">💳 Faturamento</TabsTrigger>
-          <TabsTrigger value="templates">📝 Templates</TabsTrigger>
           <TabsTrigger value="integracoes">⚙️ Integrações</TabsTrigger>
         </TabsList>
 

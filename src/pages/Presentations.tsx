@@ -76,7 +76,7 @@ const Presentations = () => {
   const getPublicUrl = (publicId: string) =>
     `${window.location.origin}/presentation/${publicId}`;
 
-  const handleRegenerate = async (template: string, tone: string, customInstructions: string) => {
+  const handleRegenerate = async (template: string, tone: string, customInstructions: string, customColors?: { textColor: string; buttonColor: string; bgColor: string }) => {
     const p = regenDialog.presentation;
     if (!p || !user) return;
 

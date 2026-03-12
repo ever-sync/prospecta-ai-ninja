@@ -181,7 +181,7 @@ const PlanManager = () => {
                     type="number"
                     value={plan.price_cents / 100}
                     onChange={(e) => updatePlan(plan.id, 'price_cents', Math.round(parseFloat(e.target.value || '0') * 100))}
-                    className="bg-secondary border-border"
+                    className=""
                   />
                 </div>
                 <div className="space-y-1.5">

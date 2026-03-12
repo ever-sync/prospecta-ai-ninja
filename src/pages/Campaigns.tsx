@@ -56,6 +56,8 @@ const Campaigns = () => {
   const [previewCampaign, setPreviewCampaign] = useState<Campaign | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendAsAudio, setSendAsAudio] = useState(false);
+  const [voiceId, setVoiceId] = useState<string | null>(null);
 
   // Create form
   const [formName, setFormName] = useState('');
@@ -258,19 +260,22 @@ const Campaigns = () => {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('company_name')
+      .select('company_name, elevenlabs_voice_id')
       .eq('user_id', user.id)
       .single();
 
-    let template: { body: string; subject: string; image_url: string; include_proposal_link: boolean } | null = null;
+    let template: { body: string; subject: string; image_url: string; include_proposal_link: boolean; send_as_audio: boolean } | null = null;
     if ((campaign as any).template_id) {
       const { data: tpl } = await supabase
         .from('message_templates')
-        .select('body, subject, image_url, include_proposal_link')
+        .select('body, subject, image_url, include_proposal_link, send_as_audio')
         .eq('id', (campaign as any).template_id)
         .single();
       template = tpl as any;
     }
+
+    setSendAsAudio(template?.send_as_audio || false);
+    setVoiceId(profile?.elevenlabs_voice_id || null);
 
     const replaceVars = (text: string, pres: any, publicUrl: string) => {
       return text
@@ -335,7 +340,55 @@ const Campaigns = () => {
       for (const lead of previewLeads) {
         const phone = lead.business_phone.replace(/\D/g, '');
         if (!phone) continue;
-        const whatsappUrl = `https://wa.me/55${phone}?text=${encodeURIComponent(lead.message)}`;
+
+        let finalMessage = lead.message;
+
+        // Generate audio if send_as_audio is enabled
+        if (sendAsAudio && voiceId) {
+          try {
+            const response = await fetch(
+              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                  Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                },
+                body: JSON.stringify({ text: lead.message, voice_id: voiceId }),
+              }
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              if (data.audioContent) {
+                // Decode base64 and upload to storage
+                const binaryStr = atob(data.audioContent);
+                const bytes = new Uint8Array(binaryStr.length);
+                for (let i = 0; i < binaryStr.length; i++) {
+                  bytes[i] = binaryStr.charCodeAt(i);
+                }
+                const audioBlob = new Blob([bytes], { type: 'audio/mpeg' });
+                const audioPath = `${user.id}/${campaign.id}/${lead.id}.mp3`;
+
+                const { error: uploadError } = await supabase.storage
+                  .from('audio-messages')
+                  .upload(audioPath, audioBlob, { upsert: true, contentType: 'audio/mpeg' });
+
+                if (!uploadError) {
+                  const { data: { publicUrl } } = supabase.storage
+                    .from('audio-messages')
+                    .getPublicUrl(audioPath);
+                  finalMessage += `\n\n🎙️ Ouça a mensagem em áudio: ${publicUrl}`;
+                }
+              }
+            }
+          } catch (audioErr) {
+            console.error('Audio generation error for lead:', lead.id, audioErr);
+          }
+        }
+
+        const whatsappUrl = `https://wa.me/55${phone}?text=${encodeURIComponent(finalMessage)}`;
         window.open(whatsappUrl, '_blank');
 
         const cpRow = (cpRows || []).find(r => r.presentation_id === lead.id);

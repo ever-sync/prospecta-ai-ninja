@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Presentation, Eye, Send, Trash2, Loader2, RefreshCw } from 'lucide-react';
+import { Presentation, Eye, Send, Trash2, Loader2, RefreshCw, Megaphone } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SendPresentationDialog } from '@/components/SendPresentationDialog';
 import { RegeneratePresentationDialog } from '@/components/RegeneratePresentationDialog';
+import { AddToCampaignDialog } from '@/components/AddToCampaignDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +32,8 @@ const Presentations = () => {
   const { toast } = useToast();
   const [presentations, setPresentations] = useState<PresentationRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [campaignDialog, setCampaignDialog] = useState(false);
   const [sendDialog, setSendDialog] = useState<{ open: boolean; publicUrl: string; name: string; phone: string }>({
     open: false, publicUrl: '', name: '', phone: '',
   });
@@ -64,6 +68,7 @@ const Presentations = () => {
       toast({ title: 'Erro', description: 'Falha ao excluir', variant: 'destructive' });
     } else {
       setPresentations(prev => prev.filter(p => p.id !== id));
+      setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
       toast({ title: 'Excluída', description: 'Apresentação removida' });
     }
   };
@@ -75,12 +80,10 @@ const Presentations = () => {
     const p = regenDialog.presentation;
     if (!p || !user) return;
 
-    // Set status to analyzing
     await supabase.from('presentations').update({ status: 'analyzing' } as any).eq('id', p.id);
     setPresentations(prev => prev.map(x => x.id === p.id ? { ...x, status: 'analyzing' } : x));
 
     try {
-      // Fetch DNA, profile and testimonials
       const [dnaRes, profileRes, testimonialsRes, clientLogosRes] = await Promise.all([
         supabase.from('company_dna').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
@@ -130,6 +133,25 @@ const Presentations = () => {
     }
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+
+  const readyPresentations = presentations.filter(p => p.status === 'ready');
+  const allReadySelected = readyPresentations.length > 0 && readyPresentations.every(p => selectedIds.has(p.id));
+
+  const toggleSelectAll = () => {
+    if (allReadySelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(readyPresentations.map(p => p.id)));
+    }
+  };
+
   const statusBadge = (status: string) => {
     switch (status) {
       case 'ready': return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Pronta</Badge>;
@@ -161,10 +183,19 @@ const Presentations = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-foreground mb-8 flex items-center gap-3">
-        <Presentation className="w-6 h-6 text-primary" />
-        Apresentações ({presentations.length})
-      </h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
+          <Presentation className="w-6 h-6 text-primary" />
+          Apresentações ({presentations.length})
+        </h1>
+
+        {selectedIds.size > 0 && (
+          <Button onClick={() => setCampaignDialog(true)} className="gap-2">
+            <Megaphone className="w-4 h-4" />
+            Enviar para Campanha ({selectedIds.size})
+          </Button>
+        )}
+      </div>
 
       <SendPresentationDialog
         open={sendDialog.open}
@@ -179,6 +210,13 @@ const Presentations = () => {
         onOpenChange={(open) => setRegenDialog(prev => ({ ...prev, open }))}
         onRegenerate={handleRegenerate}
         businessName={regenDialog.presentation?.business_name || ''}
+      />
+
+      <AddToCampaignDialog
+        open={campaignDialog}
+        onOpenChange={setCampaignDialog}
+        presentationIds={Array.from(selectedIds)}
+        onSuccess={() => setSelectedIds(new Set())}
       />
 
       {presentations.length === 0 ? (
@@ -200,6 +238,13 @@ const Presentations = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-secondary/50 hover:bg-secondary/50">
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allReadySelected}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Selecionar todas"
+                  />
+                </TableHead>
                 <TableHead className="text-foreground font-semibold">Empresa</TableHead>
                 <TableHead className="text-foreground font-semibold">Categoria</TableHead>
                 <TableHead className="text-foreground font-semibold text-center">Score</TableHead>
@@ -210,7 +255,15 @@ const Presentations = () => {
             </TableHeader>
             <TableBody>
               {presentations.map(p => (
-                <TableRow key={p.id} className="hover:bg-accent/50">
+                <TableRow key={p.id} className={`hover:bg-accent/50 ${selectedIds.has(p.id) ? 'bg-primary/5' : ''}`}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(p.id)}
+                      onCheckedChange={() => toggleSelect(p.id)}
+                      disabled={p.status !== 'ready'}
+                      aria-label={`Selecionar ${p.business_name}`}
+                    />
+                  </TableCell>
                   <TableCell>
                     <div>
                       <div className="font-medium text-foreground">{p.business_name}</div>

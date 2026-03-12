@@ -1,11 +1,12 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, Search, Dna, Presentation, Settings, LogOut } from 'lucide-react';
+import { Sparkles, LayoutDashboard, Search, Dna, Presentation, Settings, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { path: '/', label: 'Busca', icon: Search },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/search', label: 'Busca', icon: Search },
   { path: '/dna', label: 'DNA', icon: Dna },
   { path: '/presentations', label: 'Apresentações', icon: Presentation },
   { path: '/settings', label: 'Configurações', icon: Settings },

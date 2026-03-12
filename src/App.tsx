@@ -8,6 +8,7 @@ import { AppLayout } from "@/components/AppLayout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import DNA from "./pages/DNA";
+import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import Presentations from "./pages/Presentations";
 import PresentationView from "./pages/PresentationView";
@@ -25,7 +26,8 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/presentation/:publicId" element={<PresentationView />} />
           <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/search" element={<Index />} />
             <Route path="/dna" element={<DNA />} />
             <Route path="/presentations" element={<Presentations />} />
             <Route path="/settings" element={<Settings />} />

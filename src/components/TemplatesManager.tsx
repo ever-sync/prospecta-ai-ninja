@@ -255,7 +255,7 @@ const TemplatesManager = () => {
             {formChannel === 'email' && (
               <div className="space-y-2">
                 <Label>Assunto do Email</Label>
-                <Input value={formSubject} onChange={e => setFormSubject(e.target.value)} placeholder="Ex: Análise exclusiva para {{nome_empresa}}" className="bg-secondary border-border" />
+                <Input value={formSubject} onChange={e => setFormSubject(e.target.value)} placeholder="Ex: Análise exclusiva para {{nome_empresa}}" />
               </div>
             )}
 

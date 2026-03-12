@@ -57,7 +57,7 @@ const PresentationView = () => {
       srcDoc={html || ''}
       className="w-full min-h-screen border-0"
       title="Apresentação"
-      sandbox="allow-same-origin"
+      sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"
     />
   );
 };

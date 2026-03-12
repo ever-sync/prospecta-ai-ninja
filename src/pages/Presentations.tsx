@@ -221,6 +221,7 @@ const Presentations = () => {
                     <span className="text-lg font-bold text-primary">{overallScore(p.analysis_data)}</span>
                   </TableCell>
                   <TableCell className="text-center">{statusBadge(p.status)}</TableCell>
+                  <TableCell className="text-center">{responseBadge(p.lead_response)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       {p.status === 'ready' && (

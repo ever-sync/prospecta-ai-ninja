@@ -410,7 +410,7 @@ const Campaigns = () => {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Nome *</Label>
-              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Restaurantes SP - Março" className="bg-secondary border-border" />
+              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Restaurantes SP - Março" />
             </div>
             <div className="space-y-2">
               <Label>Descrição</Label>

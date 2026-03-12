@@ -49,6 +49,8 @@ Deno.serve(async (req) => {
     const portfolioUrl = dna?.portfolio_url || '';
     const instagramUrl = dna?.instagram_url || '';
     const linkedinUrl = dna?.linkedin_url || '';
+    const facebookUrl = dna?.facebook_url || '';
+    const youtubeUrl = dna?.youtube_url || '';
 
     // Build WhatsApp link
     const rawPhone = profile?.phone || '';
@@ -103,9 +105,11 @@ ${analysis?.website_screenshot ? `4.6. **Screenshot do Site Atual** — Incluir 
 7. **Nossos Diferenciais** — Por que escolher esta empresa e não outra
 8. **Proposta de Valor** — A promessa principal da empresa prospectora
 ${portfolioUrl ? `8.5. **Botão Portfólio** — Incluir um botão estilizado "📂 Acessar Portfólio" que abre o link "${portfolioUrl}" em nova aba (target="_blank"). Estilo: botão com borda, cor accent do template, cantos arredondados, centralizado, com ícone. Colocar abaixo da proposta de valor.` : ''}
-${(instagramUrl || linkedinUrl) ? `8.6. **Redes Sociais** — No rodapé ou após a proposta de valor, incluir ícones/links para as redes sociais:
+${(instagramUrl || linkedinUrl || facebookUrl || youtubeUrl) ? `8.6. **Redes Sociais** — No rodapé ou após a proposta de valor, incluir ícones/links para as redes sociais:
 ${instagramUrl ? `   - Instagram: link "${instagramUrl}" com ícone do Instagram (usar SVG inline simples ou emoji 📸)` : ''}
 ${linkedinUrl ? `   - LinkedIn: link "${linkedinUrl}" com ícone do LinkedIn (usar SVG inline simples ou emoji 💼)` : ''}
+${facebookUrl ? `   - Facebook: link "${facebookUrl}" com ícone do Facebook (usar SVG inline simples ou emoji 👍)` : ''}
+${youtubeUrl ? `   - YouTube: link "${youtubeUrl}" com ícone do YouTube (usar SVG inline simples ou emoji 🎬)` : ''}
    Estilo: ícones lado a lado, centralizados, com hover effect sutil. Abrir em nova aba.` : ''}
 ${clientLogosBlock ? `${testimonialsBlock ? '9' : '9'}. **Nossos Clientes** — Seção "Empresas que confiam em nós" com os logos dos clientes dispostos em faixa horizontal centralizada` : ''}
 ${testimonialsBlock ? `${clientLogosBlock ? '10' : '9'}. **Depoimentos de Clientes** — Seção com os depoimentos reais (com foto se disponível), mostrando resultados de outros clientes` : ''}
@@ -132,6 +136,8 @@ EMPRESA QUE ESTÁ VENDENDO (prospectora):
 - Portfólio URL: ${portfolioUrl || 'Não informado'}
 - Instagram: ${instagramUrl || 'Não informado'}
 - LinkedIn: ${linkedinUrl || 'Não informado'}
+- Facebook: ${facebookUrl || 'Não informado'}
+- YouTube: ${youtubeUrl || 'Não informado'}
 - Telefone/contato: ${profile?.phone || 'Não informado'}
 - Email: ${profile?.email || 'Não informado'}
 - WhatsApp URL para CTA: ${whatsappUrl || 'Sem telefone cadastrado'}

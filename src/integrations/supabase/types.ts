@@ -135,6 +135,7 @@ export type Database = {
           additional_info: string | null
           created_at: string | null
           differentials: string[] | null
+          facebook_url: string | null
           id: string
           instagram_url: string | null
           linkedin_url: string | null
@@ -145,11 +146,13 @@ export type Database = {
           updated_at: string | null
           user_id: string
           value_proposition: string | null
+          youtube_url: string | null
         }
         Insert: {
           additional_info?: string | null
           created_at?: string | null
           differentials?: string[] | null
+          facebook_url?: string | null
           id?: string
           instagram_url?: string | null
           linkedin_url?: string | null
@@ -160,11 +163,13 @@ export type Database = {
           updated_at?: string | null
           user_id: string
           value_proposition?: string | null
+          youtube_url?: string | null
         }
         Update: {
           additional_info?: string | null
           created_at?: string | null
           differentials?: string[] | null
+          facebook_url?: string | null
           id?: string
           instagram_url?: string | null
           linkedin_url?: string | null
@@ -175,6 +180,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           value_proposition?: string | null
+          youtube_url?: string | null
         }
         Relationships: []
       }

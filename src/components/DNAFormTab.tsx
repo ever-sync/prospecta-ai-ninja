@@ -22,6 +22,8 @@ const DNAFormTab = () => {
   const [portfolioUrl, setPortfolioUrl] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [facebookUrl, setFacebookUrl] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
   const [newService, setNewService] = useState('');
   const [newDifferential, setNewDifferential] = useState('');
   const [saving, setSaving] = useState(false);
@@ -46,6 +48,8 @@ const DNAFormTab = () => {
           setPortfolioUrl((data as any).portfolio_url || '');
           setInstagramUrl((data as any).instagram_url || '');
           setLinkedinUrl((data as any).linkedin_url || '');
+          setFacebookUrl((data as any).facebook_url || '');
+          setYoutubeUrl((data as any).youtube_url || '');
         }
       });
   }, [user]);
@@ -64,7 +68,7 @@ const DNAFormTab = () => {
 
   const completeness = () => {
     let filled = 0;
-    const total = 9;
+    const total = 11;
     if (services.length > 0) filled++;
     if (differentials.length > 0) filled++;
     if (targetAudience.trim()) filled++;
@@ -74,6 +78,8 @@ const DNAFormTab = () => {
     if (portfolioUrl.trim()) filled++;
     if (instagramUrl.trim()) filled++;
     if (linkedinUrl.trim()) filled++;
+    if (facebookUrl.trim()) filled++;
+    if (youtubeUrl.trim()) filled++;
     return { filled, total, percent: Math.round((filled / total) * 100) };
   };
 
@@ -92,6 +98,8 @@ const DNAFormTab = () => {
       portfolio_url: portfolioUrl,
       instagram_url: instagramUrl,
       linkedin_url: linkedinUrl,
+      facebook_url: facebookUrl,
+      youtube_url: youtubeUrl,
       updated_at: new Date().toISOString(),
     };
 
@@ -225,6 +233,18 @@ const DNAFormTab = () => {
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">LinkedIn</Label>
           <Input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/company/suaempresa" className="bg-secondary border-border" />
+        </div>
+
+        {/* Facebook */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">Facebook</Label>
+          <Input value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} placeholder="https://facebook.com/suaempresa" className="bg-secondary border-border" />
+        </div>
+
+        {/* YouTube */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">YouTube</Label>
+          <Input value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/@suaempresa" className="bg-secondary border-border" />
         </div>
 
         <Button onClick={handleSave} disabled={saving} className="w-full gradient-primary text-primary-foreground font-semibold py-5 glow-primary gap-2">

@@ -42,6 +42,7 @@ interface PresentationOption {
 const Campaigns = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { canUse } = useSubscription();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);

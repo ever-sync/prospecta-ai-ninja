@@ -32,6 +32,9 @@ const Presentations = () => {
   const [sendDialog, setSendDialog] = useState<{ open: boolean; publicUrl: string; name: string; phone: string }>({
     open: false, publicUrl: '', name: '', phone: '',
   });
+  const [regenDialog, setRegenDialog] = useState<{ open: boolean; presentation: PresentationRow | null }>({
+    open: false, presentation: null,
+  });
 
   const fetchPresentations = async () => {
     if (!user) return;

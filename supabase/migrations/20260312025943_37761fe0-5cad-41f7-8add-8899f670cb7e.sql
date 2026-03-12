@@ -1,0 +1,1 @@
+ALTER TABLE public.company_dna ADD COLUMN portfolio_url text DEFAULT '';

@@ -235,6 +235,18 @@ const DNAFormTab = () => {
           <Input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/company/suaempresa" className="bg-secondary border-border" />
         </div>
 
+        {/* Facebook */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">Facebook</Label>
+          <Input value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} placeholder="https://facebook.com/suaempresa" className="bg-secondary border-border" />
+        </div>
+
+        {/* YouTube */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">YouTube</Label>
+          <Input value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/@suaempresa" className="bg-secondary border-border" />
+        </div>
+
         <Button onClick={handleSave} disabled={saving} className="w-full gradient-primary text-primary-foreground font-semibold py-5 glow-primary gap-2">
           <Save className="w-4 h-4" />
           {saving ? 'Salvando...' : 'Salvar DNA'}

@@ -453,7 +453,7 @@ const Campaigns = () => {
             </div>
             <div className="space-y-2">
               <Label>Agendamento (opcional)</Label>
-              <Input type="datetime-local" value={formSchedule} onChange={e => setFormSchedule(e.target.value)} className="bg-secondary border-border" />
+              <Input type="datetime-local" value={formSchedule} onChange={e => setFormSchedule(e.target.value)} />
             </div>
           </div>
           <DialogFooter>

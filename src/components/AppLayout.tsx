@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, Search, Dna, Presentation, Settings, LogOut } from 'lucide-react';
+import { Sparkles, LayoutDashboard, Search, Dna, Presentation, Settings, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';

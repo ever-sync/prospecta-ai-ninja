@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, LayoutDashboard, Search, Dna, Presentation, Megaphone, FileText, Settings, LogOut } from 'lucide-react';
+import { Sparkles, LayoutDashboard, Search, Dna, Presentation, Megaphone, FileText, Settings, LogOut, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';

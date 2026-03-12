@@ -56,6 +56,8 @@ const Campaigns = () => {
   const [previewCampaign, setPreviewCampaign] = useState<Campaign | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendAsAudio, setSendAsAudio] = useState(false);
+  const [voiceId, setVoiceId] = useState<string | null>(null);
 
   // Create form
   const [formName, setFormName] = useState('');

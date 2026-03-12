@@ -143,6 +143,9 @@ const Admin = () => {
         <StatCard icon={Mail} label="Emails Enviados" value={stats.totals.emails} sub={`${stats.thisMonth.emails} este mês`} color="bg-purple-500/10 text-purple-500" />
       </div>
 
+      {/* Evolution Chart */}
+      <AdminCharts data={stats.dailyStats} />
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Users */}
         <Card>

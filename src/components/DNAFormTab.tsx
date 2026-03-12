@@ -201,7 +201,7 @@ const DNAFormTab = () => {
         {/* Value Proposition */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Proposta de Valor</Label>
-          <Textarea value={valueProposition} onChange={(e) => setValueProposition(e.target.value)} placeholder="O que torna sua empresa única?" className="bg-secondary border-border min-h-[80px]" />
+          <Textarea value={valueProposition} onChange={(e) => setValueProposition(e.target.value)} placeholder="O que torna sua empresa única?" className="min-h-[80px]" />
         </div>
 
         {/* Tone */}

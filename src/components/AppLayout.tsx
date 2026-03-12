@@ -1,6 +1,6 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  BarChart3, LayoutGrid, SearchIcon, Fingerprint, FileBarChart,
+  BarChart3, LayoutGrid, Users, SearchIcon, Fingerprint, FileBarChart,
   Send, FileStack, Settings, LogOut, ShieldCheck, Menu,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

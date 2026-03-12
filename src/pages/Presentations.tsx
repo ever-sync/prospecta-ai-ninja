@@ -201,6 +201,7 @@ const Presentations = () => {
                 <TableHead className="text-foreground font-semibold">Categoria</TableHead>
                 <TableHead className="text-foreground font-semibold text-center">Score</TableHead>
                 <TableHead className="text-foreground font-semibold text-center">Status</TableHead>
+                <TableHead className="text-foreground font-semibold text-center">Resposta</TableHead>
                 <TableHead className="text-foreground font-semibold text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>

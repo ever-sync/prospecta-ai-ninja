@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, Copy, Image, Link2, MessageSquare, Mail, Loader2, FileText } from 'lucide-react';
+import { Plus, Trash2, Save, Copy, Image, Link2, MessageSquare, Mail, Loader2, FileText, Mic, Square, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -58,6 +58,10 @@ const TemplatesManager = () => {
   const [formIncludeLink, setFormIncludeLink] = useState(true);
   const [formSendAsAudio, setFormSendAsAudio] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [generatingAudio, setGeneratingAudio] = useState(false);
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const [audioRef] = useState<{ current: HTMLAudioElement | null }>({ current: null });
 
   useEffect(() => {
     if (user) fetchTemplates();
@@ -166,6 +170,86 @@ const TemplatesManager = () => {
       setFormImageUrl(publicUrl);
     }
     setUploading(false);
+  };
+
+  const getPreviewText = () => {
+    return formBody
+      .replace(/\{\{nome_empresa\}\}/g, 'Restaurante Exemplo')
+      .replace(/\{\{categoria\}\}/g, 'Restaurante')
+      .replace(/\{\{endereco\}\}/g, 'Rua Exemplo, 123')
+      .replace(/\{\{telefone\}\}/g, '(11) 99999-9999')
+      .replace(/\{\{website\}\}/g, 'www.exemplo.com.br')
+      .replace(/\{\{rating\}\}/g, '4.5')
+      .replace(/\{\{score\}\}/g, '72')
+      .replace(/\{\{link_proposta\}\}/g, 'https://app.com/presentation/abc123')
+      .replace(/\{\{sua_empresa\}\}/g, 'Minha Empresa');
+  };
+
+  const handleAudioPreview = async () => {
+    if (!user || !formBody.trim()) return;
+
+    // Stop if playing
+    if (audioPlaying && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setAudioPlaying(false);
+      return;
+    }
+
+    setGeneratingAudio(true);
+    try {
+      // Get user's voice ID
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('elevenlabs_voice_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!profile?.elevenlabs_voice_id) {
+        toast({
+          title: 'Voice ID não configurado',
+          description: 'Vá em Configurações e cole seu Voice ID do ElevenLabs.',
+          variant: 'destructive',
+        });
+        setGeneratingAudio(false);
+        return;
+      }
+
+      const previewText = getPreviewText();
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ text: previewText, voice_id: profile.elevenlabs_voice_id }),
+        }
+      );
+
+      if (!response.ok) throw new Error('Falha ao gerar áudio');
+
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      // Clean up previous URL
+      if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
+
+      const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
+      setAudioPreviewUrl(audioUrl);
+
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      audio.onended = () => setAudioPlaying(false);
+      setAudioPlaying(true);
+      await audio.play();
+    } catch (err: any) {
+      toast({ title: 'Erro ao gerar áudio', description: err.message, variant: 'destructive' });
+    }
+    setGeneratingAudio(false);
   };
 
   const whatsappTemplates = templates.filter(t => t.channel === 'whatsapp');
@@ -336,12 +420,34 @@ const TemplatesManager = () => {
 
             {/* Send as audio - WhatsApp only */}
             {formChannel === 'whatsapp' && (
-              <div className="flex items-center justify-between p-3 rounded-lg border border-border">
-                <div>
-                  <Label className="text-sm font-medium">🎙️ Enviar como Áudio</Label>
-                  <p className="text-xs text-muted-foreground">Converte o texto em áudio com sua voz clonada (ElevenLabs)</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div>
+                    <Label className="text-sm font-medium">🎙️ Enviar como Áudio</Label>
+                    <p className="text-xs text-muted-foreground">Converte o texto em áudio com sua voz clonada (ElevenLabs)</p>
+                  </div>
+                  <Switch checked={formSendAsAudio} onCheckedChange={setFormSendAsAudio} />
                 </div>
-                <Switch checked={formSendAsAudio} onCheckedChange={setFormSendAsAudio} />
+
+                {formSendAsAudio && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 w-full"
+                    onClick={handleAudioPreview}
+                    disabled={generatingAudio || !formBody.trim()}
+                  >
+                    {generatingAudio ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : audioPlaying ? (
+                      <Square className="w-4 h-4" />
+                    ) : (
+                      <Volume2 className="w-4 h-4" />
+                    )}
+                    {generatingAudio ? 'Gerando áudio...' : audioPlaying ? 'Parar áudio' : 'Ouvir preview do áudio'}
+                  </Button>
+                )}
               </div>
             )}
 
@@ -350,16 +456,7 @@ const TemplatesManager = () => {
               <Label className="text-sm">Pré-visualização</Label>
               <Card className="p-4 bg-secondary/50">
                 <p className="text-sm text-foreground whitespace-pre-wrap">
-                  {formBody
-                    .replace(/\{\{nome_empresa\}\}/g, 'Restaurante Exemplo')
-                    .replace(/\{\{categoria\}\}/g, 'Restaurante')
-                    .replace(/\{\{endereco\}\}/g, 'Rua Exemplo, 123')
-                    .replace(/\{\{telefone\}\}/g, '(11) 99999-9999')
-                    .replace(/\{\{website\}\}/g, 'www.exemplo.com.br')
-                    .replace(/\{\{rating\}\}/g, '4.5')
-                    .replace(/\{\{score\}\}/g, '72')
-                    .replace(/\{\{link_proposta\}\}/g, 'https://app.com/presentation/abc123')
-                    .replace(/\{\{sua_empresa\}\}/g, 'Minha Empresa')}
+                  {getPreviewText()}
                 </p>
               </Card>
             </div>

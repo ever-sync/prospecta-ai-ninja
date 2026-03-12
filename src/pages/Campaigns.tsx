@@ -290,8 +290,11 @@ const Campaigns = () => {
         .replace(/\{\{sua_empresa\}\}/g, profile?.company_name || 'Nossa Empresa');
     };
 
+    // Use published URL if available, fallback to current origin
+    const publishedOrigin = 'https://prospecta-ai-ninja.lovable.app';
+    
     const previews = presentations.map(pres => {
-      const publicUrl = `${window.location.origin}/presentation/${pres.public_id}`;
+      const publicUrl = `${publishedOrigin}/presentation/${pres.public_id}`;
       let message: string;
       let subject: string | undefined;
       if (template) {
@@ -388,7 +391,9 @@ const Campaigns = () => {
           }
         }
 
-        const whatsappUrl = `https://wa.me/55${phone}?text=${encodeURIComponent(finalMessage)}`;
+        // Add country code 55 only if not already present
+        const fullPhone = phone.startsWith('55') ? phone : `55${phone}`;
+        const whatsappUrl = `https://wa.me/${fullPhone}?text=${encodeURIComponent(finalMessage)}`;
         window.open(whatsappUrl, '_blank');
 
         const cpRow = (cpRows || []).find(r => r.presentation_id === lead.id);

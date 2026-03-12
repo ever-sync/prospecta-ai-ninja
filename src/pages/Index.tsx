@@ -121,16 +121,8 @@ const Index = () => {
           item.id === business.id ? { ...item, status: 'generating' as const } : item
         ));
 
-        // Step 2: Generate presentation HTML
-        const { data: genResult, error: genError } = await supabase.functions.invoke('generate-presentation', {
-          body: { analysis, business, dna, profile, testimonials },
-        });
-
-        if (genError) throw new Error(genError.message);
-        if (genResult.error) throw new Error(genResult.error);
-
-        // Step 3: Save to database
-        const { error: insertError } = await supabase.from('presentations').insert({
+        // Step 2: Create presentation record first to get public_id
+        const { data: insertedRow, error: insertError } = await supabase.from('presentations').insert({
           user_id: user.id,
           business_name: business.name,
           business_address: business.address,
@@ -139,11 +131,25 @@ const Index = () => {
           business_category: business.category,
           business_rating: business.rating,
           analysis_data: analysis,
-          presentation_html: genResult.html,
-          status: 'ready',
+          status: 'generating',
+        }).select('id, public_id').single();
+
+        if (insertError || !insertedRow) throw new Error(insertError?.message || 'Insert failed');
+
+        // Step 3: Generate presentation HTML with public_id for response buttons
+        const { data: genResult, error: genError } = await supabase.functions.invoke('generate-presentation', {
+          body: { analysis, business, dna, profile, testimonials, publicId: insertedRow.public_id },
         });
 
-        if (insertError) throw new Error(insertError.message);
+        if (genError) throw new Error(genError.message);
+        if (genResult.error) throw new Error(genResult.error);
+
+        // Step 4: Update with generated HTML
+        const { error: updateError } = await supabase.from('presentations')
+          .update({ presentation_html: genResult.html, status: 'ready' })
+          .eq('id', insertedRow.id);
+
+        if (updateError) throw new Error(updateError.message);
 
         setAnalysisItems(prev => prev.map(item =>
           item.id === business.id ? { ...item, status: 'done' as const } : item

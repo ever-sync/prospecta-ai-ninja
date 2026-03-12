@@ -414,7 +414,7 @@ const Campaigns = () => {
             </div>
             <div className="space-y-2">
               <Label>Descrição</Label>
-              <Textarea value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Objetivo da campanha..." className="bg-secondary border-border" />
+              <Textarea value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Objetivo da campanha..." />
             </div>
             <div className="space-y-2">
               <Label>Canal de Envio</Label>

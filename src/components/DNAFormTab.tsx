@@ -244,7 +244,7 @@ const DNAFormTab = () => {
         {/* YouTube */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">YouTube</Label>
-          <Input value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/@suaempresa" className="bg-secondary border-border" />
+          <Input value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/@suaempresa" />
         </div>
 
         <Button onClick={handleSave} disabled={saving} className="w-full gradient-primary text-primary-foreground font-semibold py-5 glow-primary gap-2">

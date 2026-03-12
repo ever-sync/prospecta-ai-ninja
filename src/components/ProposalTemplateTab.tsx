@@ -306,7 +306,7 @@ const ProposalTemplateTab = () => {
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
           placeholder="Ex: Sempre incluir uma seção sobre nosso suporte 24/7 e garantia de 30 dias..."
-          className="bg-secondary border-border min-h-[120px]"
+          className="min-h-[120px]"
         />
       </div>
 

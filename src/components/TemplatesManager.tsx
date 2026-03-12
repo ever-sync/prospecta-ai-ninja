@@ -23,6 +23,7 @@ interface Template {
   body: string;
   image_url: string;
   include_proposal_link: boolean;
+  send_as_audio: boolean;
   created_at: string;
 }
 

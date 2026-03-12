@@ -225,25 +225,55 @@ const Campaigns = () => {
     const presIds = cpRows.map(r => r.presentation_id);
     const { data: presentations } = await supabase
       .from('presentations')
-      .select('id, public_id, business_name, business_phone')
+      .select('id, public_id, business_name, business_phone, business_website, business_address, business_category, business_rating, analysis_data')
       .in('id', presIds);
 
     if (!presentations) return;
 
+    // Get profile and template
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('company_name')
+      .eq('user_id', user.id)
+      .single();
+
+    // Fetch template if campaign has one
+    let template: { body: string; subject: string; image_url: string; include_proposal_link: boolean } | null = null;
+    if ((campaign as any).template_id) {
+      const { data: tpl } = await supabase
+        .from('message_templates')
+        .select('body, subject, image_url, include_proposal_link')
+        .eq('id', (campaign as any).template_id)
+        .single();
+      template = tpl as any;
+    }
+
+    const replaceVariables = (text: string, pres: any, publicUrl: string) => {
+      return text
+        .replace(/\{\{nome_empresa\}\}/g, pres.business_name || '')
+        .replace(/\{\{categoria\}\}/g, pres.business_category || '')
+        .replace(/\{\{endereco\}\}/g, pres.business_address || '')
+        .replace(/\{\{telefone\}\}/g, pres.business_phone || '')
+        .replace(/\{\{website\}\}/g, pres.business_website || '')
+        .replace(/\{\{rating\}\}/g, pres.business_rating?.toString() || '')
+        .replace(/\{\{score\}\}/g, (pres.analysis_data as any)?.overallScore?.toString() || '')
+        .replace(/\{\{link_proposta\}\}/g, publicUrl)
+        .replace(/\{\{sua_empresa\}\}/g, profile?.company_name || 'Nossa Empresa');
+    };
+
     // For WhatsApp: open links in sequence
     if (campaign.channel === 'whatsapp') {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('company_name')
-        .eq('user_id', user.id)
-        .single();
-
       for (const pres of presentations) {
         const phone = (pres.business_phone || '').replace(/\D/g, '');
         if (!phone) continue;
 
         const publicUrl = `${window.location.origin}/presentation/${pres.public_id}`;
-        const message = `Olá! Sou da ${profile?.company_name || 'nossa empresa'}. Preparamos uma apresentação exclusiva para ${pres.business_name}: ${publicUrl}`;
+        let message: string;
+        if (template) {
+          message = replaceVariables(template.body, pres, publicUrl);
+        } else {
+          message = `Olá! Sou da ${profile?.company_name || 'nossa empresa'}. Preparamos uma apresentação exclusiva para ${pres.business_name}: ${publicUrl}`;
+        }
         const whatsappUrl = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
 

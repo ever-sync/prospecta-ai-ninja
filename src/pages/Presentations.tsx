@@ -81,10 +81,11 @@ const Presentations = () => {
 
     try {
       // Fetch DNA, profile and testimonials
-      const [dnaRes, profileRes, testimonialsRes] = await Promise.all([
+      const [dnaRes, profileRes, testimonialsRes, clientLogosRes] = await Promise.all([
         supabase.from('company_dna').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('testimonials').select('name, company, testimonial, image_url').eq('user_id', user.id),
+        supabase.from('client_logos').select('company_name, logo_url').eq('user_id', user.id),
       ]);
 
       const { data: genData, error: genError } = await supabase.functions.invoke('generate-presentation', {

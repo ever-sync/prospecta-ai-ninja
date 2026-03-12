@@ -222,7 +222,7 @@ const PlanManager = () => {
                     type="number"
                     value={plan.limit_emails}
                     onChange={(e) => updatePlan(plan.id, 'limit_emails', parseInt(e.target.value || '0'))}
-                    className="bg-secondary border-border"
+                    className=""
                   />
                 </div>
               </div>

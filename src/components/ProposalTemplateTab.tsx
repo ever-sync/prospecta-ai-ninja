@@ -299,6 +299,48 @@ const ProposalTemplateTab = () => {
             );
           })}
         </div>
+
+        {/* Custom color pickers */}
+        {selectedTemplate === 'custom' && (
+          <div className="grid grid-cols-3 gap-4 p-4 rounded-xl border-2 border-primary/20 bg-primary/5">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-foreground">Cor do Texto</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={customTextColor}
+                  onChange={(e) => setCustomTextColor(e.target.value)}
+                  className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
+                />
+                <span className="text-xs text-muted-foreground font-mono">{customTextColor}</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-foreground">Cor dos Botões</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={customButtonColor}
+                  onChange={(e) => setCustomButtonColor(e.target.value)}
+                  className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
+                />
+                <span className="text-xs text-muted-foreground font-mono">{customButtonColor}</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-foreground">Cor de Fundo</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={customBgColor}
+                  onChange={(e) => setCustomBgColor(e.target.value)}
+                  className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
+                />
+                <span className="text-xs text-muted-foreground font-mono">{customBgColor}</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tone */}

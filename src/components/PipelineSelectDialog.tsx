@@ -46,15 +46,7 @@ export const PipelineSelectDialog = ({ open, onConfirm, onCancel }: PipelineSele
         .eq('user_id', user.id)
         .order('position');
 
-      if (!data || data.length === 0) {
-        // Create default stages
-        const toInsert = DEFAULT_STAGES.map((s) => ({ ...s, user_id: user.id }));
-        const { data: inserted } = await supabase.from('pipeline_stages').insert(toInsert).select('*');
-        if (inserted) {
-          setStages(inserted as PipelineStage[]);
-          setStageId(inserted[0].id);
-        }
-      } else {
+      if (data && data.length > 0) {
         setStages(data as PipelineStage[]);
         setStageId(data[0].id);
       }

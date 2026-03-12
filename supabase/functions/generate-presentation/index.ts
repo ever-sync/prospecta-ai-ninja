@@ -60,6 +60,14 @@ Deno.serve(async (req) => {
 ${testimonials.map((t: any, i: number) => `${i + 1}. "${t.testimonial}" — ${t.name}${t.company ? `, ${t.company}` : ''}${t.image_url ? ` (foto: ${t.image_url})` : ''}`).join('\n')}`;
     }
 
+    // Build client logos section
+    let clientLogosBlock = '';
+    if (clientLogos && clientLogos.length > 0) {
+      clientLogosBlock = `\n\nLOGOS DE CLIENTES (incluir na apresentação como seção "Empresas que confiam em nós" ou "Nossos Clientes"):
+Exibir os logos em uma faixa horizontal centralizada, com espaçamento uniforme. Cada logo deve ter max-height de 50px e ser exibido com <img> tag. Se houver nome da empresa, usar como alt text.
+${clientLogos.map((l: any, i: number) => `${i + 1}. ${l.company_name || 'Cliente'}: ${l.logo_url}`).join('\n')}`;
+    }
+
     const systemPrompt = `Você é um especialista em criar apresentações comerciais de vendas persuasivas. Seu objetivo é gerar uma apresentação HTML que VENDA os serviços da empresa prospectora para o lead analisado.
 
 OBJETIVO PRINCIPAL: A apresentação deve convencer o lead (empresa analisada) de que ele PRECISA contratar os serviços da empresa prospectora. Use os dados da análise para mostrar problemas e oportunidades, e então posicione os serviços como a solução ideal.

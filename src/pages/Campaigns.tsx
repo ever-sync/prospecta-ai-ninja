@@ -526,10 +526,10 @@ const Campaigns = () => {
         <div className="grid gap-4">
           {campaigns.map(c => (
             <Card key={c.id} className="p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-semibold text-foreground text-lg">{c.name}</h3>
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <h3 className="font-semibold text-foreground text-lg truncate">{c.name}</h3>
                     {statusBadge(c.status)}
                     <Badge variant="outline" className="text-xs">{channelLabel(c.channel)}</Badge>
                   </div>

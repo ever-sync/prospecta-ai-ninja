@@ -184,6 +184,9 @@ const ProposalTemplateTab = () => {
   const [selectedTemplate, setSelectedTemplate] = useState('modern-dark');
   const [selectedTone, setSelectedTone] = useState('professional');
   const [instructions, setInstructions] = useState('');
+  const [customTextColor, setCustomTextColor] = useState('#ffffff');
+  const [customButtonColor, setCustomButtonColor] = useState('#6366f1');
+  const [customBgColor, setCustomBgColor] = useState('#0c0c1d');
 
   useEffect(() => {
     if (!user) return;

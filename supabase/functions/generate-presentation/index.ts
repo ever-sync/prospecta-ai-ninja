@@ -164,6 +164,9 @@ Gere o HTML completo da apresentação.`;
     if (analysis?.google_maps_screenshot) {
       html = html.replaceAll('GOOGLE_MAPS_SCREENSHOT_PLACEHOLDER', analysis.google_maps_screenshot);
     }
+    if (analysis?.website_screenshot) {
+      html = html.replaceAll('WEBSITE_SCREENSHOT_PLACEHOLDER', analysis.website_screenshot);
+    }
 
     return new Response(JSON.stringify({ success: true, html }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

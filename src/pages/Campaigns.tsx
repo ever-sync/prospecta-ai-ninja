@@ -467,7 +467,7 @@ const Campaigns = () => {
 
       {/* Add Presentations Dialog */}
       <Dialog open={!!showAddPresentations} onOpenChange={() => setShowAddPresentations(null)}>
-        <DialogContent className="bg-card border-border max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogContent className="bg-card max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">Adicionar Apresentações</DialogTitle>
           </DialogHeader>

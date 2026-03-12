@@ -156,6 +156,7 @@ const Admin = () => {
       <Tabs defaultValue="dashboard" className="space-y-6">
         <TabsList>
           <TabsTrigger value="dashboard">📊 Dashboard</TabsTrigger>
+          <TabsTrigger value="custos">💰 Custos & APIs</TabsTrigger>
           <TabsTrigger value="planos">👑 Planos</TabsTrigger>
         </TabsList>
 

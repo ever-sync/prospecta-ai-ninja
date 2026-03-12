@@ -9,6 +9,7 @@ const navItems = [
   { path: '/search', label: 'Busca', icon: Search },
   { path: '/dna', label: 'DNA', icon: Dna },
   { path: '/presentations', label: 'Apresentações', icon: Presentation },
+  { path: '/campaigns', label: 'Campanhas', icon: Megaphone },
   { path: '/settings', label: 'Configurações', icon: Settings },
 ];
 

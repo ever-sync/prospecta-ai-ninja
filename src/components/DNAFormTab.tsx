@@ -133,7 +133,7 @@ const DNAFormTab = () => {
         </Badge>
       </div>
 
-      <Card className="p-6 bg-card border-border space-y-6">
+      <Card className="p-6 space-y-6">
         <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
           <div className="h-full gradient-primary transition-all duration-500" style={{ width: `${percent}%` }} />
         </div>

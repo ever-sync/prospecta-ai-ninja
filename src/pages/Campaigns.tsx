@@ -290,8 +290,11 @@ const Campaigns = () => {
         .replace(/\{\{sua_empresa\}\}/g, profile?.company_name || 'Nossa Empresa');
     };
 
+    // Use published URL if available, fallback to current origin
+    const publishedOrigin = 'https://prospecta-ai-ninja.lovable.app';
+    
     const previews = presentations.map(pres => {
-      const publicUrl = `${window.location.origin}/presentation/${pres.public_id}`;
+      const publicUrl = `${publishedOrigin}/presentation/${pres.public_id}`;
       let message: string;
       let subject: string | undefined;
       if (template) {

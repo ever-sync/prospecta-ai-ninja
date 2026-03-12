@@ -23,6 +23,12 @@ interface AdminStats {
     views: number;
     emails: number;
   };
+  dailyStats: Array<{
+    date: string;
+    presentations: number;
+    views: number;
+    emails: number;
+  }>;
   topUsers: Array<{
     userId: string;
     email: string;

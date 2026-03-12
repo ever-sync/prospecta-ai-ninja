@@ -62,7 +62,7 @@ const Auth = () => {
         </div>
 
         {/* Form */}
-        <Card className="p-8 bg-card border-border">
+        <Card className="p-8">
           <h2 className="text-lg font-semibold text-foreground mb-6">
             {isLogin ? 'Entrar na sua conta' : 'Criar nova conta'}
           </h2>

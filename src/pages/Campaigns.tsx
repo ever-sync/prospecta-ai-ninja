@@ -382,7 +382,7 @@ const Campaigns = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 flex justify-center">
+      <div className="p-4 lg:p-8 flex justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );

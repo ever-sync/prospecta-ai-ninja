@@ -213,7 +213,7 @@ const PlanManager = () => {
                     type="number"
                     value={plan.limit_campaigns}
                     onChange={(e) => updatePlan(plan.id, 'limit_campaigns', parseInt(e.target.value || '0'))}
-                    className="bg-secondary border-border"
+                    className=""
                   />
                 </div>
                 <div className="space-y-1.5">

@@ -353,6 +353,28 @@ const Campaigns = () => {
                 </SelectContent>
               </Select>
             </div>
+            {/* Template Selector - filtered by channel */}
+            <div className="space-y-2">
+              <Label>Template de Mensagem</Label>
+              <Select value={formTemplateId} onValueChange={setFormTemplateId}>
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue placeholder="Selecione um template (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.filter(t => t.channel === formChannel).length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      Nenhum template de {formChannel === 'whatsapp' ? 'WhatsApp' : 'Email'}. Crie um em Configurações → Templates.
+                    </div>
+                  ) : (
+                    templates
+                      .filter(t => t.channel === formChannel)
+                      .map(t => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>Agendamento (opcional)</Label>
               <Input type="datetime-local" value={formSchedule} onChange={e => setFormSchedule(e.target.value)} className="bg-secondary border-border" />

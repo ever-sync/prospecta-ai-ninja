@@ -117,6 +117,7 @@ export type Database = {
           business_website: string | null
           created_at: string | null
           id: string
+          lead_response: string | null
           presentation_html: string | null
           public_id: string | null
           status: string | null
@@ -132,6 +133,7 @@ export type Database = {
           business_website?: string | null
           created_at?: string | null
           id?: string
+          lead_response?: string | null
           presentation_html?: string | null
           public_id?: string | null
           status?: string | null
@@ -147,6 +149,7 @@ export type Database = {
           business_website?: string | null
           created_at?: string | null
           id?: string
+          lead_response?: string | null
           presentation_html?: string | null
           public_id?: string | null
           status?: string | null

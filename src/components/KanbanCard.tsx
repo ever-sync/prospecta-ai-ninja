@@ -21,6 +21,7 @@ interface KanbanCardProps {
     id: string;
     business_name: string | null;
     business_phone: string | null;
+    business_website: string | null;
     business_category: string | null;
     created_at: string | null;
   };

@@ -280,7 +280,7 @@ const ProposalTemplateTab = () => {
 
                 {/* Preview */}
                 <div className="h-36 p-2">
-                  <ProposalPreview modelKey={model.key} />
+                  <ProposalPreview modelKey={model.key} customColors={model.key === 'custom' ? { text: customTextColor, button: customButtonColor, bg: customBgColor } : undefined} />
                 </div>
 
                 {/* Info */}

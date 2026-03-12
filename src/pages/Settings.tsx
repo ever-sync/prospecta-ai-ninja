@@ -108,7 +108,7 @@ const Settings = () => {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
+    <div className="p-4 lg:p-8 max-w-3xl">
       <h1 className="text-2xl font-bold text-foreground mb-8 flex items-center gap-3">
         <Settings2 className="w-6 h-6 text-primary" />
         Configurações
@@ -121,16 +121,15 @@ const Settings = () => {
           <TabsTrigger value="integracoes">⚙️ Integrações</TabsTrigger>
         </TabsList>
 
-        {/* Empresa Tab */}
         <TabsContent value="empresa">
-          <Card className="p-6 bg-card border-border space-y-6">
+          <Card className="p-6 space-y-6">
             <div className="space-y-3">
               <Label className="text-sm font-medium text-foreground">Logo da Empresa</Label>
               <div className="flex items-center gap-4">
                 {logoUrl ? (
                   <img src={logoUrl} alt="Logo" className="w-16 h-16 rounded-lg object-cover border border-border" />
                 ) : (
-                  <div className="w-16 h-16 rounded-lg bg-secondary border border-border flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-lg bg-secondary flex items-center justify-center">
                     <Building2 className="w-8 h-8 text-muted-foreground" />
                   </div>
                 )}
@@ -147,15 +146,15 @@ const Settings = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="companyName" className="text-sm text-foreground">Nome da Empresa</Label>
-              <Input id="companyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Sua empresa" className="bg-secondary border-border" />
+              <Input id="companyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Sua empresa" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="settingsEmail" className="text-sm text-foreground">Email</Label>
-              <Input id="settingsEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contato@empresa.com" className="bg-secondary border-border" />
+              <Input id="settingsEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contato@empresa.com" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="settingsPhone" className="text-sm text-foreground">Telefone</Label>
-              <Input id="settingsPhone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" className="bg-secondary border-border" />
+              <Input id="settingsPhone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" />
             </div>
             <Button onClick={handleSave} disabled={saving} className="w-full gradient-primary text-primary-foreground font-semibold py-5 glow-primary gap-2">
               <Save className="w-4 h-4" />
@@ -164,10 +163,9 @@ const Settings = () => {
           </Card>
         </TabsContent>
 
-        {/* Faturamento Tab */}
         <TabsContent value="faturamento">
           <div className="space-y-6">
-            <Card className="p-6 bg-card border-border space-y-4">
+            <Card className="p-6 space-y-4">
               <h3 className="font-semibold text-foreground flex items-center gap-2">📊 Uso do Mês</h3>
               {subLoading ? (
                 <div className="flex items-center justify-center py-4">
@@ -197,7 +195,7 @@ const Settings = () => {
               )}
             </Card>
 
-            <Card className="p-6 bg-card border-border space-y-4">
+            <Card className="p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-foreground flex items-center gap-2">
                   <Crown className="w-5 h-5 text-primary" />
@@ -279,9 +277,8 @@ const Settings = () => {
           </div>
         </TabsContent>
 
-        {/* Integrations Tab */}
         <TabsContent value="integracoes">
-          <Card className="p-6 bg-card border-border space-y-4">
+          <Card className="p-6 space-y-4">
             <h3 className="font-semibold text-foreground">Integrações</h3>
             <p className="text-sm text-muted-foreground">
               Configurações de WhatsApp e Email estão integradas aos templates acima.
@@ -297,7 +294,7 @@ const Settings = () => {
                     <p className="text-xs text-muted-foreground">Envio via link direto do WhatsApp Web</p>
                   </div>
                 </div>
-                <span className="text-xs text-green-400">Ativo</span>
+                <span className="text-xs text-primary font-medium">Ativo</span>
               </div>
               <div className="flex items-center justify-between p-3 rounded-lg border border-border">
                 <div className="flex items-center gap-3">
@@ -307,7 +304,7 @@ const Settings = () => {
                     <p className="text-xs text-muted-foreground">Envio via API transacional (Resend)</p>
                   </div>
                 </div>
-                <span className="text-xs text-green-400">Ativo</span>
+                <span className="text-xs text-primary font-medium">Ativo</span>
               </div>
             </div>
           </Card>

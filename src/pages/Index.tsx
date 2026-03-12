@@ -101,7 +101,6 @@ const Index = () => {
       return;
     }
 
-    // Initialize progress items
     const items: AnalysisItem[] = selected.map(b => ({
       id: b.id,
       name: b.name,
@@ -110,7 +109,6 @@ const Index = () => {
     setAnalysisItems(items);
     setShowProgress(true);
 
-    // Fetch DNA, profile and testimonials
     const [{ data: dna }, { data: profile }, { data: testimonials }, { data: clientLogos }] = await Promise.all([
       supabase.from('company_dna').select('*').eq('user_id', user.id).maybeSingle(),
       supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
@@ -118,17 +116,14 @@ const Index = () => {
       supabase.from('client_logos').select('company_name, logo_url').eq('user_id', user.id),
     ]);
 
-    // Process each business sequentially
     for (let i = 0; i < selected.length; i++) {
       const business = selected[i];
 
-      // Update status to analyzing
       setAnalysisItems(prev => prev.map(item =>
         item.id === business.id ? { ...item, status: 'analyzing' as const } : item
       ));
 
       try {
-        // Step 1: Deep analyze
         const { data: analyzeResult, error: analyzeError } = await supabase.functions.invoke('deep-analyze', {
           body: { business, dna, profile },
         });
@@ -138,12 +133,10 @@ const Index = () => {
 
         const analysis = analyzeResult.analysis;
 
-        // Update status to generating
         setAnalysisItems(prev => prev.map(item =>
           item.id === business.id ? { ...item, status: 'generating' as const } : item
         ));
 
-        // Step 2: Create presentation record first to get public_id
         const { data: insertedRow, error: insertError } = await supabase.from('presentations').insert({
           user_id: user.id,
           business_name: business.name,
@@ -158,7 +151,6 @@ const Index = () => {
 
         if (insertError || !insertedRow) throw new Error(insertError?.message || 'Insert failed');
 
-        // Step 3: Generate presentation HTML with public_id for response buttons
         const { data: genResult, error: genError } = await supabase.functions.invoke('generate-presentation', {
           body: {
             analysis, business, dna, profile, testimonials, clientLogos,
@@ -172,7 +164,6 @@ const Index = () => {
         if (genError) throw new Error(genError.message);
         if (genResult.error) throw new Error(genResult.error);
 
-        // Step 4: Update with generated HTML
         const { error: updateError } = await supabase.from('presentations')
           .update({ presentation_html: genResult.html, status: 'ready' })
           .eq('id', insertedRow.id);
@@ -192,7 +183,7 @@ const Index = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="p-4 lg:p-8">
       <AnalysisProgressModal
         open={showProgress}
         items={analysisItems}
@@ -200,9 +191,9 @@ const Index = () => {
         onFinish={() => { setShowProgress(false); navigate('/presentations'); }}
       />
 
-      <div className="grid lg:grid-cols-[380px_1fr] gap-8">
+      <div className="grid lg:grid-cols-[380px_1fr] gap-6">
         <aside className="space-y-6">
-          <Card className="p-6 bg-card border-border sticky top-20">
+          <Card className="p-6 sticky top-20">
             <h2 className="text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
               <Building2 className="w-5 h-5 text-primary" />
               Filtros de Busca
@@ -245,7 +236,7 @@ const Index = () => {
           )}
 
           {!hasSearched ? (
-            <Card className="p-12 bg-card border-border">
+            <Card className="p-12">
               <div className="text-center space-y-4">
                 <div className="w-16 h-16 rounded-full bg-secondary mx-auto flex items-center justify-center">
                   <Building2 className="w-8 h-8 text-muted-foreground" />
@@ -265,7 +256,7 @@ const Index = () => {
               </div>
             </Card>
           ) : isLoading ? (
-            <Card className="p-12 bg-card border-border">
+            <Card className="p-12">
               <div className="text-center space-y-4">
                 <div className="w-16 h-16 rounded-full bg-primary/10 mx-auto flex items-center justify-center">
                   <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -277,7 +268,7 @@ const Index = () => {
               </div>
             </Card>
           ) : (
-            <Card className="bg-card border-border overflow-hidden">
+            <Card className="overflow-hidden">
               <ResultsTable
                 businesses={businesses}
                 onSelectBusiness={setSelectedBusiness}

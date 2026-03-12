@@ -95,35 +95,21 @@ const Presentations = () => {
         body: {
           analysis: p.analysis_data,
           business: {
-            name: p.business_name,
-            address: p.business_address,
-            phone: p.business_phone,
-            website: p.business_website,
-            category: p.business_category,
-            rating: p.business_rating,
+            name: p.business_name, address: p.business_address, phone: p.business_phone,
+            website: p.business_website, category: p.business_category, rating: p.business_rating,
           },
-          dna: dnaRes.data,
-          profile: profileRes.data,
-          testimonials: testimonialsRes.data,
-          clientLogos: clientLogosRes.data,
-          template,
-          tone,
-          customInstructions,
-          publicId: p.public_id,
+          dna: dnaRes.data, profile: profileRes.data, testimonials: testimonialsRes.data,
+          clientLogos: clientLogosRes.data, template, tone, customInstructions, publicId: p.public_id,
         },
       });
 
       if (genError) throw genError;
 
-      await supabase
-        .from('presentations')
+      await supabase.from('presentations')
         .update({ presentation_html: genData.html, status: 'ready' } as any)
         .eq('id', p.id);
 
-      setPresentations(prev =>
-        prev.map(x => x.id === p.id ? { ...x, status: 'ready' } : x)
-      );
-
+      setPresentations(prev => prev.map(x => x.id === p.id ? { ...x, status: 'ready' } : x));
       toast({ title: 'Regenerada!', description: 'Apresentação atualizada com sucesso' });
     } catch (err) {
       console.error(err);
@@ -145,16 +131,13 @@ const Presentations = () => {
   const allReadySelected = readyPresentations.length > 0 && readyPresentations.every(p => selectedIds.has(p.id));
 
   const toggleSelectAll = () => {
-    if (allReadySelected) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(readyPresentations.map(p => p.id)));
-    }
+    if (allReadySelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(readyPresentations.map(p => p.id)));
   };
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case 'ready': return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Pronta</Badge>;
+      case 'ready': return <Badge className="bg-primary/10 text-primary border-primary/20">Pronta</Badge>;
       case 'analyzing': return <Badge variant="secondary">Analisando</Badge>;
       case 'error': return <Badge variant="destructive">Erro</Badge>;
       default: return <Badge variant="secondary">Pendente</Badge>;
@@ -163,26 +146,24 @@ const Presentations = () => {
 
   const responseBadge = (response: string) => {
     switch (response) {
-      case 'accepted': return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Aceita</Badge>;
-      case 'rejected': return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Recusada</Badge>;
-      default: return <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-400 border-yellow-500/30">Aguardando</Badge>;
+      case 'accepted': return <Badge className="bg-primary/10 text-primary border-primary/20">Aceita</Badge>;
+      case 'rejected': return <Badge className="bg-destructive/10 text-destructive border-destructive/20">Recusada</Badge>;
+      default: return <Badge variant="secondary" className="bg-warning/10 text-warning border-warning/20">Aguardando</Badge>;
     }
   };
 
-  const overallScore = (data: any) => {
-    return data?.scores?.overall ?? '—';
-  };
+  const overallScore = (data: any) => data?.scores?.overall ?? '—';
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 flex justify-center">
+      <div className="p-4 lg:p-8 flex justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="p-4 lg:p-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
           <Presentation className="w-6 h-6 text-primary" />
@@ -220,7 +201,7 @@ const Presentations = () => {
       />
 
       {presentations.length === 0 ? (
-        <Card className="p-12 bg-card border-border">
+        <Card className="p-12">
           <div className="text-center space-y-4">
             <div className="w-16 h-16 rounded-full bg-secondary mx-auto flex items-center justify-center">
               <Presentation className="w-8 h-8 text-muted-foreground" />
@@ -234,16 +215,12 @@ const Presentations = () => {
           </div>
         </Card>
       ) : (
-        <Card className="bg-card border-border overflow-hidden">
+        <Card className="overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="bg-secondary/50 hover:bg-secondary/50">
                 <TableHead className="w-10">
-                  <Checkbox
-                    checked={allReadySelected}
-                    onCheckedChange={toggleSelectAll}
-                    aria-label="Selecionar todas"
-                  />
+                  <Checkbox checked={allReadySelected} onCheckedChange={toggleSelectAll} aria-label="Selecionar todas" />
                 </TableHead>
                 <TableHead className="text-foreground font-semibold">Empresa</TableHead>
                 <TableHead className="text-foreground font-semibold">Categoria</TableHead>
@@ -257,12 +234,7 @@ const Presentations = () => {
               {presentations.map(p => (
                 <TableRow key={p.id} className={`hover:bg-accent/50 ${selectedIds.has(p.id) ? 'bg-primary/5' : ''}`}>
                   <TableCell>
-                    <Checkbox
-                      checked={selectedIds.has(p.id)}
-                      onCheckedChange={() => toggleSelect(p.id)}
-                      disabled={p.status !== 'ready'}
-                      aria-label={`Selecionar ${p.business_name}`}
-                    />
+                    <Checkbox checked={selectedIds.has(p.id)} onCheckedChange={() => toggleSelect(p.id)} disabled={p.status !== 'ready'} aria-label={`Selecionar ${p.business_name}`} />
                   </TableCell>
                   <TableCell>
                     <div>
@@ -289,10 +261,7 @@ const Presentations = () => {
                             <RefreshCw className="w-4 h-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" title="Enviar" onClick={() => setSendDialog({
-                            open: true,
-                            publicUrl: getPublicUrl(p.public_id),
-                            name: p.business_name,
-                            phone: p.business_phone || '',
+                            open: true, publicUrl: getPublicUrl(p.public_id), name: p.business_name, phone: p.business_phone || '',
                           })}>
                             <Send className="w-4 h-4" />
                           </Button>

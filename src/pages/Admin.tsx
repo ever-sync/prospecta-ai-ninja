@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { AdminCharts } from '@/components/admin/AdminCharts';
+import { AdminCharts, type PeriodDays } from '@/components/admin/AdminCharts';
 
 interface AdminStats {
   totals: {
@@ -70,12 +70,33 @@ const Admin = () => {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [period, setPeriod] = useState<PeriodDays>(30);
+  const [chartLoading, setChartLoading] = useState(false);
+
+  const fetchStats = useCallback(async (days: PeriodDays, isInitial = false) => {
+    if (!user) return;
+
+    if (!isInitial) setChartLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-stats', {
+        body: { days },
+      });
+      if (error) throw error;
+      setStats(data);
+    } catch (err) {
+      console.error('Failed to fetch admin stats:', err);
+      toast({ title: 'Erro ao carregar estatísticas', variant: 'destructive' });
+    } finally {
+      if (isInitial) setLoading(false);
+      setChartLoading(false);
+    }
+  }, [user, toast]);
 
   useEffect(() => {
     const checkAdminAndFetch = async () => {
       if (!user) return;
 
-      // Check if user is admin
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
@@ -90,21 +111,16 @@ const Admin = () => {
       }
 
       setIsAdmin(true);
-
-      try {
-        const { data, error } = await supabase.functions.invoke('admin-stats');
-        if (error) throw error;
-        setStats(data);
-      } catch (err) {
-        console.error('Failed to fetch admin stats:', err);
-        toast({ title: 'Erro ao carregar estatísticas', variant: 'destructive' });
-      } finally {
-        setLoading(false);
-      }
+      fetchStats(period, true);
     };
 
     checkAdminAndFetch();
   }, [user]);
+
+  const handlePeriodChange = (newPeriod: PeriodDays) => {
+    setPeriod(newPeriod);
+    fetchStats(newPeriod);
+  };
 
   if (isAdmin === false) return <Navigate to="/" replace />;
 
@@ -144,7 +160,7 @@ const Admin = () => {
       </div>
 
       {/* Evolution Chart */}
-      <AdminCharts data={stats.dailyStats} />
+      <AdminCharts data={stats.dailyStats} period={period} onPeriodChange={handlePeriodChange} loading={chartLoading} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Users */}

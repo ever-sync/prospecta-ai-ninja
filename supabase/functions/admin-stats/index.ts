@@ -21,6 +21,12 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header");
 
+    let days = 30;
+    try {
+      const body = await req.json();
+      if (body?.days && [7, 30, 90].includes(body.days)) days = body.days;
+    } catch { /* no body or invalid json, use default */ }
+
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData.user) throw new Error("Unauthorized");
@@ -84,33 +90,33 @@ serve(async (req) => {
       .eq("send_status", "sent")
       .gte("sent_at", startOfMonth.toISOString());
 
-    // Daily stats for last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
-    const isoThirty = thirtyDaysAgo.toISOString();
+    // Daily stats for selected period
+    const periodStart = new Date();
+    periodStart.setDate(periodStart.getDate() - days);
+    periodStart.setHours(0, 0, 0, 0);
+    const isoPeriod = periodStart.toISOString();
 
     const { data: dailyPresentations } = await supabase
       .from("presentations")
       .select("created_at")
-      .gte("created_at", isoThirty);
+      .gte("created_at", isoPeriod);
 
     const { data: dailyViews } = await supabase
       .from("presentation_views")
       .select("viewed_at")
-      .gte("viewed_at", isoThirty);
+      .gte("viewed_at", isoPeriod);
 
     const { data: dailyEmails } = await supabase
       .from("campaign_presentations")
       .select("sent_at")
       .eq("send_status", "sent")
-      .gte("sent_at", isoThirty);
+      .gte("sent_at", isoPeriod);
 
     // Build daily map
     const dailyMap = new Map<string, { presentations: number; views: number; emails: number }>();
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < days; i++) {
       const d = new Date();
-      d.setDate(d.getDate() - (29 - i));
+      d.setDate(d.getDate() - (days - 1 - i));
       const key = d.toISOString().split("T")[0];
       dailyMap.set(key, { presentations: 0, views: 0, emails: 0 });
     }

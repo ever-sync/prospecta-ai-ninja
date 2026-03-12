@@ -192,7 +192,7 @@ const ProposalTemplateTab = () => {
     if (!user) return;
     supabase
       .from('company_dna')
-      .select('presentation_template, presentation_tone, presentation_instructions')
+      .select('presentation_template, presentation_tone, presentation_instructions, custom_text_color, custom_button_color, custom_bg_color')
       .eq('user_id', user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -200,6 +200,9 @@ const ProposalTemplateTab = () => {
           setSelectedTemplate((data as any).presentation_template || 'modern-dark');
           setSelectedTone((data as any).presentation_tone || 'professional');
           setInstructions((data as any).presentation_instructions || '');
+          setCustomTextColor((data as any).custom_text_color || '#ffffff');
+          setCustomButtonColor((data as any).custom_button_color || '#6366f1');
+          setCustomBgColor((data as any).custom_bg_color || '#0c0c1d');
         }
         setLoading(false);
       });

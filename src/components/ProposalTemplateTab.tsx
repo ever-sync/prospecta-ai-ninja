@@ -30,8 +30,12 @@ const PROPOSAL_MODELS = [
     label: 'Bold & Criativa',
     desc: 'Gradientes vibrantes e glassmorphism. Perfeito para agências criativas e startups.',
   },
+  {
+    key: 'custom',
+    label: 'Customizado',
+    desc: 'Defina suas próprias cores de texto, botões e fundo da página.',
+  },
 ];
-
 const TONES = [
   { key: 'professional', label: '💼 Profissional', desc: 'Objetivo, focado em dados e resultados.' },
   { key: 'consultive', label: '🎓 Consultivo', desc: 'Educativo, explica o "porquê" de cada recomendação.' },

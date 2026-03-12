@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { AdminCharts } from '@/components/admin/AdminCharts';
 
 interface AdminStats {
   totals: {
@@ -22,6 +23,12 @@ interface AdminStats {
     views: number;
     emails: number;
   };
+  dailyStats: Array<{
+    date: string;
+    presentations: number;
+    views: number;
+    emails: number;
+  }>;
   topUsers: Array<{
     userId: string;
     email: string;
@@ -135,6 +142,9 @@ const Admin = () => {
         <StatCard icon={Eye} label="Visualizações" value={stats.totals.views} sub={`${stats.thisMonth.views} este mês`} color="bg-emerald-500/10 text-emerald-500" />
         <StatCard icon={Mail} label="Emails Enviados" value={stats.totals.emails} sub={`${stats.thisMonth.emails} este mês`} color="bg-purple-500/10 text-purple-500" />
       </div>
+
+      {/* Evolution Chart */}
+      <AdminCharts data={stats.dailyStats} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Users */}

@@ -84,6 +84,55 @@ serve(async (req) => {
       .eq("send_status", "sent")
       .gte("sent_at", startOfMonth.toISOString());
 
+    // Daily stats for last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
+    const isoThirty = thirtyDaysAgo.toISOString();
+
+    const { data: dailyPresentations } = await supabase
+      .from("presentations")
+      .select("created_at")
+      .gte("created_at", isoThirty);
+
+    const { data: dailyViews } = await supabase
+      .from("presentation_views")
+      .select("viewed_at")
+      .gte("viewed_at", isoThirty);
+
+    const { data: dailyEmails } = await supabase
+      .from("campaign_presentations")
+      .select("sent_at")
+      .eq("send_status", "sent")
+      .gte("sent_at", isoThirty);
+
+    // Build daily map
+    const dailyMap = new Map<string, { presentations: number; views: number; emails: number }>();
+    for (let i = 0; i < 30; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - (29 - i));
+      const key = d.toISOString().split("T")[0];
+      dailyMap.set(key, { presentations: 0, views: 0, emails: 0 });
+    }
+
+    for (const p of dailyPresentations || []) {
+      const key = p.created_at?.split("T")[0];
+      if (key && dailyMap.has(key)) dailyMap.get(key)!.presentations++;
+    }
+    for (const v of dailyViews || []) {
+      const key = v.viewed_at?.split("T")[0];
+      if (key && dailyMap.has(key)) dailyMap.get(key)!.views++;
+    }
+    for (const e of dailyEmails || []) {
+      const key = e.sent_at?.split("T")[0];
+      if (key && dailyMap.has(key)) dailyMap.get(key)!.emails++;
+    }
+
+    const dailyStats = Array.from(dailyMap.entries()).map(([date, data]) => ({
+      date,
+      ...data,
+    }));
+
     // Top users by presentations
     const { data: topUsers } = await supabase
       .from("presentations")
@@ -133,6 +182,7 @@ serve(async (req) => {
         views: monthViews || 0,
         emails: monthEmails || 0,
       },
+      dailyStats,
       topUsers: topUsersList,
       recentPresentations: recentPresentations || [],
     }), {

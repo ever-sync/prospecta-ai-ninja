@@ -31,6 +31,7 @@ const App = () => (
           <Route path="/presentation/:publicId" element={<PresentationView />} />
           <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/crm" element={<CRM />} />
             <Route path="/search" element={<Index />} />
             <Route path="/dna" element={<DNA />} />
             <Route path="/presentations" element={<Presentations />} />

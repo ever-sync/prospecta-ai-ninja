@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const menuItems = [
   { path: '/', label: 'Dashboard', icon: LayoutGrid },
+  { path: '/crm', label: 'CRM', icon: Users },
   { path: '/search', label: 'Busca', icon: SearchIcon },
   { path: '/dna', label: 'DNA', icon: Fingerprint },
   { path: '/presentations', label: 'Apresentações', icon: FileBarChart },

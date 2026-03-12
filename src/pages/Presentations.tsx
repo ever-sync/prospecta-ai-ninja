@@ -160,6 +160,13 @@ const Presentations = () => {
         businessPhone={sendDialog.phone}
       />
 
+      <RegeneratePresentationDialog
+        open={regenDialog.open}
+        onOpenChange={(open) => setRegenDialog(prev => ({ ...prev, open }))}
+        onRegenerate={handleRegenerate}
+        businessName={regenDialog.presentation?.business_name || ''}
+      />
+
       {presentations.length === 0 ? (
         <Card className="p-12 bg-card border-border">
           <div className="text-center space-y-4">

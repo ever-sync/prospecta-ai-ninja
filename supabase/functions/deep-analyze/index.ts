@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
           scrapedContent = {
             markdown: scrapeData.data?.markdown || scrapeData.markdown || '',
             html: scrapeData.data?.html || scrapeData.html || '',
+            screenshot: scrapeData.data?.screenshot || scrapeData.screenshot || null,
             metadata: scrapeData.data?.metadata || scrapeData.metadata || {},
           };
           console.log('Scrape successful, content length:', scrapedContent.markdown.length);

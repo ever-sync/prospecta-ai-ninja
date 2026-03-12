@@ -46,17 +46,32 @@ const Campaigns = () => {
   const [showAddPresentations, setShowAddPresentations] = useState<string | null>(null);
   const [availablePresentations, setAvailablePresentations] = useState<PresentationOption[]>([]);
   const [selectedPresentationIds, setSelectedPresentationIds] = useState<Set<string>>(new Set());
+  const [templates, setTemplates] = useState<{ id: string; name: string; channel: string }[]>([]);
 
   // Create form
   const [formName, setFormName] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [formChannel, setFormChannel] = useState('whatsapp');
   const [formSchedule, setFormSchedule] = useState('');
+  const [formTemplateId, setFormTemplateId] = useState('');
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    if (user) fetchCampaigns();
+    if (user) {
+      fetchCampaigns();
+      fetchTemplates();
+    }
   }, [user]);
+
+  const fetchTemplates = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('message_templates')
+      .select('id, name, channel')
+      .eq('user_id', user.id)
+      .order('name');
+    setTemplates((data as any) || []);
+  };
 
   const fetchCampaigns = async () => {
     if (!user) return;
@@ -119,9 +134,10 @@ const Campaigns = () => {
       name: formName.trim(),
       description: formDesc.trim(),
       channel: formChannel,
+      template_id: formTemplateId || null,
       scheduled_at: formSchedule || null,
       status: formSchedule ? 'scheduled' : 'draft',
-    });
+    } as any);
 
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
@@ -132,6 +148,7 @@ const Campaigns = () => {
       setFormDesc('');
       setFormChannel('whatsapp');
       setFormSchedule('');
+      setFormTemplateId('');
       fetchCampaigns();
     }
     setCreating(false);
@@ -325,7 +342,7 @@ const Campaigns = () => {
             </div>
             <div className="space-y-2">
               <Label>Canal de Envio</Label>
-              <Select value={formChannel} onValueChange={setFormChannel}>
+              <Select value={formChannel} onValueChange={(v) => { setFormChannel(v); setFormTemplateId(''); }}>
                 <SelectTrigger className="bg-secondary border-border">
                   <SelectValue />
                 </SelectTrigger>
@@ -333,6 +350,28 @@ const Campaigns = () => {
                   <SelectItem value="whatsapp">📱 WhatsApp</SelectItem>
                   <SelectItem value="email">📧 Email</SelectItem>
                   <SelectItem value="webhook">🔗 Webhook</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Template Selector - filtered by channel */}
+            <div className="space-y-2">
+              <Label>Template de Mensagem</Label>
+              <Select value={formTemplateId} onValueChange={setFormTemplateId}>
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue placeholder="Selecione um template (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.filter(t => t.channel === formChannel).length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      Nenhum template de {formChannel === 'whatsapp' ? 'WhatsApp' : 'Email'}. Crie um em Configurações → Templates.
+                    </div>
+                  ) : (
+                    templates
+                      .filter(t => t.channel === formChannel)
+                      .map(t => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

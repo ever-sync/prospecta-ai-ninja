@@ -216,7 +216,6 @@ const Campaigns = () => {
   const handleSendCampaign = async (campaign: Campaign) => {
     if (!user) return;
 
-    // Get presentations for this campaign
     const { data: cpRows } = await supabase
       .from('campaign_presentations')
       .select('id, presentation_id')
@@ -228,7 +227,6 @@ const Campaigns = () => {
       return;
     }
 
-    // Get presentation details
     const presIds = cpRows.map(r => r.presentation_id);
     const { data: presentations } = await supabase
       .from('presentations')
@@ -237,14 +235,12 @@ const Campaigns = () => {
 
     if (!presentations) return;
 
-    // Get profile and template
     const { data: profile } = await supabase
       .from('profiles')
       .select('company_name')
       .eq('user_id', user.id)
       .single();
 
-    // Fetch template if campaign has one
     let template: { body: string; subject: string; image_url: string; include_proposal_link: boolean } | null = null;
     if ((campaign as any).template_id) {
       const { data: tpl } = await supabase
@@ -255,7 +251,7 @@ const Campaigns = () => {
       template = tpl as any;
     }
 
-    const replaceVariables = (text: string, pres: any, publicUrl: string) => {
+    const replaceVars = (text: string, pres: any, publicUrl: string) => {
       return text
         .replace(/\{\{nome_empresa\}\}/g, pres.business_name || '')
         .replace(/\{\{categoria\}\}/g, pres.business_category || '')
@@ -268,24 +264,60 @@ const Campaigns = () => {
         .replace(/\{\{sua_empresa\}\}/g, profile?.company_name || 'Nossa Empresa');
     };
 
-    // For WhatsApp: open links in sequence
-    if (campaign.channel === 'whatsapp') {
-      for (const pres of presentations) {
-        const phone = (pres.business_phone || '').replace(/\D/g, '');
-        if (!phone) continue;
+    const previews = presentations.map(pres => {
+      const publicUrl = `${window.location.origin}/presentation/${pres.public_id}`;
+      let message: string;
+      let subject: string | undefined;
+      if (template) {
+        message = replaceVars(template.body, pres, publicUrl);
+        subject = template.subject ? replaceVars(template.subject, pres, publicUrl) : undefined;
+      } else {
+        message = `Olá! Sou da ${profile?.company_name || 'nossa empresa'}. Preparamos uma apresentação exclusiva para ${pres.business_name}: ${publicUrl}`;
+      }
+      return {
+        id: pres.id,
+        business_name: pres.business_name || 'Sem nome',
+        business_phone: pres.business_phone || '',
+        message,
+        subject,
+      };
+    });
 
-        const publicUrl = `${window.location.origin}/presentation/${pres.public_id}`;
-        let message: string;
-        if (template) {
-          message = replaceVariables(template.body, pres, publicUrl);
-        } else {
-          message = `Olá! Sou da ${profile?.company_name || 'nossa empresa'}. Preparamos uma apresentação exclusiva para ${pres.business_name}: ${publicUrl}`;
-        }
-        const whatsappUrl = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
+    setPreviewLeads(previews);
+    setPreviewCampaign(campaign);
+    setShowPreview(true);
+  };
+
+  const confirmSendCampaign = async () => {
+    if (!previewCampaign || !user) return;
+    setSending(true);
+
+    const campaign = previewCampaign;
+
+    if (campaign.channel === 'email') {
+      const { data, error } = await supabase.functions.invoke('send-campaign-emails', {
+        body: { campaign_id: campaign.id },
+      });
+      if (error) {
+        toast({ title: 'Erro ao enviar emails', description: error.message, variant: 'destructive' });
+        setSending(false);
+        return;
+      }
+      toast({ title: 'Emails enviados!', description: `${data?.sent || 0} email(s) enviado(s)` });
+    } else if (campaign.channel === 'whatsapp') {
+      const { data: cpRows } = await supabase
+        .from('campaign_presentations')
+        .select('id, presentation_id')
+        .eq('campaign_id', campaign.id)
+        .eq('send_status', 'pending');
+
+      for (const lead of previewLeads) {
+        const phone = lead.business_phone.replace(/\D/g, '');
+        if (!phone) continue;
+        const whatsappUrl = `https://wa.me/55${phone}?text=${encodeURIComponent(lead.message)}`;
         window.open(whatsappUrl, '_blank');
 
-        // Mark as sent
-        const cpRow = cpRows.find(r => r.presentation_id === pres.id);
+        const cpRow = (cpRows || []).find(r => r.presentation_id === lead.id);
         if (cpRow) {
           await supabase
             .from('campaign_presentations')
@@ -295,29 +327,15 @@ const Campaigns = () => {
       }
     }
 
-    // For Email: call edge function
-    if (campaign.channel === 'email') {
-      const { data, error } = await supabase.functions.invoke('send-campaign-emails', {
-        body: { campaign_id: campaign.id },
-      });
-
-      if (error) {
-        toast({ title: 'Erro ao enviar emails', description: error.message, variant: 'destructive' });
-        return;
-      }
-
-      toast({ title: 'Emails enviados!', description: `${data?.sent || 0} email(s) enviado(s)` });
-      fetchCampaigns();
-      return;
-    }
-
-    // Update campaign status
     await supabase
       .from('campaigns')
       .update({ status: 'sent', sent_at: new Date().toISOString() })
       .eq('id', campaign.id);
 
-    toast({ title: 'Campanha enviada!', description: `${presentations.length} apresentação(ões) enviada(s)` });
+    toast({ title: 'Campanha enviada!', description: `${previewLeads.length} mensagen(s) enviada(s)` });
+    setShowPreview(false);
+    setPreviewCampaign(null);
+    setSending(false);
     fetchCampaigns();
   };
 

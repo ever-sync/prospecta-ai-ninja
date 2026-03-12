@@ -213,7 +213,7 @@ const DNAFormTab = () => {
         {/* Additional Info */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Informações Adicionais</Label>
-          <Textarea value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} placeholder="Outras informações relevantes sobre sua empresa..." className="bg-secondary border-border min-h-[80px]" />
+          <Textarea value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} placeholder="Outras informações relevantes sobre sua empresa..." className="min-h-[80px]" />
         </div>
 
         {/* Portfolio URL */}

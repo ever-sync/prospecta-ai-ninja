@@ -123,7 +123,7 @@ const Index = () => {
 
         // Step 2: Generate presentation HTML
         const { data: genResult, error: genError } = await supabase.functions.invoke('generate-presentation', {
-          body: { analysis, business, dna, profile },
+          body: { analysis, business, dna, profile, testimonials },
         });
 
         if (genError) throw new Error(genError.message);

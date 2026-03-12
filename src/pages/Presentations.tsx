@@ -99,6 +99,7 @@ const Presentations = () => {
           },
           dna: dnaRes.data,
           profile: profileRes.data,
+          testimonials: testimonialsRes.data,
           template,
           tone,
           customInstructions,

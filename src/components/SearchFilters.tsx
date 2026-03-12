@@ -54,7 +54,7 @@ export const SearchFilters = ({ onSearch, isLoading }: SearchFiltersProps) => {
             value={customNiche}
             onChange={(e) => setCustomNiche(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addCustomNiche()}
-            className="bg-secondary border-border focus:border-primary transition-colors"
+            className="focus:border-primary transition-colors"
           />
           <Button variant="outline" size="sm" onClick={addCustomNiche} disabled={!customNiche.trim()} className="shrink-0">
             +

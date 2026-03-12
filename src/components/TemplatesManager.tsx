@@ -199,6 +199,11 @@ const TemplatesManager = () => {
                       <Image className="w-3 h-3 mr-1" /> Imagem
                     </Badge>
                   )}
+                  {t.send_as_audio && (
+                    <Badge variant="secondary" className="text-xs shrink-0 bg-primary/10 text-primary border-primary/20">
+                      🎙️ Áudio
+                    </Badge>
+                  )}
                 </div>
                 {t.subject && <p className="text-xs text-muted-foreground mb-1">Assunto: {t.subject}</p>}
                 <p className="text-sm text-muted-foreground line-clamp-2">{t.body}</p>

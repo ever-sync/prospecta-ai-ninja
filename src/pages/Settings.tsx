@@ -206,7 +206,7 @@ const Settings = () => {
                 </Badge>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
                 {plans.map((plan) => {
                   const isCurrent = plan.id === currentPlan;
                   const priceFormatted = plan.price_cents === 0

@@ -215,8 +215,8 @@ const Presentations = () => {
           </div>
         </Card>
       ) : (
-        <Card className="overflow-hidden">
-          <Table>
+        <Card className="overflow-x-auto">
+          <Table className="min-w-[750px]">
             <TableHeader>
               <TableRow className="bg-secondary/50 hover:bg-secondary/50">
                 <TableHead className="w-10">

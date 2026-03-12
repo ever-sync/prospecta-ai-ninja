@@ -203,7 +203,7 @@ const Index = () => {
         </aside>
 
         <section className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-foreground">Resultados</h2>
               {hasSearched && (
@@ -212,20 +212,24 @@ const Index = () => {
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {selectedIds.size > 0 && (
                 <Button
                   onClick={handleAnalyzeSelected}
+                  size="sm"
                   className="gap-2 gradient-primary text-primary-foreground glow-primary"
                 >
                   <BarChart3 className="w-4 h-4" />
-                  Analisar Selecionadas ({selectedIds.size})
+                  <span className="hidden sm:inline">Analisar Selecionadas</span>
+                  <span className="sm:hidden">Analisar</span>
+                  ({selectedIds.size})
                 </Button>
               )}
               {businesses.length > 0 && (
-                <Button onClick={handleExport} variant="outline" className="gap-2">
+                <Button onClick={handleExport} variant="outline" size="sm" className="gap-2">
                   <Download className="w-4 h-4" />
-                  Exportar CSV
+                  <span className="hidden sm:inline">Exportar CSV</span>
+                  <span className="sm:hidden">CSV</span>
                 </Button>
               )}
             </div>

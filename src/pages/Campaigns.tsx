@@ -569,7 +569,7 @@ const Campaigns = () => {
                   )}
                 </div>
 
-                <div className="flex flex-col gap-1 shrink-0">
+                <div className="flex sm:flex-col flex-row flex-wrap gap-1 shrink-0">
                   <Button variant="outline" size="sm" className="gap-1.5" onClick={() => openAddPresentations(c.id)}>
                     <Plus className="w-3.5 h-3.5" />
                     Leads

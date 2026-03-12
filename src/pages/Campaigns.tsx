@@ -390,12 +390,12 @@ const Campaigns = () => {
 
   return (
     <div className="p-4 lg:p-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
           <Megaphone className="w-6 h-6 text-primary" />
           Campanhas ({campaigns.length})
         </h1>
-        <Button onClick={() => setShowCreate(true)} className="gap-2 gradient-primary text-primary-foreground glow-primary">
+        <Button onClick={() => setShowCreate(true)} className="gap-2 gradient-primary text-primary-foreground glow-primary w-full sm:w-auto">
           <Plus className="w-4 h-4" />
           Nova Campanha
         </Button>
@@ -526,10 +526,10 @@ const Campaigns = () => {
         <div className="grid gap-4">
           {campaigns.map(c => (
             <Card key={c.id} className="p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-semibold text-foreground text-lg">{c.name}</h3>
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <h3 className="font-semibold text-foreground text-lg truncate">{c.name}</h3>
                     {statusBadge(c.status)}
                     <Badge variant="outline" className="text-xs">{channelLabel(c.channel)}</Badge>
                   </div>
@@ -569,7 +569,7 @@ const Campaigns = () => {
                   )}
                 </div>
 
-                <div className="flex flex-col gap-1 shrink-0">
+                <div className="flex sm:flex-col flex-row flex-wrap gap-1 shrink-0">
                   <Button variant="outline" size="sm" className="gap-1.5" onClick={() => openAddPresentations(c.id)}>
                     <Plus className="w-3.5 h-3.5" />
                     Leads

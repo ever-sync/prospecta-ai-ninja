@@ -164,14 +164,14 @@ const Presentations = () => {
 
   return (
     <div className="p-4 lg:p-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
           <Presentation className="w-6 h-6 text-primary" />
-          Apresentações ({presentations.length})
+          <span className="truncate">Apresentações ({presentations.length})</span>
         </h1>
 
         {selectedIds.size > 0 && (
-          <Button onClick={() => setCampaignDialog(true)} className="gap-2">
+          <Button onClick={() => setCampaignDialog(true)} className="gap-2 shrink-0 w-full sm:w-auto">
             <Megaphone className="w-4 h-4" />
             Enviar para Campanha ({selectedIds.size})
           </Button>
@@ -215,8 +215,8 @@ const Presentations = () => {
           </div>
         </Card>
       ) : (
-        <Card className="overflow-hidden">
-          <Table>
+        <Card className="overflow-x-auto">
+          <Table className="min-w-[750px]">
             <TableHeader>
               <TableRow className="bg-secondary/50 hover:bg-secondary/50">
                 <TableHead className="w-10">

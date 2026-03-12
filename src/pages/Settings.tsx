@@ -115,7 +115,7 @@ const Settings = () => {
       </h1>
 
       <Tabs defaultValue="empresa" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 h-auto">
           <TabsTrigger value="empresa">🏢 Empresa</TabsTrigger>
           <TabsTrigger value="faturamento">💳 Faturamento</TabsTrigger>
           <TabsTrigger value="integracoes">⚙️ Integrações</TabsTrigger>
@@ -206,7 +206,7 @@ const Settings = () => {
                 </Badge>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
                 {plans.map((plan) => {
                   const isCurrent = plan.id === currentPlan;
                   const priceFormatted = plan.price_cents === 0

@@ -258,6 +258,9 @@ Analise e retorne os scores e recomendações para esta empresa.`;
     const analysis = JSON.parse(toolCall.function.arguments);
     analysis.has_website = !!business.website;
     analysis.scraped = !!scrapedContent;
+    if (googleMapsScreenshot) {
+      analysis.google_maps_screenshot = googleMapsScreenshot;
+    }
 
     return new Response(JSON.stringify({ success: true, analysis }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

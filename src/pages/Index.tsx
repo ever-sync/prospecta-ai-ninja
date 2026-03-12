@@ -7,6 +7,7 @@ import { SearchFilters } from '@/components/SearchFilters';
 import { ResultsTable } from '@/components/ResultsTable';
 import { BusinessAnalysisPanel } from '@/components/BusinessAnalysisPanel';
 import { AnalysisProgressModal, AnalysisItem } from '@/components/AnalysisProgressModal';
+import { PipelineSelectDialog } from '@/components/PipelineSelectDialog';
 import { Business, SearchFilters as Filters } from '@/types/business';
 import { exportToCSV } from '@/utils/exportCSV';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +23,7 @@ const Index = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [analysisItems, setAnalysisItems] = useState<AnalysisItem[]>([]);
   const [showProgress, setShowProgress] = useState(false);
+  const [showPipelineDialog, setShowPipelineDialog] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const { canUse, getRemainingUsage } = useSubscription();
@@ -76,7 +78,7 @@ const Index = () => {
     }
   };
 
-  const handleAnalyzeSelected = async () => {
+  const handleAnalyzeSelected = () => {
     if (!user) return;
 
     const selected = businesses.filter(b => selectedIds.has(b.id));
@@ -100,6 +102,14 @@ const Index = () => {
       });
       return;
     }
+
+    // Show pipeline dialog before starting analysis
+    setShowPipelineDialog(true);
+  };
+
+  const startAnalysis = async (pipelineStageId?: string) => {
+    if (!user) return;
+    const selected = businesses.filter(b => selectedIds.has(b.id));
 
     const items: AnalysisItem[] = selected.map(b => ({
       id: b.id,
@@ -137,7 +147,7 @@ const Index = () => {
           item.id === business.id ? { ...item, status: 'generating' as const } : item
         ));
 
-        const { data: insertedRow, error: insertError } = await supabase.from('presentations').insert({
+        const insertData: Record<string, unknown> = {
           user_id: user.id,
           business_name: business.name,
           business_address: business.address,
@@ -147,7 +157,13 @@ const Index = () => {
           business_rating: business.rating,
           analysis_data: analysis,
           status: 'generating',
-        }).select('id, public_id').single();
+        };
+
+        if (pipelineStageId) {
+          insertData.pipeline_stage_id = pipelineStageId;
+        }
+
+        const { data: insertedRow, error: insertError } = await supabase.from('presentations').insert(insertData as any).select('id, public_id').single();
 
         if (insertError || !insertedRow) throw new Error(insertError?.message || 'Insert failed');
 
@@ -189,6 +205,15 @@ const Index = () => {
         items={analysisItems}
         onClose={() => setShowProgress(false)}
         onFinish={() => { setShowProgress(false); navigate('/presentations'); }}
+      />
+
+      <PipelineSelectDialog
+        open={showPipelineDialog}
+        onConfirm={(result) => {
+          setShowPipelineDialog(false);
+          startAnalysis(result.attach ? result.stageId : undefined);
+        }}
+        onCancel={() => setShowPipelineDialog(false)}
       />
 
       <div className="grid lg:grid-cols-[380px_1fr] gap-6">

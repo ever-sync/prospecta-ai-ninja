@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts';
 import { Loader2, FileText, CheckCircle, TrendingUp, Eye } from 'lucide-react';
 
 interface AnalysisScores {
@@ -23,9 +23,9 @@ interface PresentationRow {
 
 const chartConfig = {
   seo: { label: 'SEO', color: 'hsl(var(--primary))' },
-  speed: { label: 'Velocidade', color: 'hsl(var(--accent))' },
-  layout: { label: 'Layout', color: 'hsl(142 71% 45%)' },
-  security: { label: 'Segurança', color: 'hsl(38 92% 50%)' },
+  speed: { label: 'Velocidade', color: 'hsl(var(--accent-foreground))' },
+  layout: { label: 'Layout', color: 'hsl(var(--success))' },
+  security: { label: 'Segurança', color: 'hsl(var(--warning))' },
   count: { label: 'Apresentações', color: 'hsl(var(--primary))' },
 };
 
@@ -37,30 +37,18 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!user) return;
-
     const fetchData = async () => {
       const [presRes, viewsRes] = await Promise.all([
-        supabase
-          .from('presentations')
-          .select('id, status, analysis_data, created_at')
-          .eq('user_id', user.id),
-        supabase
-          .from('presentation_views')
-          .select('presentation_id'),
+        supabase.from('presentations').select('id, status, analysis_data, created_at').eq('user_id', user.id),
+        supabase.from('presentation_views').select('presentation_id'),
       ]);
-
-      if (presRes.data) {
-        setPresentations(presRes.data as unknown as PresentationRow[]);
-      }
-
+      if (presRes.data) setPresentations(presRes.data as unknown as PresentationRow[]);
       if (viewsRes.data) {
         const uniqueIds = new Set(viewsRes.data.map((v: { presentation_id: string }) => v.presentation_id));
         setViewedCount(uniqueIds.size);
       }
-
       setLoading(false);
     };
-
     fetchData();
   }, [user]);
 
@@ -74,40 +62,20 @@ const Dashboard = () => {
 
   const total = presentations.length;
   const ready = presentations.filter((p) => p.status === 'ready').length;
-
-  const readyPresentations = presentations.filter(
-    (p) => p.status === 'ready' && p.analysis_data?.scores
-  );
-
+  const readyPresentations = presentations.filter((p) => p.status === 'ready' && p.analysis_data?.scores);
   const avgOverall =
     readyPresentations.length > 0
-      ? Math.round(
-          readyPresentations.reduce(
-            (sum, p) => sum + (p.analysis_data?.scores?.overall ?? 0),
-            0
-          ) / readyPresentations.length
-        )
+      ? Math.round(readyPresentations.reduce((sum, p) => sum + (p.analysis_data?.scores?.overall ?? 0), 0) / readyPresentations.length)
       : 0;
-
   const openRate = total > 0 ? Math.round((viewedCount / total) * 100) : 0;
 
-  // Category averages
-  const categories: { category: string; score: number }[] = (['seo', 'speed', 'layout', 'security'] as const).map(
-    (key) => ({
-      category: chartConfig[key].label,
-      score:
-        readyPresentations.length > 0
-          ? Math.round(
-              readyPresentations.reduce(
-                (sum, p) => sum + (p.analysis_data?.scores?.[key] ?? 0),
-                0
-              ) / readyPresentations.length
-            )
-          : 0,
-    })
-  );
+  const categories = (['seo', 'speed', 'layout', 'security'] as const).map((key) => ({
+    category: chartConfig[key].label,
+    score: readyPresentations.length > 0
+      ? Math.round(readyPresentations.reduce((sum, p) => sum + (p.analysis_data?.scores?.[key] ?? 0), 0) / readyPresentations.length)
+      : 0,
+  }));
 
-  // Timeline: group by week
   const timelineMap = new Map<string, number>();
   presentations.forEach((p) => {
     if (!p.created_at) return;
@@ -125,43 +93,49 @@ const Dashboard = () => {
     }));
 
   const statCards = [
-    { title: 'Total', value: total, icon: FileText, color: 'text-primary' },
-    { title: 'Prontas', value: ready, icon: CheckCircle, color: 'text-green-500' },
-    { title: 'Score Médio', value: avgOverall, icon: TrendingUp, color: 'text-accent-foreground' },
-    { title: 'Taxa de Abertura', value: `${openRate}%`, icon: Eye, color: 'text-amber-500' },
+    { title: 'Total', value: total, icon: FileText, highlight: true },
+    { title: 'Prontas', value: ready, icon: CheckCircle },
+    { title: 'Score Médio', value: avgOverall, icon: TrendingUp },
+    { title: 'Taxa de Abertura', value: `${openRate}%`, icon: Eye },
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
+    <div className="p-4 lg:p-8 space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((s) => (
-          <Card key={s.title}>
+          <Card
+            key={s.title}
+            className={
+              s.highlight
+                ? 'bg-primary text-primary-foreground border-0 shadow-card'
+                : 'border-0 shadow-card'
+            }
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{s.title}</CardTitle>
-              <s.icon className={`w-5 h-5 ${s.color}`} />
+              <CardTitle className={`text-sm font-medium ${s.highlight ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                {s.title}
+              </CardTitle>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${s.highlight ? 'bg-primary-foreground/20' : 'bg-accent'}`}>
+                <s.icon className={`w-[18px] h-[18px] ${s.highlight ? 'text-primary-foreground' : 'text-accent-foreground'}`} />
+              </div>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-foreground">{s.value}</p>
+              <p className={`text-3xl font-bold ${s.highlight ? 'text-primary-foreground' : 'text-foreground'}`}>{s.value}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Charts */}
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Category Scores */}
-        <Card>
+        <Card className="border-0 shadow-card">
           <CardHeader>
             <CardTitle className="text-base">Scores Médios por Categoria</CardTitle>
           </CardHeader>
           <CardContent>
             {readyPresentations.length === 0 ? (
-              <p className="text-muted-foreground text-sm py-8 text-center">
-                Nenhuma análise concluída ainda
-              </p>
+              <p className="text-muted-foreground text-sm py-8 text-center">Nenhuma análise concluída ainda</p>
             ) : (
               <ChartContainer config={chartConfig} className="h-[260px] w-full">
                 <BarChart data={categories}>
@@ -169,23 +143,20 @@ const Dashboard = () => {
                   <XAxis dataKey="category" className="text-xs" />
                   <YAxis domain={[0, 100]} />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="score" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="score" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ChartContainer>
             )}
           </CardContent>
         </Card>
 
-        {/* Timeline */}
-        <Card>
+        <Card className="border-0 shadow-card">
           <CardHeader>
             <CardTitle className="text-base">Apresentações por Semana</CardTitle>
           </CardHeader>
           <CardContent>
             {timeline.length === 0 ? (
-              <p className="text-muted-foreground text-sm py-8 text-center">
-                Nenhuma apresentação criada ainda
-              </p>
+              <p className="text-muted-foreground text-sm py-8 text-center">Nenhuma apresentação criada ainda</p>
             ) : (
               <ChartContainer config={chartConfig} className="h-[260px] w-full">
                 <LineChart data={timeline}>
@@ -193,13 +164,7 @@ const Dashboard = () => {
                   <XAxis dataKey="date" className="text-xs" />
                   <YAxis allowDecimals={false} />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line
-                    type="monotone"
-                    dataKey="count"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    dot={{ fill: 'hsl(var(--primary))' }}
-                  />
+                  <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))' }} />
                 </LineChart>
               </ChartContainer>
             )}

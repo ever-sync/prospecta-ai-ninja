@@ -13,6 +13,7 @@ const navItems = [
   { path: '/dna', label: 'DNA', icon: Dna },
   { path: '/presentations', label: 'Apresentações', icon: Presentation },
   { path: '/campaigns', label: 'Campanhas', icon: Megaphone },
+  { path: '/templates', label: 'Templates', icon: FileText },
   { path: '/settings', label: 'Configurações', icon: Settings },
 ];
 

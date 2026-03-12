@@ -288,10 +288,8 @@ const Settings = () => {
           </div>
         </TabsContent>
 
-        {/* Templates Tab */}
-        <TabsContent value="templates">
-          <TemplatesManager />
-        </TabsContent>
+
+
 
         {/* Integrations Tab */}
         <TabsContent value="integracoes">

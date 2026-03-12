@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             url,
-            formats: ['markdown', 'html'],
+            formats: ['markdown', 'html', 'screenshot'],
             onlyMainContent: false,
           }),
         });
@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
           scrapedContent = {
             markdown: scrapeData.data?.markdown || scrapeData.markdown || '',
             html: scrapeData.data?.html || scrapeData.html || '',
+            screenshot: scrapeData.data?.screenshot || scrapeData.screenshot || null,
             metadata: scrapeData.data?.metadata || scrapeData.metadata || {},
           };
           console.log('Scrape successful, content length:', scrapedContent.markdown.length);
@@ -260,6 +261,9 @@ Analise e retorne os scores e recomendações para esta empresa.`;
     analysis.scraped = !!scrapedContent;
     if (googleMapsScreenshot) {
       analysis.google_maps_screenshot = googleMapsScreenshot;
+    }
+    if (scrapedContent?.screenshot) {
+      analysis.website_screenshot = scrapedContent.screenshot;
     }
 
     return new Response(JSON.stringify({ success: true, analysis }), {

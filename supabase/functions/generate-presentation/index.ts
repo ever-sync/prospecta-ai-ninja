@@ -76,6 +76,7 @@ ESTRUTURA OBRIGATÓRIA DA APRESENTAÇÃO:
 3. **Diagnóstico do Lead** — Resumo dos problemas encontrados na análise (scores, SEO, velocidade, etc.) apresentados de forma que o lead entenda o impacto no seu negócio
 4. **Scores visuais** — Barras de progresso coloridas mostrando os scores (vermelho=ruim, amarelo=médio, verde=bom)
 ${analysis?.google_maps_screenshot ? `4.5. **Screenshot do Google Maps** — Incluir a imagem do Google Maps da empresa analisada usando a tag <img> com src="data:image/png;base64,GOOGLE_MAPS_SCREENSHOT_PLACEHOLDER". Adicionar borda arredondada e sombra. Título: "Presença no Google Maps"` : ''}
+${analysis?.website_screenshot ? `4.6. **Screenshot do Site Atual** — Incluir a imagem do site da empresa analisada usando a tag <img> com src="data:image/png;base64,WEBSITE_SCREENSHOT_PLACEHOLDER". Adicionar borda arredondada, sombra e um título "Seu Site Atual". Pode incluir anotações visuais (setas ou marcações) mencionadas no texto sobre problemas encontrados.` : ''}
 5. **Problemas detalhados e Oportunidades** — Para cada área problemática, explicar o impacto em linguagem de negócio (ex: "Seu site demora 8s para carregar — isso faz você perder 53% dos visitantes")
 6. **A Solução: Nossos Serviços** — Apresentar CADA serviço da empresa prospectora como solução direta para os problemas identificados. Conectar serviço → problema → benefício
 7. **Nossos Diferenciais** — Por que escolher esta empresa e não outra
@@ -162,6 +163,9 @@ Gere o HTML completo da apresentação.`;
     }
     if (analysis?.google_maps_screenshot) {
       html = html.replaceAll('GOOGLE_MAPS_SCREENSHOT_PLACEHOLDER', analysis.google_maps_screenshot);
+    }
+    if (analysis?.website_screenshot) {
+      html = html.replaceAll('WEBSITE_SCREENSHOT_PLACEHOLDER', analysis.website_screenshot);
     }
 
     return new Response(JSON.stringify({ success: true, html }), {

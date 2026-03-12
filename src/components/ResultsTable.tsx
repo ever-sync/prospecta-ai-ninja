@@ -31,7 +31,7 @@ export const ResultsTable = ({ businesses, onSelectBusiness, selectedIds, onTogg
   }
 
   return (
-    <div className="rounded-lg border border-border overflow-hidden">
+    <div className="overflow-x-auto -mx-0">
       <Table>
         <TableHeader>
           <TableRow className="bg-secondary/50 hover:bg-secondary/50">

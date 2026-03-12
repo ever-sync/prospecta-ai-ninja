@@ -75,8 +75,18 @@ ESTRUTURA OBRIGATÓRIA DA APRESENTAÇÃO:
 2. **Saudação personalizada** — Dirigida ao lead pelo nome, mencionando o setor dele
 3. **Diagnóstico do Lead** — Resumo dos problemas encontrados na análise (scores, SEO, velocidade, etc.) apresentados de forma que o lead entenda o impacto no seu negócio
 4. **Scores visuais** — Barras de progresso coloridas mostrando os scores (vermelho=ruim, amarelo=médio, verde=bom)
-${analysis?.google_maps_screenshot ? `4.5. **Screenshot do Google Maps** — Incluir a imagem do Google Maps da empresa analisada usando a tag <img> com src="data:image/png;base64,GOOGLE_MAPS_SCREENSHOT_PLACEHOLDER". Adicionar borda arredondada e sombra. Título: "Presença no Google Maps"` : ''}
-${analysis?.website_screenshot ? `4.6. **Screenshot do Site Atual** — Incluir a imagem do site da empresa analisada usando a tag <img> com src="data:image/png;base64,WEBSITE_SCREENSHOT_PLACEHOLDER". Adicionar borda arredondada, sombra e um título "Seu Site Atual". Pode incluir anotações visuais (setas ou marcações) mencionadas no texto sobre problemas encontrados.` : ''}
+${analysis?.google_maps_screenshot ? `4.5. **Screenshot do Google Maps** — Incluir a imagem do Google Maps da empresa analisada usando a tag <img> com src="data:image/png;base64,GOOGLE_MAPS_SCREENSHOT_PLACEHOLDER". Adicionar borda arredondada e sombra. Título: "Presença no Google Maps"` : `4.5. **Presença no Google Maps (fallback visual)** — Como não há screenshot disponível, criar um card visual estilizado com:
+   - Ícone do Google Maps (usar SVG inline do pin do Google Maps ou emoji 📍)
+   - Nome da empresa: "${business.name}"
+   - Rating: ${business.rating ? `${business.rating} estrelas (usar estrelas ★ amarelas preenchidas e ☆ vazias)` : 'Sem avaliação disponível'}
+   - Categoria: "${business.category || 'Não informada'}"
+   - Endereço: "${business.address || 'Não informado'}"
+   - Estilo: card com borda, fundo levemente diferente, cantos arredondados, sombra suave. Título: "Presença no Google Maps"`}
+${analysis?.website_screenshot ? `4.6. **Screenshot do Site Atual** — Incluir a imagem do site da empresa analisada usando a tag <img> com src="data:image/png;base64,WEBSITE_SCREENSHOT_PLACEHOLDER". Adicionar borda arredondada, sombra e um título "Seu Site Atual". Pode incluir anotações visuais (setas ou marcações) mencionadas no texto sobre problemas encontrados.` : `4.6. **Site Atual (fallback visual)** — Como não há screenshot do site, criar um card visual com:
+   - Ícone de globo/website (🌐)
+   - URL: "${business.website || 'Sem site cadastrado'}"
+   - ${business.website ? 'Mensagem: "Não foi possível capturar o visual do site. Acesse o link para verificar."' : 'Mensagem: "Esta empresa não possui um site — uma grande oportunidade de mercado!"'}
+   - Estilo: card com borda, cantos arredondados, sombra suave. Título: "Site Atual"`}
 5. **Problemas detalhados e Oportunidades** — Para cada área problemática, explicar o impacto em linguagem de negócio (ex: "Seu site demora 8s para carregar — isso faz você perder 53% dos visitantes")
 6. **A Solução: Nossos Serviços** — Apresentar CADA serviço da empresa prospectora como solução direta para os problemas identificados. Conectar serviço → problema → benefício
 7. **Nossos Diferenciais** — Por que escolher esta empresa e não outra

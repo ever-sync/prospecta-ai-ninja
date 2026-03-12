@@ -172,6 +172,86 @@ const TemplatesManager = () => {
     setUploading(false);
   };
 
+  const getPreviewText = () => {
+    return formBody
+      .replace(/\{\{nome_empresa\}\}/g, 'Restaurante Exemplo')
+      .replace(/\{\{categoria\}\}/g, 'Restaurante')
+      .replace(/\{\{endereco\}\}/g, 'Rua Exemplo, 123')
+      .replace(/\{\{telefone\}\}/g, '(11) 99999-9999')
+      .replace(/\{\{website\}\}/g, 'www.exemplo.com.br')
+      .replace(/\{\{rating\}\}/g, '4.5')
+      .replace(/\{\{score\}\}/g, '72')
+      .replace(/\{\{link_proposta\}\}/g, 'https://app.com/presentation/abc123')
+      .replace(/\{\{sua_empresa\}\}/g, 'Minha Empresa');
+  };
+
+  const handleAudioPreview = async () => {
+    if (!user || !formBody.trim()) return;
+
+    // Stop if playing
+    if (audioPlaying && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setAudioPlaying(false);
+      return;
+    }
+
+    setGeneratingAudio(true);
+    try {
+      // Get user's voice ID
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('elevenlabs_voice_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!profile?.elevenlabs_voice_id) {
+        toast({
+          title: 'Voice ID não configurado',
+          description: 'Vá em Configurações e cole seu Voice ID do ElevenLabs.',
+          variant: 'destructive',
+        });
+        setGeneratingAudio(false);
+        return;
+      }
+
+      const previewText = getPreviewText();
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ text: previewText, voice_id: profile.elevenlabs_voice_id }),
+        }
+      );
+
+      if (!response.ok) throw new Error('Falha ao gerar áudio');
+
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      // Clean up previous URL
+      if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
+
+      const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
+      setAudioPreviewUrl(audioUrl);
+
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      audio.onended = () => setAudioPlaying(false);
+      setAudioPlaying(true);
+      await audio.play();
+    } catch (err: any) {
+      toast({ title: 'Erro ao gerar áudio', description: err.message, variant: 'destructive' });
+    }
+    setGeneratingAudio(false);
+  };
+
   const whatsappTemplates = templates.filter(t => t.channel === 'whatsapp');
   const emailTemplates = templates.filter(t => t.channel === 'email');
 

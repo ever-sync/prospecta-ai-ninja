@@ -265,6 +265,39 @@ export type Database = {
         }
         Relationships: []
       }
+      pipeline_stages: {
+        Row: {
+          color: string
+          created_at: string | null
+          default_status: string | null
+          id: string
+          is_default: boolean
+          name: string
+          position: number
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string | null
+          default_status?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          position?: number
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string | null
+          default_status?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          position?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       plans: {
         Row: {
           created_at: string | null
@@ -354,6 +387,7 @@ export type Database = {
           created_at: string | null
           id: string
           lead_response: string | null
+          pipeline_stage_id: string | null
           presentation_html: string | null
           public_id: string | null
           status: string | null
@@ -370,6 +404,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           lead_response?: string | null
+          pipeline_stage_id?: string | null
           presentation_html?: string | null
           public_id?: string | null
           status?: string | null
@@ -386,12 +421,21 @@ export type Database = {
           created_at?: string | null
           id?: string
           lead_response?: string | null
+          pipeline_stage_id?: string | null
           presentation_html?: string | null
           public_id?: string | null
           status?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "presentations_pipeline_stage_id_fkey"
+            columns: ["pipeline_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

@@ -1,1 +1,10 @@
 project_id = "egicuzzcrhpzpfxfvjhc"
+
+[functions.firecrawl-scrape]
+verify_jwt = false
+
+[functions.deep-analyze]
+verify_jwt = false
+
+[functions.generate-presentation]
+verify_jwt = false

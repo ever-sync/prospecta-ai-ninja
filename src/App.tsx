@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import DNA from "./pages/DNA";
 import Settings from "./pages/Settings";
 import Presentations from "./pages/Presentations";
+import PresentationView from "./pages/PresentationView";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/presentation/:publicId" element={<PresentationView />} />
           <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
             <Route path="/" element={<Index />} />
             <Route path="/dna" element={<DNA />} />

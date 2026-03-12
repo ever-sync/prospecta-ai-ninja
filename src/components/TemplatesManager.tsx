@@ -84,6 +84,7 @@ const TemplatesManager = () => {
       : '');
     setFormImageUrl('');
     setFormIncludeLink(true);
+    setFormSendAsAudio(false);
     setShowEditor(true);
   };
 
@@ -95,6 +96,7 @@ const TemplatesManager = () => {
     setFormBody(t.body);
     setFormImageUrl(t.image_url);
     setFormIncludeLink(t.include_proposal_link);
+    setFormSendAsAudio(t.send_as_audio || false);
     setShowEditor(true);
   };
 

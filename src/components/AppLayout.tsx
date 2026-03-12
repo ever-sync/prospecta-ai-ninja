@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, LayoutDashboard, Search, Dna, Presentation, Settings, LogOut } from 'lucide-react';
+import { Sparkles, LayoutDashboard, Search, Dna, Presentation, Megaphone, Settings, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -9,6 +9,7 @@ const navItems = [
   { path: '/search', label: 'Busca', icon: Search },
   { path: '/dna', label: 'DNA', icon: Dna },
   { path: '/presentations', label: 'Apresentações', icon: Presentation },
+  { path: '/campaigns', label: 'Campanhas', icon: Megaphone },
   { path: '/settings', label: 'Configurações', icon: Settings },
 ];
 

@@ -420,12 +420,34 @@ const TemplatesManager = () => {
 
             {/* Send as audio - WhatsApp only */}
             {formChannel === 'whatsapp' && (
-              <div className="flex items-center justify-between p-3 rounded-lg border border-border">
-                <div>
-                  <Label className="text-sm font-medium">🎙️ Enviar como Áudio</Label>
-                  <p className="text-xs text-muted-foreground">Converte o texto em áudio com sua voz clonada (ElevenLabs)</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div>
+                    <Label className="text-sm font-medium">🎙️ Enviar como Áudio</Label>
+                    <p className="text-xs text-muted-foreground">Converte o texto em áudio com sua voz clonada (ElevenLabs)</p>
+                  </div>
+                  <Switch checked={formSendAsAudio} onCheckedChange={setFormSendAsAudio} />
                 </div>
-                <Switch checked={formSendAsAudio} onCheckedChange={setFormSendAsAudio} />
+
+                {formSendAsAudio && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 w-full"
+                    onClick={handleAudioPreview}
+                    disabled={generatingAudio || !formBody.trim()}
+                  >
+                    {generatingAudio ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : audioPlaying ? (
+                      <Square className="w-4 h-4" />
+                    ) : (
+                      <Volume2 className="w-4 h-4" />
+                    )}
+                    {generatingAudio ? 'Gerando áudio...' : audioPlaying ? 'Parar áudio' : 'Ouvir preview do áudio'}
+                  </Button>
+                )}
               </div>
             )}
 
@@ -434,16 +456,7 @@ const TemplatesManager = () => {
               <Label className="text-sm">Pré-visualização</Label>
               <Card className="p-4 bg-secondary/50">
                 <p className="text-sm text-foreground whitespace-pre-wrap">
-                  {formBody
-                    .replace(/\{\{nome_empresa\}\}/g, 'Restaurante Exemplo')
-                    .replace(/\{\{categoria\}\}/g, 'Restaurante')
-                    .replace(/\{\{endereco\}\}/g, 'Rua Exemplo, 123')
-                    .replace(/\{\{telefone\}\}/g, '(11) 99999-9999')
-                    .replace(/\{\{website\}\}/g, 'www.exemplo.com.br')
-                    .replace(/\{\{rating\}\}/g, '4.5')
-                    .replace(/\{\{score\}\}/g, '72')
-                    .replace(/\{\{link_proposta\}\}/g, 'https://app.com/presentation/abc123')
-                    .replace(/\{\{sua_empresa\}\}/g, 'Minha Empresa')}
+                  {getPreviewText()}
                 </p>
               </Card>
             </div>

@@ -26,7 +26,7 @@ const TONES = [
 interface RegeneratePresentationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onRegenerate: (template: string, tone: string, customInstructions: string) => Promise<void>;
+  onRegenerate: (template: string, tone: string, customInstructions: string, customColors?: { textColor: string; buttonColor: string; bgColor: string }) => Promise<void>;
   businessName: string;
 }
 
@@ -70,7 +70,12 @@ export const RegeneratePresentationDialog = ({
   const handleRegenerate = async () => {
     setLoading(true);
     try {
-      await onRegenerate(template, tone, customInstructions);
+      await onRegenerate(
+        template,
+        tone,
+        customInstructions,
+        template === 'custom' ? { textColor: customTextColor, buttonColor: customButtonColor, bgColor: customBgColor } : undefined
+      );
       onOpenChange(false);
     } finally {
       setLoading(false);

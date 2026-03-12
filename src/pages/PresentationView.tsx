@@ -25,6 +25,11 @@ const PresentationView = () => {
         setError('Apresentação ainda está sendo gerada');
       } else {
         setHtml(data.presentation_html);
+        // Register view (fire and forget)
+        supabase
+          .from('presentation_views')
+          .insert({ presentation_id: data.id } as any)
+          .then(() => {});
       }
       setLoading(false);
     };

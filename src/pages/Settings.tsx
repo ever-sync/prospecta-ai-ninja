@@ -1,25 +1,35 @@
 import { useState, useEffect } from 'react';
-import { Save, Upload, Building2, Settings2, CreditCard, Receipt, Crown, Check } from 'lucide-react';
+import { Save, Upload, Building2, Settings2, CreditCard, Receipt, Crown, Check, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import TemplatesManager from '@/components/TemplatesManager';
+
+const PLANS = [
+  { key: 'free' as const, name: 'Gratuito', price: 'R$ 0', features: ['50 apresentações/mês', '2 campanhas', '50 emails/mês', 'Suporte por email'] },
+  { key: 'pro' as const, name: 'Pro', price: 'R$ 97', features: ['500 apresentações/mês', 'Campanhas ilimitadas', '500 emails/mês', 'Suporte prioritário', 'Templates premium'] },
+  { key: 'enterprise' as const, name: 'Enterprise', price: 'R$ 297', features: ['Apresentações ilimitadas', 'Campanhas ilimitadas', 'Emails ilimitados', 'API dedicada', 'Suporte 24/7', 'White-label'] },
+];
 
 const Settings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { subscription, loading: subLoading, startCheckout, openCustomerPortal, refreshSubscription } = useSubscription();
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -38,18 +48,23 @@ const Settings = () => {
       });
   }, [user]);
 
+  // Check for checkout success
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') === 'success') {
+      toast({ title: 'Assinatura ativada!', description: 'Seu plano foi atualizado com sucesso.' });
+      refreshSubscription();
+      window.history.replaceState({}, '', '/settings?tab=faturamento');
+    }
+  }, []);
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     setUploading(true);
-
     const ext = file.name.split('.').pop();
     const path = `${user.id}/logo.${ext}`;
-
-    const { error } = await supabase.storage
-      .from('company-logos')
-      .upload(path, file, { upsert: true });
-
+    const { error } = await supabase.storage.from('company-logos').upload(path, file, { upsert: true });
     if (error) {
       toast({ title: 'Erro no upload', description: error.message, variant: 'destructive' });
     } else {
@@ -62,17 +77,10 @@ const Settings = () => {
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-
     const { error } = await supabase
       .from('profiles')
-      .update({
-        company_name: companyName,
-        email,
-        phone,
-        company_logo_url: logoUrl,
-      })
+      .update({ company_name: companyName, email, phone, company_logo_url: logoUrl })
       .eq('user_id', user.id);
-
     if (error) {
       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
     } else {
@@ -80,6 +88,32 @@ const Settings = () => {
     }
     setSaving(false);
   };
+
+  const handleUpgrade = async (plan: 'pro' | 'enterprise') => {
+    setCheckoutLoading(plan);
+    try {
+      await startCheckout(plan);
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Não foi possível iniciar o checkout.', variant: 'destructive' });
+    }
+    setCheckoutLoading(null);
+  };
+
+  const handleManageSubscription = async () => {
+    try {
+      await openCustomerPortal();
+    } catch {
+      toast({ title: 'Erro', description: 'Não foi possível abrir o portal de gerenciamento.', variant: 'destructive' });
+    }
+  };
+
+  const currentPlan = subscription?.plan || 'free';
+
+  const usageItems = [
+    { label: 'Apresentações', used: subscription?.usage.presentations || 0, limit: subscription?.limits.presentations || 50 },
+    { label: 'Campanhas', used: subscription?.usage.campaigns || 0, limit: subscription?.limits.campaigns || 2 },
+    { label: 'Emails enviados', used: subscription?.usage.emails || 0, limit: subscription?.limits.emails || 50 },
+  ];
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
@@ -99,7 +133,6 @@ const Settings = () => {
         {/* Empresa Tab */}
         <TabsContent value="empresa">
           <Card className="p-6 bg-card border-border space-y-6">
-            {/* Logo */}
             <div className="space-y-3">
               <Label className="text-sm font-medium text-foreground">Logo da Empresa</Label>
               <div className="flex items-center gap-4">
@@ -121,23 +154,18 @@ const Settings = () => {
                 </label>
               </div>
             </div>
-
-            {/* Fields */}
             <div className="space-y-2">
               <Label htmlFor="companyName" className="text-sm text-foreground">Nome da Empresa</Label>
               <Input id="companyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Sua empresa" className="bg-secondary border-border" />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="settingsEmail" className="text-sm text-foreground">Email</Label>
               <Input id="settingsEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contato@empresa.com" className="bg-secondary border-border" />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="settingsPhone" className="text-sm text-foreground">Telefone</Label>
               <Input id="settingsPhone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" className="bg-secondary border-border" />
             </div>
-
             <Button onClick={handleSave} disabled={saving} className="w-full gradient-primary text-primary-foreground font-semibold py-5 glow-primary gap-2">
               <Save className="w-4 h-4" />
               {saving ? 'Salvando...' : 'Salvar Configurações'}
@@ -148,87 +176,115 @@ const Settings = () => {
         {/* Faturamento Tab */}
         <TabsContent value="faturamento">
           <div className="space-y-6">
-            {/* Plano Atual */}
+            {/* Uso Atual */}
+            <Card className="p-6 bg-card border-border space-y-4">
+              <h3 className="font-semibold text-foreground flex items-center gap-2">
+                📊 Uso do Mês
+              </h3>
+              {subLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {usageItems.map((item) => {
+                    const isUnlimited = item.limit === -1;
+                    const pct = isUnlimited ? 0 : Math.min(100, (item.used / item.limit) * 100);
+                    const isNearLimit = !isUnlimited && pct >= 80;
+                    return (
+                      <div key={item.label} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-foreground">{item.label}</span>
+                          <span className={`font-medium ${isNearLimit ? 'text-destructive' : 'text-muted-foreground'}`}>
+                            {item.used} / {isUnlimited ? '∞' : item.limit}
+                          </span>
+                        </div>
+                        {!isUnlimited && (
+                          <Progress value={pct} className={`h-2 ${isNearLimit ? '[&>div]:bg-destructive' : ''}`} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+
+            {/* Planos */}
             <Card className="p-6 bg-card border-border space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-foreground flex items-center gap-2">
                   <Crown className="w-5 h-5 text-primary" />
                   Plano Atual
                 </h3>
-                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                  Gratuito
+                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 capitalize">
+                  {currentPlan}
                 </Badge>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3">
-                {[
-                  { name: 'Gratuito', price: 'R$ 0', features: ['50 apresentações/mês', '2 campanhas', 'Suporte por email'], current: true },
-                  { name: 'Pro', price: 'R$ 97', features: ['500 apresentações/mês', 'Campanhas ilimitadas', 'Suporte prioritário', 'Templates premium'], current: false },
-                  { name: 'Enterprise', price: 'R$ 297', features: ['Apresentações ilimitadas', 'API dedicada', 'Suporte 24/7', 'White-label'], current: false },
-                ].map((plan) => (
-                  <div
-                    key={plan.name}
-                    className={`rounded-xl border p-4 space-y-3 transition-all ${
-                      plan.current
-                        ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                        : 'border-border hover:border-muted-foreground/30'
-                    }`}
-                  >
-                    <div>
-                      <p className="font-semibold text-foreground">{plan.name}</p>
-                      <p className="text-xl font-bold text-foreground">{plan.price}<span className="text-xs font-normal text-muted-foreground">/mês</span></p>
-                    </div>
-                    <ul className="space-y-1.5">
-                      {plan.features.map((f) => (
-                        <li key={f} className="text-xs text-muted-foreground flex items-center gap-1.5">
-                          <Check className="w-3 h-3 text-primary shrink-0" />
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                    <Button
-                      variant={plan.current ? 'outline' : 'default'}
-                      size="sm"
-                      className="w-full"
-                      disabled={plan.current}
+                {PLANS.map((plan) => {
+                  const isCurrent = plan.key === currentPlan;
+                  return (
+                    <div
+                      key={plan.key}
+                      className={`rounded-xl border p-4 space-y-3 transition-all ${
+                        isCurrent
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                          : 'border-border hover:border-muted-foreground/30'
+                      }`}
                     >
-                      {plan.current ? 'Plano atual' : 'Fazer upgrade'}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            {/* Histórico de Faturas */}
-            <Card className="p-6 bg-card border-border space-y-4">
-              <h3 className="font-semibold text-foreground flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-primary" />
-                Histórico de Faturas
-              </h3>
-
-              <div className="space-y-2">
-                {[
-                  { date: '01/03/2026', desc: 'Plano Gratuito', valor: 'R$ 0,00', status: 'Pago' },
-                  { date: '01/02/2026', desc: 'Plano Gratuito', valor: 'R$ 0,00', status: 'Pago' },
-                  { date: '01/01/2026', desc: 'Plano Gratuito', valor: 'R$ 0,00', status: 'Pago' },
-                ].map((fatura, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border">
-                    <div className="flex items-center gap-3">
-                      <CreditCard className="w-4 h-4 text-muted-foreground" />
                       <div>
-                        <p className="text-sm font-medium text-foreground">{fatura.desc}</p>
-                        <p className="text-xs text-muted-foreground">{fatura.date}</p>
+                        <p className="font-semibold text-foreground">{plan.name}</p>
+                        <p className="text-xl font-bold text-foreground">
+                          {plan.price}<span className="text-xs font-normal text-muted-foreground">/mês</span>
+                        </p>
                       </div>
+                      <ul className="space-y-1.5">
+                        {plan.features.map((f) => (
+                          <li key={f} className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            <Check className="w-3 h-3 text-primary shrink-0" />
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                      {isCurrent ? (
+                        <Button variant="outline" size="sm" className="w-full" disabled>
+                          Plano atual
+                        </Button>
+                      ) : plan.key === 'free' ? (
+                        currentPlan !== 'free' ? (
+                          <Button variant="outline" size="sm" className="w-full" onClick={handleManageSubscription}>
+                            Gerenciar
+                          </Button>
+                        ) : null
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="w-full gap-1"
+                          onClick={() => handleUpgrade(plan.key as 'pro' | 'enterprise')}
+                          disabled={checkoutLoading === plan.key}
+                        >
+                          {checkoutLoading === plan.key ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <ExternalLink className="w-3 h-3" />
+                          )}
+                          Fazer upgrade
+                        </Button>
+                      )}
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-foreground">{fatura.valor}</p>
-                      <Badge variant="outline" className="text-xs border-primary/30 text-primary">
-                        {fatura.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+
+              {currentPlan !== 'free' && (
+                <div className="pt-2">
+                  <Button variant="outline" size="sm" className="gap-2" onClick={handleManageSubscription}>
+                    <ExternalLink className="w-4 h-4" />
+                    Gerenciar assinatura no portal
+                  </Button>
+                </div>
+              )}
             </Card>
           </div>
         </TabsContent>
@@ -243,8 +299,8 @@ const Settings = () => {
           <Card className="p-6 bg-card border-border space-y-4">
             <h3 className="font-semibold text-foreground">Integrações</h3>
             <p className="text-sm text-muted-foreground">
-              Configurações de WhatsApp e Email estão integradas aos templates acima. 
-              Configure seus templates de mensagem na aba "Templates" para personalizar 
+              Configurações de WhatsApp e Email estão integradas aos templates acima.
+              Configure seus templates de mensagem na aba "Templates" para personalizar
               o envio das campanhas.
             </p>
             <div className="grid gap-3">

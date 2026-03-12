@@ -90,11 +90,11 @@ serve(async (req) => {
       .eq("send_status", "sent")
       .gte("sent_at", startOfMonth.toISOString());
 
-    // Daily stats for last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
-    const isoThirty = thirtyDaysAgo.toISOString();
+    // Daily stats for selected period
+    const periodStart = new Date();
+    periodStart.setDate(periodStart.getDate() - days);
+    periodStart.setHours(0, 0, 0, 0);
+    const isoPeriod = periodStart.toISOString();
 
     const { data: dailyPresentations } = await supabase
       .from("presentations")

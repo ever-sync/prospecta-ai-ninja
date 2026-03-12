@@ -80,7 +80,7 @@ const Auth = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="bg-secondary border-border"
+                className=""
               />
             </div>
 

@@ -122,6 +122,34 @@ export const KanbanCard = ({ lead, onDragStart }: KanbanCardProps) => {
             </p>
           )}
 
+          {/* Action buttons */}
+          <div className="flex items-center gap-1 pt-1">
+            {lead.business_phone && (
+              <a
+                href={`https://wa.me/${lead.business_phone.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
+                title="Abrir WhatsApp"
+              >
+                <MessageCircle className="w-3 h-3" />
+                WhatsApp
+              </a>
+            )}
+            {lead.business_phone && (
+              <a
+                href={`mailto:?subject=Proposta - ${lead.business_name || ''}`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                title="Enviar e-mail"
+              >
+                <Mail className="w-3 h-3" />
+                E-mail
+              </a>
+            )}
+          </div>
+
           {/* Expanded details */}
           <AnimatePresence>
             {expanded && (

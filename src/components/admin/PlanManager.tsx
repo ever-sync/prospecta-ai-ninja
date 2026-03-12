@@ -269,7 +269,7 @@ const PlanManager = () => {
                     value={newFeature[plan.id] || ''}
                     onChange={(e) => setNewFeature(prev => ({ ...prev, [plan.id]: e.target.value }))}
                     placeholder="Nova feature..."
-                    className="bg-secondary border-border text-sm"
+                    className="text-sm"
                     onKeyDown={(e) => e.key === 'Enter' && addFeature(plan.id)}
                   />
                   <Button variant="outline" size="sm" onClick={() => addFeature(plan.id)}>

@@ -44,6 +44,8 @@ const DNAFormTab = () => {
           setTone(data.tone || '');
           setAdditionalInfo(data.additional_info || '');
           setPortfolioUrl((data as any).portfolio_url || '');
+          setInstagramUrl((data as any).instagram_url || '');
+          setLinkedinUrl((data as any).linkedin_url || '');
         }
       });
   }, [user]);

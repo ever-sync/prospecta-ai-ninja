@@ -4,11 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users, Presentation, Megaphone, Eye, Mail, TrendingUp, ShieldCheck } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { AdminCharts, type PeriodDays } from '@/components/admin/AdminCharts';
+import PlanManager from '@/components/admin/PlanManager';
 
 interface AdminStats {
   totals: {
@@ -150,112 +152,125 @@ const Admin = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <StatCard icon={Users} label="Usuários" value={stats.totals.users} color="bg-primary/10 text-primary" />
-        <StatCard icon={Presentation} label="Propostas" value={stats.totals.presentations} sub={`${stats.thisMonth.presentations} este mês`} color="bg-blue-500/10 text-blue-500" />
-        <StatCard icon={Megaphone} label="Campanhas" value={stats.totals.campaigns} color="bg-amber-500/10 text-amber-500" />
-        <StatCard icon={Eye} label="Visualizações" value={stats.totals.views} sub={`${stats.thisMonth.views} este mês`} color="bg-emerald-500/10 text-emerald-500" />
-        <StatCard icon={Mail} label="Emails Enviados" value={stats.totals.emails} sub={`${stats.thisMonth.emails} este mês`} color="bg-purple-500/10 text-purple-500" />
-      </div>
+      <Tabs defaultValue="dashboard" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="dashboard">📊 Dashboard</TabsTrigger>
+          <TabsTrigger value="planos">👑 Planos</TabsTrigger>
+        </TabsList>
 
-      {/* Evolution Chart */}
-      <AdminCharts data={stats.dailyStats} period={period} onPeriodChange={handlePeriodChange} loading={chartLoading} />
+        <TabsContent value="dashboard" className="space-y-8">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <StatCard icon={Users} label="Usuários" value={stats.totals.users} color="bg-primary/10 text-primary" />
+            <StatCard icon={Presentation} label="Propostas" value={stats.totals.presentations} sub={`${stats.thisMonth.presentations} este mês`} color="bg-blue-500/10 text-blue-500" />
+            <StatCard icon={Megaphone} label="Campanhas" value={stats.totals.campaigns} color="bg-amber-500/10 text-amber-500" />
+            <StatCard icon={Eye} label="Visualizações" value={stats.totals.views} sub={`${stats.thisMonth.views} este mês`} color="bg-emerald-500/10 text-emerald-500" />
+            <StatCard icon={Mail} label="Emails Enviados" value={stats.totals.emails} sub={`${stats.thisMonth.emails} este mês`} color="bg-purple-500/10 text-purple-500" />
+          </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Users */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-primary" />
-              Top Usuários
-            </CardTitle>
-            <CardDescription>Por número de propostas geradas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead className="text-right">Propostas</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stats.topUsers.map((u, i) => (
-                  <TableRow key={u.userId}>
-                    <TableCell className="font-medium text-sm">{u.email}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{u.company}</TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant={i === 0 ? 'default' : 'secondary'}>{u.count}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {stats.topUsers.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground">Nenhum dado</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+          {/* Evolution Chart */}
+          <AdminCharts data={stats.dailyStats} period={period} onPeriodChange={handlePeriodChange} loading={chartLoading} />
 
-        {/* Recent Presentations */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Presentation className="w-5 h-5 text-primary" />
-              Propostas Recentes
-            </CardTitle>
-            <CardDescription>Últimas 20 propostas geradas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Resposta</TableHead>
-                  <TableHead>Data</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stats.recentPresentations.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium text-sm">{p.business_name || 'N/A'}</TableCell>
-                    <TableCell>
-                      <Badge variant={p.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
-                        {p.status === 'completed' ? 'Concluída' : p.status === 'pending' ? 'Pendente' : p.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs ${
-                          p.lead_response === 'accepted' ? 'border-emerald-500/30 text-emerald-500' :
-                          p.lead_response === 'rejected' ? 'border-destructive/30 text-destructive' :
-                          ''
-                        }`}
-                      >
-                        {p.lead_response === 'accepted' ? 'Aceita' : p.lead_response === 'rejected' ? 'Recusada' : 'Pendente'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {new Date(p.created_at).toLocaleDateString('pt-BR')}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {stats.recentPresentations.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">Nenhum dado</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top Users */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                  Top Usuários
+                </CardTitle>
+                <CardDescription>Por número de propostas geradas</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Empresa</TableHead>
+                      <TableHead className="text-right">Propostas</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stats.topUsers.map((u, i) => (
+                      <TableRow key={u.userId}>
+                        <TableCell className="font-medium text-sm">{u.email}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{u.company}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant={i === 0 ? 'default' : 'secondary'}>{u.count}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {stats.topUsers.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center text-muted-foreground">Nenhum dado</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            {/* Recent Presentations */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Presentation className="w-5 h-5 text-primary" />
+                  Propostas Recentes
+                </CardTitle>
+                <CardDescription>Últimas 20 propostas geradas</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Empresa</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Resposta</TableHead>
+                      <TableHead>Data</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stats.recentPresentations.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium text-sm">{p.business_name || 'N/A'}</TableCell>
+                        <TableCell>
+                          <Badge variant={p.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
+                            {p.status === 'completed' ? 'Concluída' : p.status === 'pending' ? 'Pendente' : p.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${
+                              p.lead_response === 'accepted' ? 'border-emerald-500/30 text-emerald-500' :
+                              p.lead_response === 'rejected' ? 'border-destructive/30 text-destructive' :
+                              ''
+                            }`}
+                          >
+                            {p.lead_response === 'accepted' ? 'Aceita' : p.lead_response === 'rejected' ? 'Recusada' : 'Pendente'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {new Date(p.created_at).toLocaleDateString('pt-BR')}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {stats.recentPresentations.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">Nenhum dado</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="planos">
+          <PlanManager />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

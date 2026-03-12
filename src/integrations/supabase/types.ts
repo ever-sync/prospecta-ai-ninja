@@ -232,6 +232,54 @@ export type Database = {
         }
         Relationships: []
       }
+      plans: {
+        Row: {
+          created_at: string | null
+          display_order: number
+          features: string[]
+          id: string
+          is_active: boolean
+          limit_campaigns: number
+          limit_emails: number
+          limit_presentations: number
+          name: string
+          price_cents: number
+          stripe_price_id: string | null
+          stripe_product_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number
+          features?: string[]
+          id: string
+          is_active?: boolean
+          limit_campaigns?: number
+          limit_emails?: number
+          limit_presentations?: number
+          name: string
+          price_cents?: number
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number
+          features?: string[]
+          id?: string
+          is_active?: boolean
+          limit_campaigns?: number
+          limit_emails?: number
+          limit_presentations?: number
+          name?: string
+          price_cents?: number
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       presentation_views: {
         Row: {
           id: string

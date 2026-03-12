@@ -7,15 +7,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const PLAN_LIMITS = {
-  free: { presentations: 50, campaigns: 2, emails: 50 },
-  pro: { presentations: 500, campaigns: -1, emails: 500 },
-  enterprise: { presentations: -1, campaigns: -1, emails: -1 },
-};
-
-const PRO_PRODUCT_ID = "prod_U8Odcw8tJ1x18X";
-const ENTERPRISE_PRODUCT_ID = "prod_U8OewqNe8GDZ5t";
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -41,6 +32,21 @@ serve(async (req) => {
     const user = userData.user;
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
+    // Fetch plans from database
+    const { data: allPlans } = await supabaseClient
+      .from("plans")
+      .select("*")
+      .eq("is_active", true)
+      .order("display_order");
+
+    const plansMap: Record<string, any> = {};
+    for (const p of (allPlans || [])) {
+      plansMap[p.id] = p;
+      if (p.stripe_product_id) {
+        plansMap[`product:${p.stripe_product_id}`] = p;
+      }
+    }
+
     // Check Stripe subscription
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let plan = "free";
@@ -59,8 +65,11 @@ serve(async (req) => {
         productId = sub.items.data[0].price.product;
         subscriptionEnd = new Date(sub.current_period_end * 1000).toISOString();
 
-        if (productId === ENTERPRISE_PRODUCT_ID) plan = "enterprise";
-        else if (productId === PRO_PRODUCT_ID) plan = "pro";
+        // Match product_id to plan
+        const matchedPlan = plansMap[`product:${productId}`];
+        if (matchedPlan) {
+          plan = matchedPlan.id;
+        }
       }
     }
 
@@ -97,7 +106,15 @@ serve(async (req) => {
       emailCount = count || 0;
     }
 
-    const limits = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS];
+    // Get limits from the matched plan in DB
+    const currentPlan = plansMap[plan];
+    const limits = currentPlan
+      ? {
+          presentations: currentPlan.limit_presentations,
+          campaigns: currentPlan.limit_campaigns,
+          emails: currentPlan.limit_emails,
+        }
+      : { presentations: 50, campaigns: 2, emails: 50 };
 
     return new Response(JSON.stringify({
       plan,

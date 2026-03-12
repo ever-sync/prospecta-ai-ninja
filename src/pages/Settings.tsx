@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Upload, Building2, Settings2, CreditCard, Receipt, Crown, Check, Loader2, ExternalLink } from 'lucide-react';
+import { Save, Upload, Building2, Settings2, Crown, Check, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,17 +12,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 
-
-const PLANS = [
-  { key: 'free' as const, name: 'Gratuito', price: 'R$ 0', features: ['50 apresentações/mês', '2 campanhas', '50 emails/mês', 'Suporte por email'] },
-  { key: 'pro' as const, name: 'Pro', price: 'R$ 97', features: ['500 apresentações/mês', 'Campanhas ilimitadas', '500 emails/mês', 'Suporte prioritário', 'Templates premium'] },
-  { key: 'enterprise' as const, name: 'Enterprise', price: 'R$ 297', features: ['Apresentações ilimitadas', 'Campanhas ilimitadas', 'Emails ilimitados', 'API dedicada', 'Suporte 24/7', 'White-label'] },
-];
-
 const Settings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { subscription, loading: subLoading, startCheckout, openCustomerPortal, refreshSubscription } = useSubscription();
+  const { subscription, plans, loading: subLoading, startCheckout, openCustomerPortal, refreshSubscription } = useSubscription();
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -48,7 +41,6 @@ const Settings = () => {
       });
   }, [user]);
 
-  // Check for checkout success
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('checkout') === 'success') {
@@ -89,10 +81,10 @@ const Settings = () => {
     setSaving(false);
   };
 
-  const handleUpgrade = async (plan: 'pro' | 'enterprise') => {
-    setCheckoutLoading(plan);
+  const handleUpgrade = async (planId: string) => {
+    setCheckoutLoading(planId);
     try {
-      await startCheckout(plan);
+      await startCheckout(planId);
     } catch (err) {
       toast({ title: 'Erro', description: 'Não foi possível iniciar o checkout.', variant: 'destructive' });
     }
@@ -175,11 +167,8 @@ const Settings = () => {
         {/* Faturamento Tab */}
         <TabsContent value="faturamento">
           <div className="space-y-6">
-            {/* Uso Atual */}
             <Card className="p-6 bg-card border-border space-y-4">
-              <h3 className="font-semibold text-foreground flex items-center gap-2">
-                📊 Uso do Mês
-              </h3>
+              <h3 className="font-semibold text-foreground flex items-center gap-2">📊 Uso do Mês</h3>
               {subLoading ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -208,7 +197,6 @@ const Settings = () => {
               )}
             </Card>
 
-            {/* Planos */}
             <Card className="p-6 bg-card border-border space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-foreground flex items-center gap-2">
@@ -216,16 +204,19 @@ const Settings = () => {
                   Plano Atual
                 </h3>
                 <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 capitalize">
-                  {currentPlan}
+                  {plans.find(p => p.id === currentPlan)?.name || currentPlan}
                 </Badge>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3">
-                {PLANS.map((plan) => {
-                  const isCurrent = plan.key === currentPlan;
+                {plans.map((plan) => {
+                  const isCurrent = plan.id === currentPlan;
+                  const priceFormatted = plan.price_cents === 0
+                    ? 'R$ 0'
+                    : `R$ ${(plan.price_cents / 100).toFixed(0)}`;
                   return (
                     <div
-                      key={plan.key}
+                      key={plan.id}
                       className={`rounded-xl border p-4 space-y-3 transition-all ${
                         isCurrent
                           ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
@@ -235,7 +226,7 @@ const Settings = () => {
                       <div>
                         <p className="font-semibold text-foreground">{plan.name}</p>
                         <p className="text-xl font-bold text-foreground">
-                          {plan.price}<span className="text-xs font-normal text-muted-foreground">/mês</span>
+                          {priceFormatted}<span className="text-xs font-normal text-muted-foreground">/mês</span>
                         </p>
                       </div>
                       <ul className="space-y-1.5">
@@ -250,7 +241,7 @@ const Settings = () => {
                         <Button variant="outline" size="sm" className="w-full" disabled>
                           Plano atual
                         </Button>
-                      ) : plan.key === 'free' ? (
+                      ) : !plan.stripe_price_id ? (
                         currentPlan !== 'free' ? (
                           <Button variant="outline" size="sm" className="w-full" onClick={handleManageSubscription}>
                             Gerenciar
@@ -260,10 +251,10 @@ const Settings = () => {
                         <Button
                           size="sm"
                           className="w-full gap-1"
-                          onClick={() => handleUpgrade(plan.key as 'pro' | 'enterprise')}
-                          disabled={checkoutLoading === plan.key}
+                          onClick={() => handleUpgrade(plan.id)}
+                          disabled={checkoutLoading === plan.id}
                         >
-                          {checkoutLoading === plan.key ? (
+                          {checkoutLoading === plan.id ? (
                             <Loader2 className="w-3 h-3 animate-spin" />
                           ) : (
                             <ExternalLink className="w-3 h-3" />
@@ -287,9 +278,6 @@ const Settings = () => {
             </Card>
           </div>
         </TabsContent>
-
-
-
 
         {/* Integrations Tab */}
         <TabsContent value="integracoes">

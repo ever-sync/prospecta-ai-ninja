@@ -327,7 +327,7 @@ const TemplatesManager = () => {
             {/* Preview */}
             <div className="space-y-2">
               <Label className="text-sm">Pré-visualização</Label>
-              <Card className="p-4 bg-secondary/50 border-border">
+              <Card className="p-4 bg-secondary/50">
                 <p className="text-sm text-foreground whitespace-pre-wrap">
                   {formBody
                     .replace(/\{\{nome_empresa\}\}/g, 'Restaurante Exemplo')

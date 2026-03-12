@@ -232,7 +232,7 @@ const DNAFormTab = () => {
         {/* LinkedIn */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">LinkedIn</Label>
-          <Input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/company/suaempresa" className="bg-secondary border-border" />
+          <Input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/company/suaempresa" />
         </div>
 
         {/* Facebook */}

@@ -139,7 +139,7 @@ const Index = () => {
 
         // Step 3: Generate presentation HTML with public_id for response buttons
         const { data: genResult, error: genError } = await supabase.functions.invoke('generate-presentation', {
-          body: { analysis, business, dna, profile, testimonials, publicId: insertedRow.public_id },
+          body: { analysis, business, dna, profile, testimonials, clientLogos, publicId: insertedRow.public_id },
         });
 
         if (genError) throw new Error(genError.message);

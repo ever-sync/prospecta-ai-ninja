@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, ChevronLeft, ChevronRight, Eye, MessageSquare, Mail } from 'lucide-react';
+import { Send, ChevronLeft, ChevronRight, Eye, MessageSquare, Mail, Mic } from 'lucide-react';
 
 interface PreviewLead {
   id: string;
@@ -21,6 +21,7 @@ interface CampaignPreviewDialogProps {
   campaignName: string;
   onConfirmSend: () => void;
   sending: boolean;
+  sendAsAudio?: boolean;
 }
 
 const CampaignPreviewDialog = ({
@@ -31,6 +32,7 @@ const CampaignPreviewDialog = ({
   campaignName,
   onConfirmSend,
   sending,
+  sendAsAudio = false,
 }: CampaignPreviewDialogProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -51,9 +53,16 @@ const CampaignPreviewDialog = ({
         </DialogHeader>
 
         <div className="flex items-center justify-between mb-2">
-          <Badge variant="outline" className="text-xs">
-            {channel === 'whatsapp' ? <><MessageSquare className="w-3 h-3 mr-1" /> WhatsApp</> : <><Mail className="w-3 h-3 mr-1" /> Email</>}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs">
+              {channel === 'whatsapp' ? <><MessageSquare className="w-3 h-3 mr-1" /> WhatsApp</> : <><Mail className="w-3 h-3 mr-1" /> Email</>}
+            </Badge>
+            {sendAsAudio && channel === 'whatsapp' && (
+              <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/20">
+                <Mic className="w-3 h-3 mr-1" /> Áudio será gerado
+              </Badge>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goPrev} disabled={currentIndex === 0}>
               <ChevronLeft className="w-4 h-4" />
@@ -87,6 +96,14 @@ const CampaignPreviewDialog = ({
                   <div className="max-w-[85%] bg-[hsl(var(--accent))]/20 border border-border rounded-xl rounded-tl-sm p-3">
                     <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{current.message}</p>
                   </div>
+                  {sendAsAudio && (
+                    <div className="max-w-[85%] mt-2 bg-primary/5 border border-primary/20 rounded-xl rounded-tl-sm p-3 flex items-center gap-2">
+                      <Mic className="w-4 h-4 text-primary shrink-0" />
+                      <p className="text-xs text-muted-foreground">
+                        🎙️ Um áudio com sua voz será gerado e anexado a esta mensagem
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-4">
@@ -107,7 +124,9 @@ const CampaignPreviewDialog = ({
             className="gap-2 gradient-primary text-primary-foreground glow-primary"
           >
             <Send className="w-4 h-4" />
-            {sending ? 'Enviando...' : `Enviar ${leads.length} mensagen${leads.length > 1 ? 's' : ''}`}
+            {sending
+              ? (sendAsAudio ? 'Gerando áudios e enviando...' : 'Enviando...')
+              : `Enviar ${leads.length} mensagen${leads.length > 1 ? 's' : ''}`}
           </Button>
         </DialogFooter>
       </DialogContent>

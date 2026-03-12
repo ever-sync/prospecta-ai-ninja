@@ -172,7 +172,7 @@ const PlanManager = () => {
                   <Input
                     value={plan.name}
                     onChange={(e) => updatePlan(plan.id, 'name', e.target.value)}
-                    className="bg-secondary border-border"
+                    className=""
                   />
                 </div>
                 <div className="space-y-1.5">

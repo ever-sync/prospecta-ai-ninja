@@ -58,6 +58,10 @@ const TemplatesManager = () => {
   const [formIncludeLink, setFormIncludeLink] = useState(true);
   const [formSendAsAudio, setFormSendAsAudio] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [generatingAudio, setGeneratingAudio] = useState(false);
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const [audioRef] = useState<{ current: HTMLAudioElement | null }>({ current: null });
 
   useEffect(() => {
     if (user) fetchTemplates();

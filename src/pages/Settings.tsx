@@ -158,6 +158,16 @@ const Settings = () => {
               <Label htmlFor="settingsPhone" className="text-sm text-foreground">Telefone</Label>
               <Input id="settingsPhone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="voiceId" className="text-sm text-foreground flex items-center gap-2">
+                <Mic className="w-4 h-4 text-primary" />
+                Voice ID do ElevenLabs
+              </Label>
+              <Input id="voiceId" value={voiceId} onChange={(e) => setVoiceId(e.target.value)} placeholder="Cole aqui o ID da sua voz clonada" />
+              <p className="text-xs text-muted-foreground">
+                Clone sua voz no <a href="https://elevenlabs.io/voice-lab" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">ElevenLabs Voice Lab</a> e cole o Voice ID aqui para enviar áudios com sua voz.
+              </p>
+            </div>
             <Button onClick={handleSave} disabled={saving} className="w-full gradient-primary text-primary-foreground font-semibold py-5 glow-primary gap-2">
               <Save className="w-4 h-4" />
               {saving ? 'Salvando...' : 'Salvar Configurações'}

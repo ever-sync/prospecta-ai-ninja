@@ -11,6 +11,7 @@ import { Business, SearchFilters as Filters } from '@/types/business';
 import { exportToCSV } from '@/utils/exportCSV';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {

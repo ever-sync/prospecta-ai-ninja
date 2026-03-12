@@ -70,6 +70,21 @@ export const RegeneratePresentationDialog = ({
   const handleRegenerate = async () => {
     setLoading(true);
     try {
+      // Persist template, tone and custom colors to company_dna
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const updates: Record<string, string> = {
+          presentation_template: template,
+          presentation_tone: tone,
+        };
+        if (template === 'custom') {
+          updates.custom_text_color = customTextColor;
+          updates.custom_button_color = customButtonColor;
+          updates.custom_bg_color = customBgColor;
+        }
+        await supabase.from('company_dna').update(updates).eq('user_id', user.id);
+      }
+
       await onRegenerate(
         template,
         tone,

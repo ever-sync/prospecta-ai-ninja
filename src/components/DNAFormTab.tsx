@@ -200,6 +200,13 @@ const DNAFormTab = () => {
           <Textarea value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} placeholder="Outras informações relevantes sobre sua empresa..." className="bg-secondary border-border min-h-[80px]" />
         </div>
 
+        {/* Portfolio URL */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">Link do Portfólio</Label>
+          <Input value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://seusite.com/portfolio" className="bg-secondary border-border" />
+          <p className="text-xs text-muted-foreground">O botão "Acessar Portfólio" será exibido na apresentação gerada.</p>
+        </div>
+
         <Button onClick={handleSave} disabled={saving} className="w-full gradient-primary text-primary-foreground font-semibold py-5 glow-primary gap-2">
           <Save className="w-4 h-4" />
           {saving ? 'Salvando...' : 'Salvar DNA'}

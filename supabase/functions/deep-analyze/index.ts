@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             url,
-            formats: ['markdown', 'html'],
+            formats: ['markdown', 'html', 'screenshot'],
             onlyMainContent: false,
           }),
         });

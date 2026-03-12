@@ -44,7 +44,34 @@ const TONES = [
   { key: 'technical', label: '🔧 Técnico', desc: 'Detalhado, com termos específicos e métricas.' },
 ];
 
-const ProposalPreview = ({ modelKey }: { modelKey: string }) => {
+const ProposalPreview = ({ modelKey, customColors }: { modelKey: string; customColors?: { text: string; button: string; bg: string } }) => {
+  if (modelKey === 'custom' && customColors) {
+    return (
+      <div className="w-full h-full rounded-md overflow-hidden p-3 flex flex-col gap-2" style={{ backgroundColor: customColors.bg }}>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded" style={{ backgroundColor: customColors.button }} />
+          <div className="h-2 w-16 rounded" style={{ backgroundColor: customColors.text, opacity: 0.5 }} />
+        </div>
+        <div className="h-2 w-3/4 rounded mt-1" style={{ backgroundColor: customColors.text, opacity: 0.3 }} />
+        <div className="h-2 w-1/2 rounded" style={{ backgroundColor: customColors.text, opacity: 0.2 }} />
+        <div className="flex gap-2 mt-1">
+          <div className="flex-1 rounded p-2" style={{ backgroundColor: customColors.button + '33' }}>
+            <div className="h-1.5 w-full rounded mb-1" style={{ backgroundColor: customColors.button, opacity: 0.7 }} />
+            <div className="h-1 w-2/3 rounded" style={{ backgroundColor: customColors.text, opacity: 0.2 }} />
+          </div>
+          <div className="flex-1 rounded p-2" style={{ backgroundColor: customColors.button + '33' }}>
+            <div className="h-1.5 w-full rounded mb-1" style={{ backgroundColor: customColors.button, opacity: 0.7 }} />
+            <div className="h-1 w-2/3 rounded" style={{ backgroundColor: customColors.text, opacity: 0.2 }} />
+          </div>
+        </div>
+        <div className="flex gap-2 mt-auto">
+          <div className="h-4 flex-1 rounded" style={{ backgroundColor: customColors.button }} />
+          <div className="h-4 flex-1 rounded" style={{ backgroundColor: customColors.text, opacity: 0.15 }} />
+        </div>
+      </div>
+    );
+  }
+
   const previews: Record<string, React.ReactNode> = {
     'modern-dark': (
       <div className="w-full h-full bg-[#0c0c1d] rounded-md overflow-hidden p-3 flex flex-col gap-2">

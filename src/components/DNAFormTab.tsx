@@ -60,13 +60,14 @@ const DNAFormTab = () => {
 
   const completeness = () => {
     let filled = 0;
-    const total = 6;
+    const total = 7;
     if (services.length > 0) filled++;
     if (differentials.length > 0) filled++;
     if (targetAudience.trim()) filled++;
     if (valueProposition.trim()) filled++;
     if (tone.trim()) filled++;
     if (additionalInfo.trim()) filled++;
+    if (portfolioUrl.trim()) filled++;
     return { filled, total, percent: Math.round((filled / total) * 100) };
   };
 

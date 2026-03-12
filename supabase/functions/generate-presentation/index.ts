@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
     const valueProposition = dna?.value_proposition || 'Não informado';
     const targetAudience = dna?.target_audience || 'Não informado';
     const additionalInfo = dna?.additional_info || '';
+    const portfolioUrl = dna?.portfolio_url || '';
 
     // Build WhatsApp link
     const rawPhone = profile?.phone || '';

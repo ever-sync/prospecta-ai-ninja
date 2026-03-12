@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { TrendingUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface DailyStat {
   date: string;
@@ -9,6 +10,8 @@ interface DailyStat {
   views: number;
   emails: number;
 }
+
+export type PeriodDays = 7 | 30 | 90;
 
 const chartConfig = {
   presentations: { label: 'Propostas', color: 'hsl(var(--primary))' },
@@ -21,15 +24,46 @@ const formatDate = (date: string) => {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 };
 
-export const AdminCharts = ({ data }: { data: DailyStat[] }) => {
+const periodLabels: Record<PeriodDays, string> = {
+  7: '7 dias',
+  30: '30 dias',
+  90: '90 dias',
+};
+
+interface AdminChartsProps {
+  data: DailyStat[];
+  period: PeriodDays;
+  onPeriodChange: (period: PeriodDays) => void;
+  loading?: boolean;
+}
+
+export const AdminCharts = ({ data, period, onPeriodChange, loading }: AdminChartsProps) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-primary" />
-          Evolução — Últimos 30 dias
-        </CardTitle>
-        <CardDescription>Propostas, visualizações e emails enviados por dia</CardDescription>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              Evolução — Últimos {periodLabels[period]}
+            </CardTitle>
+            <CardDescription>Propostas, visualizações e emails enviados por dia</CardDescription>
+          </div>
+          <div className="flex gap-1">
+            {([7, 30, 90] as PeriodDays[]).map((p) => (
+              <Button
+                key={p}
+                size="sm"
+                variant={period === p ? 'default' : 'outline'}
+                onClick={() => onPeriodChange(p)}
+                disabled={loading}
+                className="text-xs"
+              >
+                {periodLabels[p]}
+              </Button>
+            ))}
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">

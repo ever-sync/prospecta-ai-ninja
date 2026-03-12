@@ -70,7 +70,12 @@ export const RegeneratePresentationDialog = ({
   const handleRegenerate = async () => {
     setLoading(true);
     try {
-      await onRegenerate(template, tone, customInstructions);
+      await onRegenerate(
+        template,
+        tone,
+        customInstructions,
+        template === 'custom' ? { textColor: customTextColor, buttonColor: customButtonColor, bgColor: customBgColor } : undefined
+      );
       onOpenChange(false);
     } finally {
       setLoading(false);

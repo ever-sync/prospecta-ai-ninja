@@ -98,7 +98,15 @@ const Presentations = () => {
             name: p.business_name, address: p.business_address, phone: p.business_phone,
             website: p.business_website, category: p.business_category, rating: p.business_rating,
           },
-          dna: dnaRes.data, profile: profileRes.data, testimonials: testimonialsRes.data,
+          dna: {
+            ...dnaRes.data,
+            ...(customColors ? {
+              custom_text_color: customColors.textColor,
+              custom_button_color: customColors.buttonColor,
+              custom_bg_color: customColors.bgColor,
+            } : {}),
+          },
+          profile: profileRes.data, testimonials: testimonialsRes.data,
           clientLogos: clientLogosRes.data, template, tone, customInstructions, publicId: p.public_id,
         },
       });

@@ -1,7 +1,7 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Sparkles, LayoutDashboard, Search, Dna, Presentation,
-  Megaphone, FileText, Settings, LogOut, ShieldCheck, Menu,
+  BarChart3, LayoutGrid, SearchIcon, Fingerprint, FileBarChart,
+  Send, FileStack, Settings, LogOut, ShieldCheck, Menu,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,12 +14,12 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const menuItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/search', label: 'Busca', icon: Search },
-  { path: '/dna', label: 'DNA', icon: Dna },
-  { path: '/presentations', label: 'Apresentações', icon: Presentation },
-  { path: '/campaigns', label: 'Campanhas', icon: Megaphone },
-  { path: '/templates', label: 'Templates', icon: FileText },
+  { path: '/', label: 'Dashboard', icon: LayoutGrid },
+  { path: '/search', label: 'Busca', icon: SearchIcon },
+  { path: '/dna', label: 'DNA', icon: Fingerprint },
+  { path: '/presentations', label: 'Apresentações', icon: FileBarChart },
+  { path: '/campaigns', label: 'Campanhas', icon: Send },
+  { path: '/templates', label: 'Templates', icon: FileStack },
 ];
 
 const generalItems = [
@@ -60,26 +60,21 @@ export const AppLayout = () => {
   const userEmail = user?.email || '';
   const userInitial = userEmail.charAt(0).toUpperCase();
 
-  const NavItem = ({ path, label, icon: Icon, index }: { path: string; label: string; icon: React.ElementType; index: number }) => {
+  const NavItem = ({ path, label, icon: Icon }: { path: string; label: string; icon: React.ElementType }) => {
     const active = location.pathname === path;
     return (
-      <motion.button
-        initial={{ opacity: 0, x: -12 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: index * 0.04, duration: 0.25 }}
+      <button
         onClick={() => navigate(path)}
         className={cn(
-          'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative',
+          'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
           active
             ? 'bg-accent text-accent-foreground'
             : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
         )}
-        whileHover={{ x: 4 }}
-        whileTap={{ scale: 0.97 }}
       >
-        <Icon className="w-[18px] h-[18px] shrink-0" />
+        <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
         <span>{label}</span>
-      </motion.button>
+      </button>
     );
   };
 
@@ -87,13 +82,9 @@ export const AppLayout = () => {
     <>
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
-        <motion.div
-          className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center"
-          whileHover={{ rotate: 12, scale: 1.1 }}
-          transition={{ type: 'spring', stiffness: 300 }}
-        >
-          <Sparkles className="w-4 h-4 text-primary-foreground" />
-        </motion.div>
+        <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center">
+          <BarChart3 className="w-4 h-4 text-primary-foreground" strokeWidth={2} />
+        </div>
         <span className="text-lg font-bold text-foreground">Prospecta IA</span>
       </div>
 
@@ -103,8 +94,8 @@ export const AppLayout = () => {
           Menu
         </p>
         <nav className="space-y-1">
-          {menuItems.map((item, i) => (
-            <NavItem key={item.path} {...item} index={i} />
+          {menuItems.map((item) => (
+            <NavItem key={item.path} {...item} />
           ))}
         </nav>
 
@@ -112,26 +103,24 @@ export const AppLayout = () => {
           Geral
         </p>
         <nav className="space-y-1">
-          {generalItems.map((item, i) => (
-            <NavItem key={item.path} {...item} index={menuItems.length + i} />
+          {generalItems.map((item) => (
+            <NavItem key={item.path} {...item} />
           ))}
           {isAdmin && (
-            <NavItem path="/admin" label="Admin" icon={ShieldCheck} index={menuItems.length + generalItems.length} />
+            <NavItem path="/admin" label="Admin" icon={ShieldCheck} />
           )}
         </nav>
       </div>
 
       {/* User / Logout */}
       <div className="border-t border-border p-3">
-        <motion.button
+        <button
           onClick={signOut}
           className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-          whileHover={{ x: 4 }}
-          whileTap={{ scale: 0.97 }}
         >
-          <LogOut className="w-[18px] h-[18px]" />
+          <LogOut className="w-[18px] h-[18px]" strokeWidth={1.75} />
           <span>Sair</span>
-        </motion.button>
+        </button>
       </div>
     </>
   );
@@ -164,7 +153,7 @@ export const AppLayout = () => {
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
             className="fixed inset-y-0 left-0 z-50 w-[260px] bg-card border-r border-border flex flex-col lg:hidden"
           >
             {sidebarContent}
@@ -218,10 +207,10 @@ export const AppLayout = () => {
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
             >
               <Outlet />
             </motion.div>

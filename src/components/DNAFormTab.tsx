@@ -20,6 +20,8 @@ const DNAFormTab = () => {
   const [tone, setTone] = useState('');
   const [additionalInfo, setAdditionalInfo] = useState('');
   const [portfolioUrl, setPortfolioUrl] = useState('');
+  const [instagramUrl, setInstagramUrl] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
   const [newService, setNewService] = useState('');
   const [newDifferential, setNewDifferential] = useState('');
   const [saving, setSaving] = useState(false);

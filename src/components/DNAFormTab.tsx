@@ -19,6 +19,7 @@ const DNAFormTab = () => {
   const [valueProposition, setValueProposition] = useState('');
   const [tone, setTone] = useState('');
   const [additionalInfo, setAdditionalInfo] = useState('');
+  const [portfolioUrl, setPortfolioUrl] = useState('');
   const [newService, setNewService] = useState('');
   const [newDifferential, setNewDifferential] = useState('');
   const [saving, setSaving] = useState(false);

@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_usage_logs: {
+        Row: {
+          cost_estimate_cents: number | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          operation: string
+          service: string
+          tokens_used: number | null
+          user_id: string
+        }
+        Insert: {
+          cost_estimate_cents?: number | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          operation: string
+          service: string
+          tokens_used?: number | null
+          user_id: string
+        }
+        Update: {
+          cost_estimate_cents?: number | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          operation?: string
+          service?: string
+          tokens_used?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       campaign_presentations: {
         Row: {
           campaign_id: string

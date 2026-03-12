@@ -145,6 +145,94 @@ const Settings = () => {
           </Card>
         </TabsContent>
 
+        {/* Faturamento Tab */}
+        <TabsContent value="faturamento">
+          <div className="space-y-6">
+            {/* Plano Atual */}
+            <Card className="p-6 bg-card border-border space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <Crown className="w-5 h-5 text-primary" />
+                  Plano Atual
+                </h3>
+                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                  Gratuito
+                </Badge>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                {[
+                  { name: 'Gratuito', price: 'R$ 0', features: ['50 apresentações/mês', '2 campanhas', 'Suporte por email'], current: true },
+                  { name: 'Pro', price: 'R$ 97', features: ['500 apresentações/mês', 'Campanhas ilimitadas', 'Suporte prioritário', 'Templates premium'], current: false },
+                  { name: 'Enterprise', price: 'R$ 297', features: ['Apresentações ilimitadas', 'API dedicada', 'Suporte 24/7', 'White-label'], current: false },
+                ].map((plan) => (
+                  <div
+                    key={plan.name}
+                    className={`rounded-xl border p-4 space-y-3 transition-all ${
+                      plan.current
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                        : 'border-border hover:border-muted-foreground/30'
+                    }`}
+                  >
+                    <div>
+                      <p className="font-semibold text-foreground">{plan.name}</p>
+                      <p className="text-xl font-bold text-foreground">{plan.price}<span className="text-xs font-normal text-muted-foreground">/mês</span></p>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {plan.features.map((f) => (
+                        <li key={f} className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Check className="w-3 h-3 text-primary shrink-0" />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      variant={plan.current ? 'outline' : 'default'}
+                      size="sm"
+                      className="w-full"
+                      disabled={plan.current}
+                    >
+                      {plan.current ? 'Plano atual' : 'Fazer upgrade'}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Histórico de Faturas */}
+            <Card className="p-6 bg-card border-border space-y-4">
+              <h3 className="font-semibold text-foreground flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-primary" />
+                Histórico de Faturas
+              </h3>
+
+              <div className="space-y-2">
+                {[
+                  { date: '01/03/2026', desc: 'Plano Gratuito', valor: 'R$ 0,00', status: 'Pago' },
+                  { date: '01/02/2026', desc: 'Plano Gratuito', valor: 'R$ 0,00', status: 'Pago' },
+                  { date: '01/01/2026', desc: 'Plano Gratuito', valor: 'R$ 0,00', status: 'Pago' },
+                ].map((fatura, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{fatura.desc}</p>
+                        <p className="text-xs text-muted-foreground">{fatura.date}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-foreground">{fatura.valor}</p>
+                      <Badge variant="outline" className="text-xs border-primary/30 text-primary">
+                        {fatura.status}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </TabsContent>
+
         {/* Templates Tab */}
         <TabsContent value="templates">
           <TemplatesManager />

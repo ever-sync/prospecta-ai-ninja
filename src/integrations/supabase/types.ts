@@ -125,6 +125,7 @@ export type Database = {
           created_at: string | null
           differentials: string[] | null
           id: string
+          portfolio_url: string | null
           services: string[] | null
           target_audience: string | null
           tone: string | null
@@ -137,6 +138,7 @@ export type Database = {
           created_at?: string | null
           differentials?: string[] | null
           id?: string
+          portfolio_url?: string | null
           services?: string[] | null
           target_audience?: string | null
           tone?: string | null
@@ -149,6 +151,7 @@ export type Database = {
           created_at?: string | null
           differentials?: string[] | null
           id?: string
+          portfolio_url?: string | null
           services?: string[] | null
           target_audience?: string | null
           tone?: string | null

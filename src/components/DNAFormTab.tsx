@@ -19,6 +19,7 @@ const DNAFormTab = () => {
   const [valueProposition, setValueProposition] = useState('');
   const [tone, setTone] = useState('');
   const [additionalInfo, setAdditionalInfo] = useState('');
+  const [portfolioUrl, setPortfolioUrl] = useState('');
   const [newService, setNewService] = useState('');
   const [newDifferential, setNewDifferential] = useState('');
   const [saving, setSaving] = useState(false);
@@ -40,6 +41,7 @@ const DNAFormTab = () => {
           setValueProposition(data.value_proposition || '');
           setTone(data.tone || '');
           setAdditionalInfo(data.additional_info || '');
+          setPortfolioUrl((data as any).portfolio_url || '');
         }
       });
   }, [user]);
@@ -58,13 +60,14 @@ const DNAFormTab = () => {
 
   const completeness = () => {
     let filled = 0;
-    const total = 6;
+    const total = 7;
     if (services.length > 0) filled++;
     if (differentials.length > 0) filled++;
     if (targetAudience.trim()) filled++;
     if (valueProposition.trim()) filled++;
     if (tone.trim()) filled++;
     if (additionalInfo.trim()) filled++;
+    if (portfolioUrl.trim()) filled++;
     return { filled, total, percent: Math.round((filled / total) * 100) };
   };
 
@@ -80,6 +83,7 @@ const DNAFormTab = () => {
       value_proposition: valueProposition,
       tone,
       additional_info: additionalInfo,
+      portfolio_url: portfolioUrl,
       updated_at: new Date().toISOString(),
     };
 
@@ -194,6 +198,13 @@ const DNAFormTab = () => {
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Informações Adicionais</Label>
           <Textarea value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} placeholder="Outras informações relevantes sobre sua empresa..." className="bg-secondary border-border min-h-[80px]" />
+        </div>
+
+        {/* Portfolio URL */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">Link do Portfólio</Label>
+          <Input value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://seusite.com/portfolio" className="bg-secondary border-border" />
+          <p className="text-xs text-muted-foreground">O botão "Acessar Portfólio" será exibido na apresentação gerada.</p>
         </div>
 
         <Button onClick={handleSave} disabled={saving} className="w-full gradient-primary text-primary-foreground font-semibold py-5 glow-primary gap-2">

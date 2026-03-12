@@ -1,0 +1,1 @@
+ALTER TABLE public.company_dna ADD COLUMN instagram_url text DEFAULT '', ADD COLUMN linkedin_url text DEFAULT '';

@@ -125,6 +125,8 @@ export type Database = {
           created_at: string | null
           differentials: string[] | null
           id: string
+          instagram_url: string | null
+          linkedin_url: string | null
           portfolio_url: string | null
           services: string[] | null
           target_audience: string | null
@@ -138,6 +140,8 @@ export type Database = {
           created_at?: string | null
           differentials?: string[] | null
           id?: string
+          instagram_url?: string | null
+          linkedin_url?: string | null
           portfolio_url?: string | null
           services?: string[] | null
           target_audience?: string | null
@@ -151,6 +155,8 @@ export type Database = {
           created_at?: string | null
           differentials?: string[] | null
           id?: string
+          instagram_url?: string | null
+          linkedin_url?: string | null
           portfolio_url?: string | null
           services?: string[] | null
           target_audience?: string | null

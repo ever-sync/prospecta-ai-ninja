@@ -44,6 +44,12 @@ Deno.serve(async (req) => {
     const targetAudience = dna?.target_audience || 'Não informado';
     const additionalInfo = dna?.additional_info || '';
 
+    // Build WhatsApp link
+    const rawPhone = profile?.phone || '';
+    const cleanPhone = rawPhone.replace(/\D/g, '');
+    const whatsappNumber = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+    const whatsappUrl = cleanPhone ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Olá! Vi a apresentação da ${companyName} sobre minha empresa ${business.name} e gostaria de receber mais informações.`)}` : '';
+
     // Build testimonials section
     let testimonialsBlock = '';
     if (testimonials && testimonials.length > 0) {

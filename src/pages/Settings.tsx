@@ -73,7 +73,7 @@ const Settings = () => {
     setSaving(true);
     const { error } = await supabase
       .from('profiles')
-      .update({ company_name: companyName, email, phone, company_logo_url: logoUrl })
+      .update({ company_name: companyName, email, phone, company_logo_url: logoUrl, elevenlabs_voice_id: voiceId || null })
       .eq('user_id', user.id);
     if (error) {
       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });

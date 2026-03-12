@@ -112,6 +112,7 @@ const TemplatesManager = () => {
       body: formBody,
       image_url: formImageUrl,
       include_proposal_link: formIncludeLink,
+      send_as_audio: formChannel === 'whatsapp' ? formSendAsAudio : false,
       updated_at: new Date().toISOString(),
     };
 

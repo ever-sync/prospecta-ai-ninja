@@ -83,6 +83,7 @@ const DNAFormTab = () => {
       value_proposition: valueProposition,
       tone,
       additional_info: additionalInfo,
+      portfolio_url: portfolioUrl,
       updated_at: new Date().toISOString(),
     };
 

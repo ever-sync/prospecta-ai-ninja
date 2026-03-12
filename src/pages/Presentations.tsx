@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Presentation, Eye, Send, Trash2, Loader2 } from 'lucide-react';
+import { Presentation, Eye, Send, Trash2, Loader2, RefreshCw } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SendPresentationDialog } from '@/components/SendPresentationDialog';
+import { RegeneratePresentationDialog } from '@/components/RegeneratePresentationDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';

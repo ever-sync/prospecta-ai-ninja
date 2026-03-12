@@ -75,6 +75,7 @@ ESTRUTURA OBRIGATÓRIA DA APRESENTAÇÃO:
 2. **Saudação personalizada** — Dirigida ao lead pelo nome, mencionando o setor dele
 3. **Diagnóstico do Lead** — Resumo dos problemas encontrados na análise (scores, SEO, velocidade, etc.) apresentados de forma que o lead entenda o impacto no seu negócio
 4. **Scores visuais** — Barras de progresso coloridas mostrando os scores (vermelho=ruim, amarelo=médio, verde=bom)
+${analysis?.google_maps_screenshot ? `4.5. **Screenshot do Google Maps** — Incluir a imagem do Google Maps da empresa analisada usando a tag <img> com src="data:image/png;base64,GOOGLE_MAPS_SCREENSHOT_PLACEHOLDER". Adicionar borda arredondada e sombra. Título: "Presença no Google Maps"` : ''}
 5. **Problemas detalhados e Oportunidades** — Para cada área problemática, explicar o impacto em linguagem de negócio (ex: "Seu site demora 8s para carregar — isso faz você perder 53% dos visitantes")
 6. **A Solução: Nossos Serviços** — Apresentar CADA serviço da empresa prospectora como solução direta para os problemas identificados. Conectar serviço → problema → benefício
 7. **Nossos Diferenciais** — Por que escolher esta empresa e não outra
@@ -155,9 +156,12 @@ Gere o HTML completo da apresentação.`;
     // Clean up markdown code fences if present
     html = html.replace(/^```html\n?/i, '').replace(/\n?```$/i, '').trim();
 
-    // Replace placeholder with actual public ID
+    // Replace placeholders
     if (publicId) {
       html = html.replaceAll('PUBLIC_ID_PLACEHOLDER', publicId);
+    }
+    if (analysis?.google_maps_screenshot) {
+      html = html.replaceAll('GOOGLE_MAPS_SCREENSHOT_PLACEHOLDER', analysis.google_maps_screenshot);
     }
 
     return new Response(JSON.stringify({ success: true, html }), {

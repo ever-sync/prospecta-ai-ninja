@@ -73,8 +73,9 @@ const Presentations = () => {
     }
   };
 
+  const publishedOrigin = 'https://prospecta-ai-ninja.lovable.app';
   const getPublicUrl = (publicId: string) =>
-    `${window.location.origin}/presentation/${publicId}`;
+    `${publishedOrigin}/presentation/${publicId}`;
 
   const handleRegenerate = async (template: string, tone: string, customInstructions: string, customColors?: { textColor: string; buttonColor: string; bgColor: string }) => {
     const p = regenDialog.presentation;

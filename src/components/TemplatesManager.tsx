@@ -334,6 +334,17 @@ const TemplatesManager = () => {
               <Switch checked={formIncludeLink} onCheckedChange={setFormIncludeLink} />
             </div>
 
+            {/* Send as audio - WhatsApp only */}
+            {formChannel === 'whatsapp' && (
+              <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                <div>
+                  <Label className="text-sm font-medium">🎙️ Enviar como Áudio</Label>
+                  <p className="text-xs text-muted-foreground">Converte o texto em áudio com sua voz clonada (ElevenLabs)</p>
+                </div>
+                <Switch checked={formSendAsAudio} onCheckedChange={setFormSendAsAudio} />
+              </div>
+            )}
+
             {/* Preview */}
             <div className="space-y-2">
               <Label className="text-sm">Pré-visualização</Label>

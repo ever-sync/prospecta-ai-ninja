@@ -49,6 +49,12 @@ const Campaigns = () => {
   const [selectedPresentationIds, setSelectedPresentationIds] = useState<Set<string>>(new Set());
   const [templates, setTemplates] = useState<{ id: string; name: string; channel: string }[]>([]);
 
+  // Preview state
+  const [previewLeads, setPreviewLeads] = useState<{ id: string; business_name: string; business_phone: string; message: string; subject?: string }[]>([]);
+  const [previewCampaign, setPreviewCampaign] = useState<Campaign | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [sending, setSending] = useState(false);
+
   // Create form
   const [formName, setFormName] = useState('');
   const [formDesc, setFormDesc] = useState('');

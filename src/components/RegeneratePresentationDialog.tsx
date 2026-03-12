@@ -26,7 +26,7 @@ const TONES = [
 interface RegeneratePresentationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onRegenerate: (template: string, tone: string, customInstructions: string) => Promise<void>;
+  onRegenerate: (template: string, tone: string, customInstructions: string, customColors?: { textColor: string; buttonColor: string; bgColor: string }) => Promise<void>;
   businessName: string;
 }
 

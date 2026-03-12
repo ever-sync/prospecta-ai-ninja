@@ -173,7 +173,7 @@ const DNAFormTab = () => {
               value={newDifferential}
               onChange={(e) => setNewDifferential(e.target.value)}
               placeholder="Ex: Atendimento 24h"
-              className="bg-secondary border-border"
+              className=""
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(differentials, setDifferentials, newDifferential, setNewDifferential))}
             />
             <Button variant="outline" size="icon" onClick={() => addTag(differentials, setDifferentials, newDifferential, setNewDifferential)}>

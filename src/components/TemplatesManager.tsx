@@ -249,7 +249,7 @@ const TemplatesManager = () => {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Nome do Template *</Label>
-              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Proposta Restaurantes" className="bg-secondary border-border" />
+              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Proposta Restaurantes" />
             </div>
 
             {formChannel === 'email' && (

@@ -30,8 +30,12 @@ const PROPOSAL_MODELS = [
     label: 'Bold & Criativa',
     desc: 'Gradientes vibrantes e glassmorphism. Perfeito para agências criativas e startups.',
   },
+  {
+    key: 'custom',
+    label: 'Customizado',
+    desc: 'Defina suas próprias cores de texto, botões e fundo da página.',
+  },
 ];
-
 const TONES = [
   { key: 'professional', label: '💼 Profissional', desc: 'Objetivo, focado em dados e resultados.' },
   { key: 'consultive', label: '🎓 Consultivo', desc: 'Educativo, explica o "porquê" de cada recomendação.' },
@@ -40,7 +44,34 @@ const TONES = [
   { key: 'technical', label: '🔧 Técnico', desc: 'Detalhado, com termos específicos e métricas.' },
 ];
 
-const ProposalPreview = ({ modelKey }: { modelKey: string }) => {
+const ProposalPreview = ({ modelKey, customColors }: { modelKey: string; customColors?: { text: string; button: string; bg: string } }) => {
+  if (modelKey === 'custom' && customColors) {
+    return (
+      <div className="w-full h-full rounded-md overflow-hidden p-3 flex flex-col gap-2" style={{ backgroundColor: customColors.bg }}>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded" style={{ backgroundColor: customColors.button }} />
+          <div className="h-2 w-16 rounded" style={{ backgroundColor: customColors.text, opacity: 0.5 }} />
+        </div>
+        <div className="h-2 w-3/4 rounded mt-1" style={{ backgroundColor: customColors.text, opacity: 0.3 }} />
+        <div className="h-2 w-1/2 rounded" style={{ backgroundColor: customColors.text, opacity: 0.2 }} />
+        <div className="flex gap-2 mt-1">
+          <div className="flex-1 rounded p-2" style={{ backgroundColor: customColors.button + '33' }}>
+            <div className="h-1.5 w-full rounded mb-1" style={{ backgroundColor: customColors.button, opacity: 0.7 }} />
+            <div className="h-1 w-2/3 rounded" style={{ backgroundColor: customColors.text, opacity: 0.2 }} />
+          </div>
+          <div className="flex-1 rounded p-2" style={{ backgroundColor: customColors.button + '33' }}>
+            <div className="h-1.5 w-full rounded mb-1" style={{ backgroundColor: customColors.button, opacity: 0.7 }} />
+            <div className="h-1 w-2/3 rounded" style={{ backgroundColor: customColors.text, opacity: 0.2 }} />
+          </div>
+        </div>
+        <div className="flex gap-2 mt-auto">
+          <div className="h-4 flex-1 rounded" style={{ backgroundColor: customColors.button }} />
+          <div className="h-4 flex-1 rounded" style={{ backgroundColor: customColors.text, opacity: 0.15 }} />
+        </div>
+      </div>
+    );
+  }
+
   const previews: Record<string, React.ReactNode> = {
     'modern-dark': (
       <div className="w-full h-full bg-[#0c0c1d] rounded-md overflow-hidden p-3 flex flex-col gap-2">
@@ -153,12 +184,15 @@ const ProposalTemplateTab = () => {
   const [selectedTemplate, setSelectedTemplate] = useState('modern-dark');
   const [selectedTone, setSelectedTone] = useState('professional');
   const [instructions, setInstructions] = useState('');
+  const [customTextColor, setCustomTextColor] = useState('#ffffff');
+  const [customButtonColor, setCustomButtonColor] = useState('#6366f1');
+  const [customBgColor, setCustomBgColor] = useState('#0c0c1d');
 
   useEffect(() => {
     if (!user) return;
     supabase
       .from('company_dna')
-      .select('presentation_template, presentation_tone, presentation_instructions')
+      .select('presentation_template, presentation_tone, presentation_instructions, custom_text_color, custom_button_color, custom_bg_color')
       .eq('user_id', user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -166,6 +200,9 @@ const ProposalTemplateTab = () => {
           setSelectedTemplate((data as any).presentation_template || 'modern-dark');
           setSelectedTone((data as any).presentation_tone || 'professional');
           setInstructions((data as any).presentation_instructions || '');
+          setCustomTextColor((data as any).custom_text_color || '#ffffff');
+          setCustomButtonColor((data as any).custom_button_color || '#6366f1');
+          setCustomBgColor((data as any).custom_bg_color || '#0c0c1d');
         }
         setLoading(false);
       });
@@ -185,6 +222,9 @@ const ProposalTemplateTab = () => {
       presentation_template: selectedTemplate,
       presentation_tone: selectedTone,
       presentation_instructions: instructions,
+      custom_text_color: customTextColor,
+      custom_button_color: customButtonColor,
+      custom_bg_color: customBgColor,
     } as any;
 
     let error;
@@ -240,7 +280,7 @@ const ProposalTemplateTab = () => {
 
                 {/* Preview */}
                 <div className="h-36 p-2">
-                  <ProposalPreview modelKey={model.key} />
+                  <ProposalPreview modelKey={model.key} customColors={model.key === 'custom' ? { text: customTextColor, button: customButtonColor, bg: customBgColor } : undefined} />
                 </div>
 
                 {/* Info */}
@@ -259,6 +299,48 @@ const ProposalTemplateTab = () => {
             );
           })}
         </div>
+
+        {/* Custom color pickers */}
+        {selectedTemplate === 'custom' && (
+          <div className="grid grid-cols-3 gap-4 p-4 rounded-xl border-2 border-primary/20 bg-primary/5">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-foreground">Cor do Texto</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={customTextColor}
+                  onChange={(e) => setCustomTextColor(e.target.value)}
+                  className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
+                />
+                <span className="text-xs text-muted-foreground font-mono">{customTextColor}</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-foreground">Cor dos Botões</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={customButtonColor}
+                  onChange={(e) => setCustomButtonColor(e.target.value)}
+                  className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
+                />
+                <span className="text-xs text-muted-foreground font-mono">{customButtonColor}</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-foreground">Cor de Fundo</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={customBgColor}
+                  onChange={(e) => setCustomBgColor(e.target.value)}
+                  className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
+                />
+                <span className="text-xs text-muted-foreground font-mono">{customBgColor}</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tone */}

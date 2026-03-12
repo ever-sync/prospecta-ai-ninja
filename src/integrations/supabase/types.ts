@@ -167,6 +167,9 @@ export type Database = {
         Row: {
           additional_info: string | null
           created_at: string | null
+          custom_bg_color: string | null
+          custom_button_color: string | null
+          custom_text_color: string | null
           differentials: string[] | null
           facebook_url: string | null
           id: string
@@ -187,6 +190,9 @@ export type Database = {
         Insert: {
           additional_info?: string | null
           created_at?: string | null
+          custom_bg_color?: string | null
+          custom_button_color?: string | null
+          custom_text_color?: string | null
           differentials?: string[] | null
           facebook_url?: string | null
           id?: string
@@ -207,6 +213,9 @@ export type Database = {
         Update: {
           additional_info?: string | null
           created_at?: string | null
+          custom_bg_color?: string | null
+          custom_button_color?: string | null
+          custom_text_color?: string | null
           differentials?: string[] | null
           facebook_url?: string | null
           id?: string

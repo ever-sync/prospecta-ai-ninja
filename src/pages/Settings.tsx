@@ -38,6 +38,7 @@ const Settings = () => {
           setEmail(data.email || '');
           setPhone(data.phone || '');
           setLogoUrl(data.company_logo_url || '');
+          setVoiceId(data.elevenlabs_voice_id || '');
         }
       });
   }, [user]);

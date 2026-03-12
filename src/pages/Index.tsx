@@ -11,6 +11,7 @@ import { Business, SearchFilters as Filters } from '@/types/business';
 import { exportToCSV } from '@/utils/exportCSV';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
@@ -23,6 +24,7 @@ const Index = () => {
   const [showProgress, setShowProgress] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { canUse, getRemainingUsage } = useSubscription();
   const navigate = useNavigate();
 
   const handleSearch = async (filters: Filters) => {
@@ -79,6 +81,25 @@ const Index = () => {
 
     const selected = businesses.filter(b => selectedIds.has(b.id));
     if (selected.length === 0) return;
+
+    if (!canUse('presentations')) {
+      toast({
+        title: 'Limite atingido',
+        description: 'Você atingiu o limite de apresentações do seu plano. Faça upgrade em Configurações → Faturamento.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const remaining = getRemainingUsage('presentations');
+    if (remaining !== null && remaining !== Infinity && selected.length > remaining) {
+      toast({
+        title: 'Limite insuficiente',
+        description: `Você pode gerar mais ${remaining} apresentação(ões). Selecione menos ou faça upgrade do plano.`,
+        variant: 'destructive',
+      });
+      return;
+    }
 
     // Initialize progress items
     const items: AnalysisItem[] = selected.map(b => ({

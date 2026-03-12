@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Campaign {
@@ -41,6 +42,7 @@ interface PresentationOption {
 const Campaigns = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { canUse } = useSubscription();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -134,6 +136,16 @@ const Campaigns = () => {
 
   const handleCreate = async () => {
     if (!user || !formName.trim()) return;
+
+    if (!canUse('campaigns')) {
+      toast({
+        title: 'Limite atingido',
+        description: 'Você atingiu o limite de campanhas do seu plano. Faça upgrade em Configurações → Faturamento.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setCreating(true);
 
     const { error } = await supabase.from('campaigns').insert({
@@ -215,6 +227,15 @@ const Campaigns = () => {
 
   const handleSendCampaign = async (campaign: Campaign) => {
     if (!user) return;
+
+    if (!canUse('emails')) {
+      toast({
+        title: 'Limite atingido',
+        description: 'Você atingiu o limite de envios do seu plano. Faça upgrade em Configurações → Faturamento.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const { data: cpRows } = await supabase
       .from('campaign_presentations')

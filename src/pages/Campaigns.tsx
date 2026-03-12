@@ -134,9 +134,10 @@ const Campaigns = () => {
       name: formName.trim(),
       description: formDesc.trim(),
       channel: formChannel,
+      template_id: formTemplateId || null,
       scheduled_at: formSchedule || null,
       status: formSchedule ? 'scheduled' : 'draft',
-    });
+    } as any);
 
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
@@ -147,6 +148,7 @@ const Campaigns = () => {
       setFormDesc('');
       setFormChannel('whatsapp');
       setFormSchedule('');
+      setFormTemplateId('');
       fetchCampaigns();
     }
     setCreating(false);

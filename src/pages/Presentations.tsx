@@ -136,6 +136,14 @@ const Presentations = () => {
     }
   };
 
+  const responseBadge = (response: string) => {
+    switch (response) {
+      case 'accepted': return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Aceita</Badge>;
+      case 'rejected': return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Recusada</Badge>;
+      default: return <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-400 border-yellow-500/30">Aguardando</Badge>;
+    }
+  };
+
   const overallScore = (data: any) => {
     return data?.scores?.overall ?? '—';
   };

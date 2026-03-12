@@ -130,6 +130,8 @@ EMPRESA QUE ESTÁ VENDENDO (prospectora):
 - Público-alvo: ${targetAudience}
 - Informações adicionais: ${additionalInfo}
 - Portfólio URL: ${portfolioUrl || 'Não informado'}
+- Instagram: ${instagramUrl || 'Não informado'}
+- LinkedIn: ${linkedinUrl || 'Não informado'}
 - Telefone/contato: ${profile?.phone || 'Não informado'}
 - Email: ${profile?.email || 'Não informado'}
 - WhatsApp URL para CTA: ${whatsappUrl || 'Sem telefone cadastrado'}

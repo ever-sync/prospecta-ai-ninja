@@ -20,6 +20,7 @@ const Settings = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [voiceId, setVoiceId] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);

@@ -213,10 +213,13 @@ const Presentations = () => {
                     <div className="flex items-center justify-end gap-1">
                       {p.status === 'ready' && (
                         <>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(getPublicUrl(p.public_id), '_blank')}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Visualizar" onClick={() => window.open(getPublicUrl(p.public_id), '_blank')}>
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSendDialog({
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Regenerar" onClick={() => setRegenDialog({ open: true, presentation: p })}>
+                            <RefreshCw className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Enviar" onClick={() => setSendDialog({
                             open: true,
                             publicUrl: getPublicUrl(p.public_id),
                             name: p.business_name,

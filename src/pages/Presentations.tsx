@@ -67,8 +67,61 @@ const Presentations = () => {
     }
   };
 
-  const getPublicUrl = (publicId: string) => {
-    return `${window.location.origin}/presentation/${publicId}`;
+  const getPublicUrl = (publicId: string) =>
+    `${window.location.origin}/presentation/${publicId}`;
+
+  const handleRegenerate = async (template: string, tone: string, customInstructions: string) => {
+    const p = regenDialog.presentation;
+    if (!p || !user) return;
+
+    // Set status to analyzing
+    await supabase.from('presentations').update({ status: 'analyzing' } as any).eq('id', p.id);
+    setPresentations(prev => prev.map(x => x.id === p.id ? { ...x, status: 'analyzing' } : x));
+
+    try {
+      // Fetch DNA and profile
+      const [dnaRes, profileRes] = await Promise.all([
+        supabase.from('company_dna').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
+      ]);
+
+      const { data: genData, error: genError } = await supabase.functions.invoke('generate-presentation', {
+        body: {
+          analysis: p.analysis_data,
+          business: {
+            name: p.business_name,
+            address: p.business_address,
+            phone: p.business_phone,
+            website: p.business_website,
+            category: p.business_category,
+            rating: p.business_rating,
+          },
+          dna: dnaRes.data,
+          profile: profileRes.data,
+          template,
+          tone,
+          customInstructions,
+        },
+      });
+
+      if (genError) throw genError;
+
+      await supabase
+        .from('presentations')
+        .update({ presentation_html: genData.html, status: 'ready' } as any)
+        .eq('id', p.id);
+
+      setPresentations(prev =>
+        prev.map(x => x.id === p.id ? { ...x, status: 'ready' } : x)
+      );
+
+      toast({ title: 'Regenerada!', description: 'Apresentação atualizada com sucesso' });
+    } catch (err) {
+      console.error(err);
+      await supabase.from('presentations').update({ status: 'error' } as any).eq('id', p.id);
+      setPresentations(prev => prev.map(x => x.id === p.id ? { ...x, status: 'error' } : x));
+      toast({ title: 'Erro', description: 'Falha ao regenerar apresentação', variant: 'destructive' });
+    }
   };
 
   const statusBadge = (status: string) => {

@@ -287,7 +287,7 @@ const TemplatesManager = () => {
                 placeholder={formChannel === 'whatsapp'
                   ? 'Olá! Sou da {{sua_empresa}}...'
                   : '<p>Olá!</p><p>Preparamos uma análise para {{nome_empresa}}...</p>'}
-                className="bg-secondary border-border min-h-[200px] font-mono text-sm"
+                className="min-h-[200px] font-mono text-sm"
               />
             </div>
 

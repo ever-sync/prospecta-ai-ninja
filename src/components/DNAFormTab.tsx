@@ -133,7 +133,7 @@ const DNAFormTab = () => {
         </Badge>
       </div>
 
-      <Card className="p-6 bg-card border-border space-y-6">
+      <Card className="p-6 space-y-6">
         <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
           <div className="h-full gradient-primary transition-all duration-500" style={{ width: `${percent}%` }} />
         </div>
@@ -146,7 +146,7 @@ const DNAFormTab = () => {
               value={newService}
               onChange={(e) => setNewService(e.target.value)}
               placeholder="Ex: Criação de sites"
-              className="bg-secondary border-border"
+              className=""
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(services, setServices, newService, setNewService))}
             />
             <Button variant="outline" size="icon" onClick={() => addTag(services, setServices, newService, setNewService)}>
@@ -173,7 +173,7 @@ const DNAFormTab = () => {
               value={newDifferential}
               onChange={(e) => setNewDifferential(e.target.value)}
               placeholder="Ex: Atendimento 24h"
-              className="bg-secondary border-border"
+              className=""
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(differentials, setDifferentials, newDifferential, setNewDifferential))}
             />
             <Button variant="outline" size="icon" onClick={() => addTag(differentials, setDifferentials, newDifferential, setNewDifferential)}>
@@ -195,56 +195,56 @@ const DNAFormTab = () => {
         {/* Target Audience */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Público-Alvo</Label>
-          <Textarea value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="Descreva seu público-alvo ideal..." className="bg-secondary border-border min-h-[80px]" />
+          <Textarea value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="Descreva seu público-alvo ideal..." className="min-h-[80px]" />
         </div>
 
         {/* Value Proposition */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Proposta de Valor</Label>
-          <Textarea value={valueProposition} onChange={(e) => setValueProposition(e.target.value)} placeholder="O que torna sua empresa única?" className="bg-secondary border-border min-h-[80px]" />
+          <Textarea value={valueProposition} onChange={(e) => setValueProposition(e.target.value)} placeholder="O que torna sua empresa única?" className="min-h-[80px]" />
         </div>
 
         {/* Tone */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Tom de Comunicação</Label>
-          <Input value={tone} onChange={(e) => setTone(e.target.value)} placeholder="Ex: Profissional, amigável, técnico..." className="bg-secondary border-border" />
+          <Input value={tone} onChange={(e) => setTone(e.target.value)} placeholder="Ex: Profissional, amigável, técnico..." />
         </div>
 
         {/* Additional Info */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Informações Adicionais</Label>
-          <Textarea value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} placeholder="Outras informações relevantes sobre sua empresa..." className="bg-secondary border-border min-h-[80px]" />
+          <Textarea value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} placeholder="Outras informações relevantes sobre sua empresa..." className="min-h-[80px]" />
         </div>
 
         {/* Portfolio URL */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Link do Portfólio</Label>
-          <Input value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://seusite.com/portfolio" className="bg-secondary border-border" />
+          <Input value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://seusite.com/portfolio" />
           <p className="text-xs text-muted-foreground">O botão "Acessar Portfólio" será exibido na apresentação gerada.</p>
         </div>
 
         {/* Instagram */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Instagram</Label>
-          <Input value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)} placeholder="https://instagram.com/suaempresa" className="bg-secondary border-border" />
+          <Input value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)} placeholder="https://instagram.com/suaempresa" />
         </div>
 
         {/* LinkedIn */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">LinkedIn</Label>
-          <Input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/company/suaempresa" className="bg-secondary border-border" />
+          <Input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/company/suaempresa" />
         </div>
 
         {/* Facebook */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Facebook</Label>
-          <Input value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} placeholder="https://facebook.com/suaempresa" className="bg-secondary border-border" />
+          <Input value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} placeholder="https://facebook.com/suaempresa" />
         </div>
 
         {/* YouTube */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">YouTube</Label>
-          <Input value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/@suaempresa" className="bg-secondary border-border" />
+          <Input value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/@suaempresa" />
         </div>
 
         <Button onClick={handleSave} disabled={saving} className="w-full gradient-primary text-primary-foreground font-semibold py-5 glow-primary gap-2">

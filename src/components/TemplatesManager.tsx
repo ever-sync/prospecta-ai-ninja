@@ -179,7 +179,7 @@ const TemplatesManager = () => {
         </p>
       ) : (
         list.map(t => (
-          <Card key={t.id} className="p-4 bg-card border-border">
+          <Card key={t.id} className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
@@ -238,7 +238,7 @@ const TemplatesManager = () => {
 
       {/* Editor Dialog */}
       <Dialog open={showEditor} onOpenChange={setShowEditor}>
-        <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-card max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground flex items-center gap-2">
               {formChannel === 'whatsapp' ? <MessageSquare className="w-5 h-5" /> : <Mail className="w-5 h-5" />}
@@ -249,13 +249,13 @@ const TemplatesManager = () => {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Nome do Template *</Label>
-              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Proposta Restaurantes" className="bg-secondary border-border" />
+              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Proposta Restaurantes" />
             </div>
 
             {formChannel === 'email' && (
               <div className="space-y-2">
                 <Label>Assunto do Email</Label>
-                <Input value={formSubject} onChange={e => setFormSubject(e.target.value)} placeholder="Ex: Análise exclusiva para {{nome_empresa}}" className="bg-secondary border-border" />
+                <Input value={formSubject} onChange={e => setFormSubject(e.target.value)} placeholder="Ex: Análise exclusiva para {{nome_empresa}}" />
               </div>
             )}
 
@@ -287,7 +287,7 @@ const TemplatesManager = () => {
                 placeholder={formChannel === 'whatsapp'
                   ? 'Olá! Sou da {{sua_empresa}}...'
                   : '<p>Olá!</p><p>Preparamos uma análise para {{nome_empresa}}...</p>'}
-                className="bg-secondary border-border min-h-[200px] font-mono text-sm"
+                className="min-h-[200px] font-mono text-sm"
               />
             </div>
 
@@ -327,7 +327,7 @@ const TemplatesManager = () => {
             {/* Preview */}
             <div className="space-y-2">
               <Label className="text-sm">Pré-visualização</Label>
-              <Card className="p-4 bg-secondary/50 border-border">
+              <Card className="p-4 bg-secondary/50">
                 <p className="text-sm text-foreground whitespace-pre-wrap">
                   {formBody
                     .replace(/\{\{nome_empresa\}\}/g, 'Restaurante Exemplo')

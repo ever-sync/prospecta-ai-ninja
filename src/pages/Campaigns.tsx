@@ -382,14 +382,14 @@ const Campaigns = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 flex justify-center">
+      <div className="p-4 lg:p-8 flex justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="p-4 lg:p-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
           <Megaphone className="w-6 h-6 text-primary" />
@@ -403,23 +403,23 @@ const Campaigns = () => {
 
       {/* Create Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card">
           <DialogHeader>
             <DialogTitle className="text-foreground">Nova Campanha</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Nome *</Label>
-              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Restaurantes SP - Março" className="bg-secondary border-border" />
+              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Restaurantes SP - Março" />
             </div>
             <div className="space-y-2">
               <Label>Descrição</Label>
-              <Textarea value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Objetivo da campanha..." className="bg-secondary border-border" />
+              <Textarea value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Objetivo da campanha..." />
             </div>
             <div className="space-y-2">
               <Label>Canal de Envio</Label>
               <Select value={formChannel} onValueChange={(v) => { setFormChannel(v); setFormTemplateId(''); }}>
-                <SelectTrigger className="bg-secondary border-border">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -433,7 +433,7 @@ const Campaigns = () => {
             <div className="space-y-2">
               <Label>Template de Mensagem</Label>
               <Select value={formTemplateId} onValueChange={setFormTemplateId}>
-                <SelectTrigger className="bg-secondary border-border">
+                <SelectTrigger>
                   <SelectValue placeholder="Selecione um template (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -453,7 +453,7 @@ const Campaigns = () => {
             </div>
             <div className="space-y-2">
               <Label>Agendamento (opcional)</Label>
-              <Input type="datetime-local" value={formSchedule} onChange={e => setFormSchedule(e.target.value)} className="bg-secondary border-border" />
+              <Input type="datetime-local" value={formSchedule} onChange={e => setFormSchedule(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
@@ -467,7 +467,7 @@ const Campaigns = () => {
 
       {/* Add Presentations Dialog */}
       <Dialog open={!!showAddPresentations} onOpenChange={() => setShowAddPresentations(null)}>
-        <DialogContent className="bg-card border-border max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogContent className="bg-card max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">Adicionar Apresentações</DialogTitle>
           </DialogHeader>
@@ -515,7 +515,7 @@ const Campaigns = () => {
 
       {/* Campaigns List */}
       {campaigns.length === 0 ? (
-        <Card className="p-12 bg-card border-border text-center">
+        <Card className="p-12 text-center">
           <div className="w-16 h-16 rounded-full bg-secondary mx-auto flex items-center justify-center mb-4">
             <Megaphone className="w-8 h-8 text-muted-foreground" />
           </div>
@@ -525,7 +525,7 @@ const Campaigns = () => {
       ) : (
         <div className="grid gap-4">
           {campaigns.map(c => (
-            <Card key={c.id} className="p-6 bg-card border-border">
+            <Card key={c.id} className="p-6">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">

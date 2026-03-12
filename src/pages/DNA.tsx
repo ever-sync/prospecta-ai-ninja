@@ -6,7 +6,7 @@ import ClientLogosTab from '@/components/ClientLogosTab';
 
 const DNA = () => {
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
+    <div className="p-4 lg:p-8 max-w-2xl">
       <h1 className="text-2xl font-bold text-foreground flex items-center gap-3 mb-6">
         <Dna className="w-6 h-6 text-primary" />
         DNA da Empresa

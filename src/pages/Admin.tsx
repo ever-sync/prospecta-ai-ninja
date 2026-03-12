@@ -51,7 +51,7 @@ interface AdminStats {
 const StatCard = ({ icon: Icon, label, value, sub, color }: {
   icon: any; label: string; value: number | string; sub?: string; color: string;
 }) => (
-  <Card className="relative overflow-hidden">
+  <Card>
     <CardContent className="p-6">
       <div className="flex items-center justify-between">
         <div>
@@ -78,13 +78,9 @@ const Admin = () => {
 
   const fetchStats = useCallback(async (days: PeriodDays, isInitial = false) => {
     if (!user) return;
-
     if (!isInitial) setChartLoading(true);
-
     try {
-      const { data, error } = await supabase.functions.invoke('admin-stats', {
-        body: { days },
-      });
+      const { data, error } = await supabase.functions.invoke('admin-stats', { body: { days } });
       if (error) throw error;
       setStats(data);
     } catch (err) {
@@ -99,24 +95,12 @@ const Admin = () => {
   useEffect(() => {
     const checkAdminAndFetch = async () => {
       if (!user) return;
-
       const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
-
-      if (!roleData) {
-        setIsAdmin(false);
-        setLoading(false);
-        return;
-      }
-
+        .from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle();
+      if (!roleData) { setIsAdmin(false); setLoading(false); return; }
       setIsAdmin(true);
       fetchStats(period, true);
     };
-
     checkAdminAndFetch();
   }, [user]);
 
@@ -129,7 +113,7 @@ const Admin = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 space-y-6">
+      <div className="p-4 lg:p-8 space-y-6">
         <Skeleton className="h-8 w-64" />
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
@@ -142,7 +126,7 @@ const Admin = () => {
   if (!stats) return null;
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
+    <div className="p-4 lg:p-8 space-y-8">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
           <ShieldCheck className="w-5 h-5 text-primary" />
@@ -161,20 +145,17 @@ const Admin = () => {
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-8">
-          {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <StatCard icon={Users} label="Usuários" value={stats.totals.users} color="bg-primary/10 text-primary" />
-            <StatCard icon={Presentation} label="Propostas" value={stats.totals.presentations} sub={`${stats.thisMonth.presentations} este mês`} color="bg-blue-500/10 text-blue-500" />
-            <StatCard icon={Megaphone} label="Campanhas" value={stats.totals.campaigns} color="bg-amber-500/10 text-amber-500" />
-            <StatCard icon={Eye} label="Visualizações" value={stats.totals.views} sub={`${stats.thisMonth.views} este mês`} color="bg-emerald-500/10 text-emerald-500" />
-            <StatCard icon={Mail} label="Emails Enviados" value={stats.totals.emails} sub={`${stats.thisMonth.emails} este mês`} color="bg-purple-500/10 text-purple-500" />
+            <StatCard icon={Presentation} label="Propostas" value={stats.totals.presentations} sub={`${stats.thisMonth.presentations} este mês`} color="bg-accent text-accent-foreground" />
+            <StatCard icon={Megaphone} label="Campanhas" value={stats.totals.campaigns} color="bg-warning/10 text-warning" />
+            <StatCard icon={Eye} label="Visualizações" value={stats.totals.views} sub={`${stats.thisMonth.views} este mês`} color="bg-success/10 text-success" />
+            <StatCard icon={Mail} label="Emails Enviados" value={stats.totals.emails} sub={`${stats.thisMonth.emails} este mês`} color="bg-primary/10 text-primary" />
           </div>
 
-          {/* Evolution Chart */}
           <AdminCharts data={stats.dailyStats} period={period} onPeriodChange={handlePeriodChange} loading={chartLoading} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Top Users */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -212,7 +193,6 @@ const Admin = () => {
               </CardContent>
             </Card>
 
-            {/* Recent Presentations */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -244,9 +224,8 @@ const Admin = () => {
                           <Badge
                             variant="outline"
                             className={`text-xs ${
-                              p.lead_response === 'accepted' ? 'border-emerald-500/30 text-emerald-500' :
-                              p.lead_response === 'rejected' ? 'border-destructive/30 text-destructive' :
-                              ''
+                              p.lead_response === 'accepted' ? 'border-primary/30 text-primary' :
+                              p.lead_response === 'rejected' ? 'border-destructive/30 text-destructive' : ''
                             }`}
                           >
                             {p.lead_response === 'accepted' ? 'Aceita' : p.lead_response === 'rejected' ? 'Recusada' : 'Pendente'}

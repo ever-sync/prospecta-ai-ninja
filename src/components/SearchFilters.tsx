@@ -54,7 +54,7 @@ export const SearchFilters = ({ onSearch, isLoading }: SearchFiltersProps) => {
             value={customNiche}
             onChange={(e) => setCustomNiche(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addCustomNiche()}
-            className="bg-secondary border-border focus:border-primary transition-colors"
+            className="focus:border-primary transition-colors"
           />
           <Button variant="outline" size="sm" onClick={addCustomNiche} disabled={!customNiche.trim()} className="shrink-0">
             +
@@ -106,7 +106,7 @@ export const SearchFilters = ({ onSearch, isLoading }: SearchFiltersProps) => {
           placeholder="Ex: São Paulo, SP ou Av. Paulista, 1000"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          className="bg-secondary border-border focus:border-primary transition-colors"
+          className="focus:border-primary transition-colors"
         />
       </div>
 

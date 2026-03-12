@@ -62,7 +62,7 @@ const Auth = () => {
         </div>
 
         {/* Form */}
-        <Card className="p-8 bg-card border-border">
+        <Card className="p-8">
           <h2 className="text-lg font-semibold text-foreground mb-6">
             {isLogin ? 'Entrar na sua conta' : 'Criar nova conta'}
           </h2>
@@ -80,7 +80,7 @@ const Auth = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="bg-secondary border-border"
+                className=""
               />
             </div>
 
@@ -97,7 +97,7 @@ const Auth = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="bg-secondary border-border"
+                className=""
               />
             </div>
 

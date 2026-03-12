@@ -172,7 +172,7 @@ const PlanManager = () => {
                   <Input
                     value={plan.name}
                     onChange={(e) => updatePlan(plan.id, 'name', e.target.value)}
-                    className="bg-secondary border-border"
+                    className=""
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -181,7 +181,7 @@ const PlanManager = () => {
                     type="number"
                     value={plan.price_cents / 100}
                     onChange={(e) => updatePlan(plan.id, 'price_cents', Math.round(parseFloat(e.target.value || '0') * 100))}
-                    className="bg-secondary border-border"
+                    className=""
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -190,7 +190,7 @@ const PlanManager = () => {
                     type="number"
                     value={plan.display_order}
                     onChange={(e) => updatePlan(plan.id, 'display_order', parseInt(e.target.value || '0'))}
-                    className="bg-secondary border-border"
+                    className=""
                   />
                 </div>
               </div>
@@ -204,7 +204,7 @@ const PlanManager = () => {
                     type="number"
                     value={plan.limit_presentations}
                     onChange={(e) => updatePlan(plan.id, 'limit_presentations', parseInt(e.target.value || '0'))}
-                    className="bg-secondary border-border"
+                    className=""
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -213,7 +213,7 @@ const PlanManager = () => {
                     type="number"
                     value={plan.limit_campaigns}
                     onChange={(e) => updatePlan(plan.id, 'limit_campaigns', parseInt(e.target.value || '0'))}
-                    className="bg-secondary border-border"
+                    className=""
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -222,7 +222,7 @@ const PlanManager = () => {
                     type="number"
                     value={plan.limit_emails}
                     onChange={(e) => updatePlan(plan.id, 'limit_emails', parseInt(e.target.value || '0'))}
-                    className="bg-secondary border-border"
+                    className=""
                   />
                 </div>
               </div>
@@ -236,7 +236,7 @@ const PlanManager = () => {
                     value={plan.stripe_price_id || ''}
                     onChange={(e) => updatePlan(plan.id, 'stripe_price_id', e.target.value || null)}
                     placeholder="price_..."
-                    className="bg-secondary border-border font-mono text-xs"
+                    className="font-mono text-xs"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -245,7 +245,7 @@ const PlanManager = () => {
                     value={plan.stripe_product_id || ''}
                     onChange={(e) => updatePlan(plan.id, 'stripe_product_id', e.target.value || null)}
                     placeholder="prod_..."
-                    className="bg-secondary border-border font-mono text-xs"
+                    className="font-mono text-xs"
                   />
                 </div>
               </div>
@@ -269,7 +269,7 @@ const PlanManager = () => {
                     value={newFeature[plan.id] || ''}
                     onChange={(e) => setNewFeature(prev => ({ ...prev, [plan.id]: e.target.value }))}
                     placeholder="Nova feature..."
-                    className="bg-secondary border-border text-sm"
+                    className="text-sm"
                     onKeyDown={(e) => e.key === 'Enter' && addFeature(plan.id)}
                   />
                   <Button variant="outline" size="sm" onClick={() => addFeature(plan.id)}>

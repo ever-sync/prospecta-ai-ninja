@@ -135,6 +135,16 @@ const Campaigns = () => {
 
   const handleCreate = async () => {
     if (!user || !formName.trim()) return;
+
+    if (!canUse('campaigns')) {
+      toast({
+        title: 'Limite atingido',
+        description: 'Você atingiu o limite de campanhas do seu plano. Faça upgrade em Configurações → Faturamento.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setCreating(true);
 
     const { error } = await supabase.from('campaigns').insert({

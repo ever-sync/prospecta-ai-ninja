@@ -104,6 +104,7 @@ const Presentations = () => {
           template,
           tone,
           customInstructions,
+          publicId: p.public_id,
         },
       });
 

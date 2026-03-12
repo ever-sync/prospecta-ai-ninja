@@ -1,13 +1,16 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Download, Sparkles, Building2, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SearchFilters } from '@/components/SearchFilters';
 import { ResultsTable } from '@/components/ResultsTable';
 import { BusinessAnalysisPanel } from '@/components/BusinessAnalysisPanel';
+import { AnalysisProgressModal, AnalysisItem } from '@/components/AnalysisProgressModal';
 import { Business, SearchFilters as Filters } from '@/types/business';
 import { exportToCSV } from '@/utils/exportCSV';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
@@ -16,7 +19,11 @@ const Index = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [analysisItems, setAnalysisItems] = useState<AnalysisItem[]>([]);
+  const [showProgress, setShowProgress] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const handleSearch = async (filters: Filters) => {
     setIsLoading(true);
@@ -67,10 +74,98 @@ const Index = () => {
     }
   };
 
+  const handleAnalyzeSelected = async () => {
+    if (!user) return;
+
+    const selected = businesses.filter(b => selectedIds.has(b.id));
+    if (selected.length === 0) return;
+
+    // Initialize progress items
+    const items: AnalysisItem[] = selected.map(b => ({
+      id: b.id,
+      name: b.name,
+      status: 'pending' as const,
+    }));
+    setAnalysisItems(items);
+    setShowProgress(true);
+
+    // Fetch DNA and profile
+    const [{ data: dna }, { data: profile }] = await Promise.all([
+      supabase.from('company_dna').select('*').eq('user_id', user.id).maybeSingle(),
+      supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
+    ]);
+
+    // Process each business sequentially
+    for (let i = 0; i < selected.length; i++) {
+      const business = selected[i];
+
+      // Update status to analyzing
+      setAnalysisItems(prev => prev.map(item =>
+        item.id === business.id ? { ...item, status: 'analyzing' as const } : item
+      ));
+
+      try {
+        // Step 1: Deep analyze
+        const { data: analyzeResult, error: analyzeError } = await supabase.functions.invoke('deep-analyze', {
+          body: { business, dna, profile },
+        });
+
+        if (analyzeError) throw new Error(analyzeError.message);
+        if (analyzeResult.error) throw new Error(analyzeResult.error);
+
+        const analysis = analyzeResult.analysis;
+
+        // Update status to generating
+        setAnalysisItems(prev => prev.map(item =>
+          item.id === business.id ? { ...item, status: 'generating' as const } : item
+        ));
+
+        // Step 2: Generate presentation HTML
+        const { data: genResult, error: genError } = await supabase.functions.invoke('generate-presentation', {
+          body: { analysis, business, dna, profile },
+        });
+
+        if (genError) throw new Error(genError.message);
+        if (genResult.error) throw new Error(genResult.error);
+
+        // Step 3: Save to database
+        const { error: insertError } = await supabase.from('presentations').insert({
+          user_id: user.id,
+          business_name: business.name,
+          business_address: business.address,
+          business_phone: business.phone,
+          business_website: business.website,
+          business_category: business.category,
+          business_rating: business.rating,
+          analysis_data: analysis,
+          presentation_html: genResult.html,
+          status: 'ready',
+        });
+
+        if (insertError) throw new Error(insertError.message);
+
+        setAnalysisItems(prev => prev.map(item =>
+          item.id === business.id ? { ...item, status: 'done' as const } : item
+        ));
+      } catch (err) {
+        console.error(`Error analyzing ${business.name}:`, err);
+        setAnalysisItems(prev => prev.map(item =>
+          item.id === business.id ? { ...item, status: 'error' as const, error: err instanceof Error ? err.message : 'Erro' } : item
+        ));
+      }
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
+      <AnalysisProgressModal
+        open={showProgress}
+        items={analysisItems}
+        onClose={() => setShowProgress(false)}
+        onFinish={() => { setShowProgress(false); navigate('/presentations'); }}
+      />
+
       <div className="grid lg:grid-cols-[380px_1fr] gap-8">
-        {/* Filters Panel */}
         <aside className="space-y-6">
           <Card className="p-6 bg-card border-border sticky top-20">
             <h2 className="text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
@@ -81,7 +176,6 @@ const Index = () => {
           </Card>
         </aside>
 
-        {/* Results Panel */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -95,7 +189,7 @@ const Index = () => {
             <div className="flex items-center gap-2">
               {selectedIds.size > 0 && (
                 <Button
-                  onClick={() => toast({ title: 'Em breve', description: 'A análise em lote será implementada na próxima fase.' })}
+                  onClick={handleAnalyzeSelected}
                   className="gap-2 gradient-primary text-primary-foreground glow-primary"
                 >
                   <BarChart3 className="w-4 h-4" />

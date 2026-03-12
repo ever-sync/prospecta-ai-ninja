@@ -515,7 +515,7 @@ const Campaigns = () => {
 
       {/* Campaigns List */}
       {campaigns.length === 0 ? (
-        <Card className="p-12 bg-card border-border text-center">
+        <Card className="p-12 text-center">
           <div className="w-16 h-16 rounded-full bg-secondary mx-auto flex items-center justify-center mb-4">
             <Megaphone className="w-8 h-8 text-muted-foreground" />
           </div>

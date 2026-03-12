@@ -13,6 +13,7 @@ import Settings from "./pages/Settings";
 import Presentations from "./pages/Presentations";
 import Campaigns from "./pages/Campaigns";
 import Templates from "./pages/Templates";
+import Admin from "./pages/Admin";
 import PresentationView from "./pages/PresentationView";
 import NotFound from "./pages/NotFound";
 

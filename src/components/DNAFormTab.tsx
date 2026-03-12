@@ -207,7 +207,7 @@ const DNAFormTab = () => {
         {/* Tone */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Tom de Comunicação</Label>
-          <Input value={tone} onChange={(e) => setTone(e.target.value)} placeholder="Ex: Profissional, amigável, técnico..." className="bg-secondary border-border" />
+          <Input value={tone} onChange={(e) => setTone(e.target.value)} placeholder="Ex: Profissional, amigável, técnico..." />
         </div>
 
         {/* Additional Info */}

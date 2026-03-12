@@ -26,7 +26,8 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/presentation/:publicId" element={<PresentationView />} />
           <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/search" element={<Index />} />
             <Route path="/dna" element={<DNA />} />
             <Route path="/presentations" element={<Presentations />} />
             <Route path="/settings" element={<Settings />} />

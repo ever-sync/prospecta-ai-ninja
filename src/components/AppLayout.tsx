@@ -5,7 +5,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { path: '/', label: 'Busca', icon: Search },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/search', label: 'Busca', icon: Search },
   { path: '/dna', label: 'DNA', icon: Dna },
   { path: '/presentations', label: 'Apresentações', icon: Presentation },
   { path: '/settings', label: 'Configurações', icon: Settings },

@@ -15,7 +15,7 @@ const PresentationView = () => {
 
       const { data, error: dbError } = await supabase
         .from('presentations')
-        .select('presentation_html, status')
+        .select('id, presentation_html, status')
         .eq('public_id', publicId)
         .single();
 

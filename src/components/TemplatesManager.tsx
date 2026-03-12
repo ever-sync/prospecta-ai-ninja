@@ -56,6 +56,7 @@ const TemplatesManager = () => {
   const [formBody, setFormBody] = useState('');
   const [formImageUrl, setFormImageUrl] = useState('');
   const [formIncludeLink, setFormIncludeLink] = useState(true);
+  const [formSendAsAudio, setFormSendAsAudio] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {

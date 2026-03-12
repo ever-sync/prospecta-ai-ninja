@@ -222,6 +222,9 @@ const ProposalTemplateTab = () => {
       presentation_template: selectedTemplate,
       presentation_tone: selectedTone,
       presentation_instructions: instructions,
+      custom_text_color: customTextColor,
+      custom_button_color: customButtonColor,
+      custom_bg_color: customBgColor,
     } as any;
 
     let error;

@@ -190,7 +190,7 @@ const PlanManager = () => {
                     type="number"
                     value={plan.display_order}
                     onChange={(e) => updatePlan(plan.id, 'display_order', parseInt(e.target.value || '0'))}
-                    className="bg-secondary border-border"
+                    className=""
                   />
                 </div>
               </div>

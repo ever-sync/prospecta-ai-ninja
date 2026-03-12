@@ -114,9 +114,9 @@ serve(async (req) => {
 
     // Build daily map
     const dailyMap = new Map<string, { presentations: number; views: number; emails: number }>();
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < days; i++) {
       const d = new Date();
-      d.setDate(d.getDate() - (29 - i));
+      d.setDate(d.getDate() - (days - 1 - i));
       const key = d.toISOString().split("T")[0];
       dailyMap.set(key, { presentations: 0, views: 0, emails: 0 });
     }

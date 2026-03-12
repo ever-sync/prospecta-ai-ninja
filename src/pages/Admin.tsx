@@ -160,7 +160,7 @@ const Admin = () => {
       </div>
 
       {/* Evolution Chart */}
-      <AdminCharts data={stats.dailyStats} />
+      <AdminCharts data={stats.dailyStats} period={period} onPeriodChange={handlePeriodChange} loading={chartLoading} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Users */}

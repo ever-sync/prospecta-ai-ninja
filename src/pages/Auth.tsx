@@ -97,7 +97,7 @@ const Auth = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="bg-secondary border-border"
+                className=""
               />
             </div>
 

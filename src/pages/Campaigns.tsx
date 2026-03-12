@@ -340,7 +340,55 @@ const Campaigns = () => {
       for (const lead of previewLeads) {
         const phone = lead.business_phone.replace(/\D/g, '');
         if (!phone) continue;
-        const whatsappUrl = `https://wa.me/55${phone}?text=${encodeURIComponent(lead.message)}`;
+
+        let finalMessage = lead.message;
+
+        // Generate audio if send_as_audio is enabled
+        if (sendAsAudio && voiceId) {
+          try {
+            const response = await fetch(
+              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                  Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                },
+                body: JSON.stringify({ text: lead.message, voice_id: voiceId }),
+              }
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              if (data.audioContent) {
+                // Decode base64 and upload to storage
+                const binaryStr = atob(data.audioContent);
+                const bytes = new Uint8Array(binaryStr.length);
+                for (let i = 0; i < binaryStr.length; i++) {
+                  bytes[i] = binaryStr.charCodeAt(i);
+                }
+                const audioBlob = new Blob([bytes], { type: 'audio/mpeg' });
+                const audioPath = `${user.id}/${campaign.id}/${lead.id}.mp3`;
+
+                const { error: uploadError } = await supabase.storage
+                  .from('audio-messages')
+                  .upload(audioPath, audioBlob, { upsert: true, contentType: 'audio/mpeg' });
+
+                if (!uploadError) {
+                  const { data: { publicUrl } } = supabase.storage
+                    .from('audio-messages')
+                    .getPublicUrl(audioPath);
+                  finalMessage += `\n\n🎙️ Ouça a mensagem em áudio: ${publicUrl}`;
+                }
+              }
+            }
+          } catch (audioErr) {
+            console.error('Audio generation error for lead:', lead.id, audioErr);
+          }
+        }
+
+        const whatsappUrl = `https://wa.me/55${phone}?text=${encodeURIComponent(finalMessage)}`;
         window.open(whatsappUrl, '_blank');
 
         const cpRow = (cpRows || []).find(r => r.presentation_id === lead.id);

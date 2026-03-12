@@ -276,6 +276,7 @@ export type Database = {
           image_url: string | null
           include_proposal_link: boolean | null
           name: string
+          send_as_audio: boolean
           subject: string | null
           updated_at: string | null
           user_id: string
@@ -288,6 +289,7 @@ export type Database = {
           image_url?: string | null
           include_proposal_link?: boolean | null
           name?: string
+          send_as_audio?: boolean
           subject?: string | null
           updated_at?: string | null
           user_id: string
@@ -300,6 +302,7 @@ export type Database = {
           image_url?: string | null
           include_proposal_link?: boolean | null
           name?: string
+          send_as_audio?: boolean
           subject?: string | null
           updated_at?: string | null
           user_id?: string
@@ -483,6 +486,7 @@ export type Database = {
           company_logo_url: string | null
           company_name: string | null
           created_at: string | null
+          elevenlabs_voice_id: string | null
           email: string | null
           id: string
           phone: string | null
@@ -492,6 +496,7 @@ export type Database = {
           company_logo_url?: string | null
           company_name?: string | null
           created_at?: string | null
+          elevenlabs_voice_id?: string | null
           email?: string | null
           id?: string
           phone?: string | null
@@ -501,6 +506,7 @@ export type Database = {
           company_logo_url?: string | null
           company_name?: string | null
           created_at?: string | null
+          elevenlabs_voice_id?: string | null
           email?: string | null
           id?: string
           phone?: string | null

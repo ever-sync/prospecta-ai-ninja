@@ -140,6 +140,9 @@ export type Database = {
           instagram_url: string | null
           linkedin_url: string | null
           portfolio_url: string | null
+          presentation_instructions: string | null
+          presentation_template: string | null
+          presentation_tone: string | null
           services: string[] | null
           target_audience: string | null
           tone: string | null
@@ -157,6 +160,9 @@ export type Database = {
           instagram_url?: string | null
           linkedin_url?: string | null
           portfolio_url?: string | null
+          presentation_instructions?: string | null
+          presentation_template?: string | null
+          presentation_tone?: string | null
           services?: string[] | null
           target_audience?: string | null
           tone?: string | null
@@ -174,6 +180,9 @@ export type Database = {
           instagram_url?: string | null
           linkedin_url?: string | null
           portfolio_url?: string | null
+          presentation_instructions?: string | null
+          presentation_template?: string | null
+          presentation_tone?: string | null
           services?: string[] | null
           target_audience?: string | null
           tone?: string | null

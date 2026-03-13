@@ -26,11 +26,12 @@ export const SendPresentationDialog = ({ open, onOpenChange, publicUrl, business
 
   const sendWhatsApp = () => {
     const phone = businessPhone?.replace(/\D/g, '') || '';
+    const fullPhone = phone && (phone.startsWith('55') ? phone : `55${phone}`);
     const message = encodeURIComponent(
       `Olá! Preparamos uma análise completa do site da ${businessName}. Confira: ${publicUrl}`
     );
-    const url = phone
-      ? `https://wa.me/${phone}?text=${message}`
+    const url = fullPhone
+      ? `https://wa.me/${fullPhone}?text=${message}`
       : `https://wa.me/?text=${message}`;
     window.open(url, '_blank');
   };

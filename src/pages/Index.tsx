@@ -152,6 +152,7 @@ const Index = () => {
           business_name: business.name,
           business_address: business.address,
           business_phone: business.phone,
+          business_email: business.email || null,
           business_website: business.website,
           business_category: business.category,
           business_rating: business.rating,

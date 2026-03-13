@@ -108,9 +108,7 @@ Deno.serve(async (req) => {
     let sentCount = 0;
 
     for (const pres of (presentations || [])) {
-      const businessEmail = pres.business_website
-        ? `contato@${new URL(pres.business_website.startsWith('http') ? pres.business_website : `https://${pres.business_website}`).hostname}`
-        : null;
+      const businessEmail = pres.business_email || null;
 
       if (!businessEmail) continue;
 

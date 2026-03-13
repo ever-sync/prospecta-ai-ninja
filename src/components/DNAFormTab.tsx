@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Plus, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Save, Plus, X, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,29 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+
+const STEP_CONFIG = [
+  {
+    title: 'Posicionamento',
+    subtitle: 'Defina servicos, diferenciais e proposta central.',
+  },
+  {
+    title: 'ICP e Dores',
+    subtitle: 'Descreva o cliente ideal e as dores que mais convertem.',
+  },
+  {
+    title: 'Oferta Comercial',
+    subtitle: 'Organize objecoes, oferta, preco, cases e garantia.',
+  },
+  {
+    title: 'Canais e Extras',
+    subtitle: 'Finalize com portfolio, redes sociais e infos adicionais.',
+  },
+] as const;
+
+const fieldClass = 'h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]';
+const areaClass = 'min-h-[90px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]';
+const tagClass = 'gap-1 rounded-full border border-[#f0d9dd] bg-[#fff5f6] pr-1 text-[#702530]';
 
 const DNAFormTab = () => {
   const { user } = useAuth();
@@ -41,6 +64,7 @@ const DNAFormTab = () => {
   const [newCommonObjection, setNewCommonObjection] = useState('');
   const [saving, setSaving] = useState(false);
   const [hasRecord, setHasRecord] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
 
   useEffect(() => {
     if (!user) return;
@@ -162,14 +186,57 @@ const DNAFormTab = () => {
     setSaving(false);
   };
 
+  const totalSteps = STEP_CONFIG.length;
   const { filled, total, percent } = completeness();
+  const activeStep = STEP_CONFIG[currentStep - 1];
+
+  const goToNextStep = () => setCurrentStep((prev) => Math.min(prev + 1, totalSteps));
+  const goToPreviousStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
+
+  const tagInput = (
+    label: string,
+    list: string[],
+    setList: (v: string[]) => void,
+    value: string,
+    setValue: (v: string) => void,
+    placeholder: string,
+  ) => (
+    <div className="space-y-3">
+      <Label className="text-sm font-medium text-foreground">{label}</Label>
+      <div className="flex gap-2">
+        <Input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={placeholder}
+          className={fieldClass}
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(list, setList, value, setValue))}
+        />
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-11 w-11 rounded-xl border-[#e6e6eb] bg-white hover:bg-[#fff1f3] hover:text-[#EF3333]"
+          onClick={() => addTag(list, setList, value, setValue)}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {list.map((item, i) => (
+          <Badge key={`${item}-${i}`} variant="secondary" className={tagClass}>
+            {item}
+            <button onClick={() => removeTag(list, setList, i)} className="ml-1 hover:text-destructive">
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-[#66666d]">
-          Quanto mais completo o DNA, mais assertivas ficam as propostas e campanhas.
-        </p>
+        <p className="text-sm text-[#66666d]">Quanto mais completo o DNA, mais assertivas ficam as propostas e campanhas.</p>
         <Badge
           variant={percent === 100 ? 'default' : 'secondary'}
           className="gap-1.5 rounded-full border border-[#f3c9d0] bg-[#fff2f4] px-3 py-1 text-[#9d2b3d]"
@@ -185,331 +252,294 @@ const DNAFormTab = () => {
         </div>
 
         <div className="space-y-3">
-          <Label className="text-sm font-medium text-foreground">Servicos Oferecidos</Label>
-          <div className="flex gap-2">
-            <Input
-              value={newService}
-              onChange={(e) => setNewService(e.target.value)}
-              placeholder="Ex: Criacao de sites"
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(services, setServices, newService, setNewService))}
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-11 w-11 rounded-xl border-[#e6e6eb] bg-white hover:bg-[#fff1f3] hover:text-[#EF3333]"
-              onClick={() => addTag(services, setServices, newService, setNewService)}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#9b2a3d]">
+                Etapa {currentStep} de {totalSteps}
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-[#1A1A1A]">{activeStep.title}</h3>
+              <p className="text-sm text-[#6c6c73]">{activeStep.subtitle}</p>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {services.map((s, i) => (
-              <Badge key={i} variant="secondary" className="gap-1 rounded-full border border-[#f0d9dd] bg-[#fff5f6] pr-1 text-[#702530]">
-                {s}
-                <button onClick={() => removeTag(services, setServices, i)} className="ml-1 hover:text-destructive">
-                  <X className="h-3 w-3" />
+
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            {STEP_CONFIG.map((step, index) => {
+              const stepNumber = index + 1;
+              const isActive = stepNumber === currentStep;
+              const isDone = stepNumber < currentStep;
+              return (
+                <button
+                  key={step.title}
+                  type="button"
+                  onClick={() => setCurrentStep(stepNumber)}
+                  className={`rounded-xl border px-3 py-2 text-left transition ${
+                    isActive
+                      ? 'border-[#ef3333]/40 bg-[#fff2f4] text-[#7f2432]'
+                      : isDone
+                      ? 'border-[#f3c9d0] bg-[#fff6f7] text-[#9b2a3d]'
+                      : 'border-[#ececf0] bg-[#fafafd] text-[#7a7a82]'
+                  }`}
+                >
+                  <p className="text-xs font-semibold">Etapa {stepNumber}</p>
+                  <p className="text-sm font-medium">{step.title}</p>
                 </button>
-              </Badge>
-            ))}
+              );
+            })}
           </div>
         </div>
 
-        <div className="space-y-3">
-          <Label className="text-sm font-medium text-foreground">Diferenciais</Label>
-          <div className="flex gap-2">
-            <Input
-              value={newDifferential}
-              onChange={(e) => setNewDifferential(e.target.value)}
-              placeholder="Ex: Atendimento 24h"
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(differentials, setDifferentials, newDifferential, setNewDifferential))}
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-11 w-11 rounded-xl border-[#e6e6eb] bg-white hover:bg-[#fff1f3] hover:text-[#EF3333]"
-              onClick={() => addTag(differentials, setDifferentials, newDifferential, setNewDifferential)}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
+        {currentStep === 1 && (
+          <div className="space-y-6">
+            {tagInput(
+              'Servicos Oferecidos',
+              services,
+              setServices,
+              newService,
+              setNewService,
+              'Ex: Criacao de sites',
+            )}
+
+            {tagInput(
+              'Diferenciais',
+              differentials,
+              setDifferentials,
+              newDifferential,
+              setNewDifferential,
+              'Ex: Atendimento 24h',
+            )}
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground">Proposta de Valor</Label>
+              <Textarea
+                value={valueProposition}
+                onChange={(e) => setValueProposition(e.target.value)}
+                placeholder="O que torna sua empresa unica?"
+                className={areaClass}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground">Tom de Comunicacao</Label>
+              <Input
+                value={tone}
+                onChange={(e) => setTone(e.target.value)}
+                placeholder="Ex: Profissional, amigavel, tecnico..."
+                className={fieldClass}
+              />
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {differentials.map((d, i) => (
-              <Badge key={i} variant="secondary" className="gap-1 rounded-full border border-[#f0d9dd] bg-[#fff5f6] pr-1 text-[#702530]">
-                {d}
-                <button onClick={() => removeTag(differentials, setDifferentials, i)} className="ml-1 hover:text-destructive">
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
+        )}
+
+        {currentStep === 2 && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground">Publico-Alvo</Label>
+              <Textarea
+                value={targetAudience}
+                onChange={(e) => setTargetAudience(e.target.value)}
+                placeholder="Descreva seu publico-alvo ideal..."
+                className={areaClass}
+              />
+            </div>
+
+            {tagInput(
+              'ICP - Segmentos Ideais',
+              icpSegments,
+              setIcpSegments,
+              newIcpSegment,
+              setNewIcpSegment,
+              'Ex: Clinicas medicas, imobiliarias, e-commerce...',
+            )}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">ICP - Porte de Empresa</Label>
+                <Input
+                  value={icpCompanySize}
+                  onChange={(e) => setIcpCompanySize(e.target.value)}
+                  placeholder="Ex: 5 a 50 funcionarios, faturamento de 100k a 2M"
+                  className={fieldClass}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">ICP - Maturidade Digital</Label>
+                <Input
+                  value={icpDigitalMaturity}
+                  onChange={(e) => setIcpDigitalMaturity(e.target.value)}
+                  placeholder="Ex: tem site e redes, mas sem processo comercial estruturado"
+                  className={fieldClass}
+                />
+              </div>
+            </div>
+
+            {tagInput(
+              'Dores Prioritarias que Mais Convertem',
+              priorityPains,
+              setPriorityPains,
+              newPriorityPain,
+              setNewPriorityPain,
+              'Ex: poucos leads qualificados, baixo retorno de anuncios...',
+            )}
           </div>
-        </div>
+        )}
 
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Publico-Alvo</Label>
-          <Textarea
-            value={targetAudience}
-            onChange={(e) => setTargetAudience(e.target.value)}
-            placeholder="Descreva seu publico-alvo ideal..."
-            className="min-h-[90px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-          />
-        </div>
+        {currentStep === 3 && (
+          <div className="space-y-6">
+            {tagInput(
+              'Objecoes Comuns',
+              commonObjections,
+              setCommonObjections,
+              newCommonObjection,
+              setNewCommonObjection,
+              'Ex: "esta caro", "ja tenho agencia", "nao tenho tempo"...',
+            )}
 
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Proposta de Valor</Label>
-          <Textarea
-            value={valueProposition}
-            onChange={(e) => setValueProposition(e.target.value)}
-            placeholder="O que torna sua empresa unica?"
-            className="min-h-[90px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-          />
-        </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground">Playbook de Resposta de Objecao</Label>
+              <Textarea
+                value={objectionResponses}
+                onChange={(e) => setObjectionResponses(e.target.value)}
+                placeholder="Ex: quando falar preco, mostrar ROI em 90 dias e oferecer piloto..."
+                className={areaClass}
+              />
+            </div>
 
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Tom de Comunicacao</Label>
-          <Input
-            value={tone}
-            onChange={(e) => setTone(e.target.value)}
-            placeholder="Ex: Profissional, amigavel, tecnico..."
-            className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-          />
-        </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground">Ofertas e Pacotes</Label>
+              <Textarea
+                value={offerPackages}
+                onChange={(e) => setOfferPackages(e.target.value)}
+                placeholder="Descreva seus produtos/pacotes, entregaveis e diferencas entre eles"
+                className={areaClass}
+              />
+            </div>
 
-        <div className="space-y-3">
-          <Label className="text-sm font-medium text-foreground">ICP - Segmentos Ideais</Label>
-          <div className="flex gap-2">
-            <Input
-              value={newIcpSegment}
-              onChange={(e) => setNewIcpSegment(e.target.value)}
-              placeholder="Ex: Clinicas medicas, imobiliarias, e-commerce..."
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(icpSegments, setIcpSegments, newIcpSegment, setNewIcpSegment))}
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-11 w-11 rounded-xl border-[#e6e6eb] bg-white hover:bg-[#fff1f3] hover:text-[#EF3333]"
-              onClick={() => addTag(icpSegments, setIcpSegments, newIcpSegment, setNewIcpSegment)}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">Faixa de Preco / Ticket</Label>
+                <Input
+                  value={priceRange}
+                  onChange={(e) => setPriceRange(e.target.value)}
+                  placeholder="Ex: setup de R$2.000 + mensalidade de R$1.200 a R$3.000"
+                  className={fieldClass}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">Garantia / Risco Reverso</Label>
+                <Input
+                  value={guarantee}
+                  onChange={(e) => setGuarantee(e.target.value)}
+                  placeholder="Ex: 30 dias de acompanhamento com revisao sem custo"
+                  className={fieldClass}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground">Cases e Metricas de Resultado</Label>
+              <Textarea
+                value={caseMetrics}
+                onChange={(e) => setCaseMetrics(e.target.value)}
+                placeholder="Ex: Clinica X: +42% leads em 60 dias, E-commerce Y: +28% conversao..."
+                className={areaClass}
+              />
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {icpSegments.map((segment, i) => (
-              <Badge key={i} variant="secondary" className="gap-1 rounded-full border border-[#f0d9dd] bg-[#fff5f6] pr-1 text-[#702530]">
-                {segment}
-                <button onClick={() => removeTag(icpSegments, setIcpSegments, i)} className="ml-1 hover:text-destructive">
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        </div>
+        )}
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">ICP - Porte de Empresa</Label>
-            <Input
-              value={icpCompanySize}
-              onChange={(e) => setIcpCompanySize(e.target.value)}
-              placeholder="Ex: 5 a 50 funcionarios, faturamento de 100k a 2M"
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">ICP - Maturidade Digital</Label>
-            <Input
-              value={icpDigitalMaturity}
-              onChange={(e) => setIcpDigitalMaturity(e.target.value)}
-              placeholder="Ex: tem site e redes, mas sem processo comercial estruturado"
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-            />
-          </div>
-        </div>
+        {currentStep === 4 && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground">Informacoes Adicionais</Label>
+              <Textarea
+                value={additionalInfo}
+                onChange={(e) => setAdditionalInfo(e.target.value)}
+                placeholder="Outras informacoes relevantes sobre sua empresa..."
+                className={areaClass}
+              />
+            </div>
 
-        <div className="space-y-3">
-          <Label className="text-sm font-medium text-foreground">Dores Prioritarias que Mais Convertem</Label>
-          <div className="flex gap-2">
-            <Input
-              value={newPriorityPain}
-              onChange={(e) => setNewPriorityPain(e.target.value)}
-              placeholder="Ex: poucos leads qualificados, baixo retorno de anuncios..."
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(priorityPains, setPriorityPains, newPriorityPain, setNewPriorityPain))}
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-11 w-11 rounded-xl border-[#e6e6eb] bg-white hover:bg-[#fff1f3] hover:text-[#EF3333]"
-              onClick={() => addTag(priorityPains, setPriorityPains, newPriorityPain, setNewPriorityPain)}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2 md:col-span-2">
+                <Label className="text-sm font-medium text-foreground">Link do Portfolio</Label>
+                <Input
+                  value={portfolioUrl}
+                  onChange={(e) => setPortfolioUrl(e.target.value)}
+                  placeholder="https://seusite.com/portfolio"
+                  className={fieldClass}
+                />
+                <p className="text-xs text-muted-foreground">O botao "Acessar Portfolio" sera exibido na apresentacao gerada.</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">Instagram</Label>
+                <Input
+                  value={instagramUrl}
+                  onChange={(e) => setInstagramUrl(e.target.value)}
+                  placeholder="https://instagram.com/suaempresa"
+                  className={fieldClass}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">LinkedIn</Label>
+                <Input
+                  value={linkedinUrl}
+                  onChange={(e) => setLinkedinUrl(e.target.value)}
+                  placeholder="https://linkedin.com/company/suaempresa"
+                  className={fieldClass}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">Facebook</Label>
+                <Input
+                  value={facebookUrl}
+                  onChange={(e) => setFacebookUrl(e.target.value)}
+                  placeholder="https://facebook.com/suaempresa"
+                  className={fieldClass}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">YouTube</Label>
+                <Input
+                  value={youtubeUrl}
+                  onChange={(e) => setYoutubeUrl(e.target.value)}
+                  placeholder="https://youtube.com/@suaempresa"
+                  className={fieldClass}
+                />
+              </div>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {priorityPains.map((pain, i) => (
-              <Badge key={i} variant="secondary" className="gap-1 rounded-full border border-[#f0d9dd] bg-[#fff5f6] pr-1 text-[#702530]">
-                {pain}
-                <button onClick={() => removeTag(priorityPains, setPriorityPains, i)} className="ml-1 hover:text-destructive">
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        </div>
+        )}
 
-        <div className="space-y-3">
-          <Label className="text-sm font-medium text-foreground">Objecoes Comuns</Label>
-          <div className="flex gap-2">
-            <Input
-              value={newCommonObjection}
-              onChange={(e) => setNewCommonObjection(e.target.value)}
-              placeholder='Ex: "esta caro", "ja tenho agencia", "nao tenho tempo"...'
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(commonObjections, setCommonObjections, newCommonObjection, setNewCommonObjection))}
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-11 w-11 rounded-xl border-[#e6e6eb] bg-white hover:bg-[#fff1f3] hover:text-[#EF3333]"
-              onClick={() => addTag(commonObjections, setCommonObjections, newCommonObjection, setNewCommonObjection)}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {commonObjections.map((objection, i) => (
-              <Badge key={i} variant="secondary" className="gap-1 rounded-full border border-[#f0d9dd] bg-[#fff5f6] pr-1 text-[#702530]">
-                {objection}
-                <button onClick={() => removeTag(commonObjections, setCommonObjections, i)} className="ml-1 hover:text-destructive">
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#f0f0f3] pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={currentStep === 1}
+            onClick={goToPreviousStep}
+            className="h-11 rounded-xl border-[#e6e6eb] bg-white hover:bg-[#fafafd]"
+          >
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            Etapa anterior
+          </Button>
 
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Playbook de Resposta de Objecao</Label>
-          <Textarea
-            value={objectionResponses}
-            onChange={(e) => setObjectionResponses(e.target.value)}
-            placeholder="Ex: quando falar preco, mostrar ROI em 90 dias e oferecer piloto..."
-            className="min-h-[90px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Ofertas e Pacotes</Label>
-          <Textarea
-            value={offerPackages}
-            onChange={(e) => setOfferPackages(e.target.value)}
-            placeholder="Descreva seus produtos/pacotes, entregaveis e diferencas entre eles"
-            className="min-h-[90px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-          />
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">Faixa de Preco / Ticket</Label>
-            <Input
-              value={priceRange}
-              onChange={(e) => setPriceRange(e.target.value)}
-              placeholder="Ex: setup de R$2.000 + mensalidade de R$1.200 a R$3.000"
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">Garantia / Risco Reverso</Label>
-            <Input
-              value={guarantee}
-              onChange={(e) => setGuarantee(e.target.value)}
-              placeholder="Ex: 30 dias de acompanhamento com revisao sem custo"
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Cases e Metricas de Resultado</Label>
-          <Textarea
-            value={caseMetrics}
-            onChange={(e) => setCaseMetrics(e.target.value)}
-            placeholder="Ex: Clinica X: +42% leads em 60 dias, E-commerce Y: +28% conversao..."
-            className="min-h-[90px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Informacoes Adicionais</Label>
-          <Textarea
-            value={additionalInfo}
-            onChange={(e) => setAdditionalInfo(e.target.value)}
-            placeholder="Outras informacoes relevantes sobre sua empresa..."
-            className="min-h-[90px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-          />
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2 md:col-span-2">
-            <Label className="text-sm font-medium text-foreground">Link do Portfolio</Label>
-            <Input
-              value={portfolioUrl}
-              onChange={(e) => setPortfolioUrl(e.target.value)}
-              placeholder="https://seusite.com/portfolio"
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-            />
-            <p className="text-xs text-muted-foreground">
-              O botao "Acessar Portfolio" sera exibido na apresentacao gerada.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">Instagram</Label>
-            <Input
-              value={instagramUrl}
-              onChange={(e) => setInstagramUrl(e.target.value)}
-              placeholder="https://instagram.com/suaempresa"
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">LinkedIn</Label>
-            <Input
-              value={linkedinUrl}
-              onChange={(e) => setLinkedinUrl(e.target.value)}
-              placeholder="https://linkedin.com/company/suaempresa"
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">Facebook</Label>
-            <Input
-              value={facebookUrl}
-              onChange={(e) => setFacebookUrl(e.target.value)}
-              placeholder="https://facebook.com/suaempresa"
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">YouTube</Label>
-            <Input
-              value={youtubeUrl}
-              onChange={(e) => setYoutubeUrl(e.target.value)}
-              placeholder="https://youtube.com/@suaempresa"
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-            />
+          <div className="flex items-center gap-2">
+            {currentStep < totalSteps ? (
+              <Button type="button" onClick={goToNextStep} className="h-11 rounded-xl gradient-primary text-primary-foreground">
+                Proxima etapa
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button onClick={handleSave} disabled={saving} className="h-12 rounded-xl gradient-primary text-primary-foreground font-semibold glow-primary gap-2">
+                <Save className="h-4 w-4" />
+                {saving ? 'Salvando...' : 'Salvar DNA'}
+              </Button>
+            )}
           </div>
         </div>
-
-        <Button onClick={handleSave} disabled={saving} className="h-12 w-full rounded-xl gradient-primary text-primary-foreground font-semibold glow-primary gap-2">
-          <Save className="h-4 w-4" />
-          {saving ? 'Salvando...' : 'Salvar DNA'}
-        </Button>
       </Card>
     </div>
   );

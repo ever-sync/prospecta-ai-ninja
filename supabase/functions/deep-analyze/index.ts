@@ -137,6 +137,8 @@ Analise a empresa-alvo e retorne scores e recomendações.
 
 IMPORTANTE: Retorne APENAS o JSON via tool call, sem texto adicional.`;
 
+    const dnaFullJson = JSON.stringify(dna || {}, null, 2);
+
     const userPrompt = `Analise a seguinte empresa:
 
 EMPRESA-ALVO:
@@ -160,6 +162,8 @@ METADADOS:
 
 ${dnaContext}
 ${dnaCommercialContext}
+DNA COMPLETO (JSON) - analise obrigatoria de todos os campos preenchidos:
+${dnaFullJson}
 
 Analise e retorne os scores e recomendações para esta empresa.`;
 

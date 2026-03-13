@@ -30,7 +30,7 @@ import sidebarCollapsedLogo from '@/logos/favicon.svg';
 const SIDEBAR_STORAGE_KEY = 'prospecta.sidebar.collapsed';
 
 const menuItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutGrid },
+  { path: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { path: '/crm', label: 'CRM', icon: Users },
   { path: '/search', label: 'Busca', icon: SearchIcon },
   { path: '/dna', label: 'DNA', icon: Fingerprint },

@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import MarketingLanding from "./pages/MarketingLanding";
 import DNA from "./pages/DNA";
 import Dashboard from "./pages/Dashboard";
 import CRM from "./pages/CRM";
@@ -27,10 +28,11 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<MarketingLanding />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/presentation/:publicId" element={<PresentationView />} />
           <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/crm" element={<CRM />} />
             <Route path="/search" element={<Index />} />
             <Route path="/dna" element={<DNA />} />

@@ -19,7 +19,7 @@ const Auth = () => {
   const { toast } = useToast();
 
   if (loading) return null;
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to="/dashboard" replace />;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -38,10 +38,11 @@ const Auth = () => {
         });
         setIsLogin(true);
       }
-    } catch (error: any) {
+    } catch (error) {
+      const err = error as Error;
       toast({
         title: 'Erro',
-        description: error.message || 'Ocorreu um erro. Tente novamente.',
+        description: err.message || 'Ocorreu um erro. Tente novamente.',
         variant: 'destructive',
       });
     } finally {

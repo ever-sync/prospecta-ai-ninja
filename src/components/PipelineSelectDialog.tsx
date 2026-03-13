@@ -16,44 +16,70 @@ interface PipelineStage {
   is_default: boolean;
 }
 
-interface PipelineSelectDialogProps {
-  open: boolean;
-  onConfirm: (result: { attach: boolean; stageId?: string }) => void;
-  onCancel: () => void;
+type ResponseMode = 'buttons' | 'form';
+
+interface FormTemplate {
+  id: string;
+  name: string;
+  body: string;
 }
 
-const DEFAULT_STAGES = [
-  { name: 'Propostas Criadas', color: '#6366f1', position: 0, is_default: true, default_status: 'ready' },
-  { name: 'Enviadas', color: '#f59e0b', position: 1, is_default: true, default_status: 'sent' },
-  { name: 'Pendente', color: '#8b5cf6', position: 2, is_default: true, default_status: 'pending' },
-  { name: 'Aceitas', color: '#EF3333', position: 3, is_default: true, default_status: 'responded' },
-];
+interface PipelineSelectDialogProps {
+  open: boolean;
+  onConfirm: (result: {
+    attach: boolean;
+    stageId?: string;
+    responseMode: ResponseMode;
+    formTemplateId?: string;
+    formTemplateName?: string;
+    formTemplateBody?: string;
+  }) => void;
+  onCancel: () => void;
+}
 
 export const PipelineSelectDialog = ({ open, onConfirm, onCancel }: PipelineSelectDialogProps) => {
   const { user } = useAuth();
   const [attach, setAttach] = useState(true);
   const [stageId, setStageId] = useState<string>('');
   const [stages, setStages] = useState<PipelineStage[]>([]);
+  const [responseMode, setResponseMode] = useState<ResponseMode>('buttons');
+  const [formTemplates, setFormTemplates] = useState<FormTemplate[]>([]);
+  const [formTemplateId, setFormTemplateId] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!open || !user) return;
     const load = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from('pipeline_stages')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('position');
+      setResponseMode('buttons');
+      setFormTemplateId('');
 
-      if (data && data.length > 0) {
-        setStages(data as PipelineStage[]);
-        setStageId(data[0].id);
+      const [{ data: stagesData }, { data: templatesData }] = await Promise.all([
+        supabase
+          .from('pipeline_stages')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('position'),
+        supabase
+          .from('message_templates')
+          .select('id, name, body')
+          .eq('user_id', user.id)
+          .eq('channel', 'formulario')
+          .order('name'),
+      ]);
+
+      if (stagesData && stagesData.length > 0) {
+        setStages(stagesData as PipelineStage[]);
+        setStageId(stagesData[0].id);
       }
+      setFormTemplates((templatesData as FormTemplate[]) || []);
       setLoading(false);
     };
     load();
   }, [open, user]);
+
+  const selectedFormTemplate = formTemplates.find((tpl) => tpl.id === formTemplateId);
+  const mustSelectFormTemplate = responseMode === 'form' && !formTemplateId;
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
@@ -94,14 +120,60 @@ export const PipelineSelectDialog = ({ open, onConfirm, onCancel }: PipelineSele
                 </Select>
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Resposta da proposta</Label>
+              <Select value={responseMode} onValueChange={(value) => setResponseMode(value as ResponseMode)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Escolha um modo de resposta..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="buttons">Botoes de Aceitar e Recusar</SelectItem>
+                  <SelectItem value="form">Formulario</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {responseMode === 'form' && (
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Template de formulario</Label>
+                <Select value={formTemplateId} onValueChange={setFormTemplateId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um formulario..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formTemplates.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        Nenhum template de formulario encontrado. Crie um em Templates.
+                      </div>
+                    ) : (
+                      formTemplates.map((tpl) => (
+                        <SelectItem key={tpl.id} value={tpl.id}>
+                          {tpl.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         )}
 
         <DialogFooter>
           <Button variant="outline" onClick={onCancel}>Cancelar</Button>
           <Button
-            onClick={() => onConfirm({ attach, stageId: attach ? stageId : undefined })}
-            disabled={loading || (attach && !stageId)}
+            onClick={() =>
+              onConfirm({
+                attach,
+                stageId: attach ? stageId : undefined,
+                responseMode,
+                formTemplateId: responseMode === 'form' ? formTemplateId : undefined,
+                formTemplateName: responseMode === 'form' ? selectedFormTemplate?.name : undefined,
+                formTemplateBody: responseMode === 'form' ? selectedFormTemplate?.body : undefined,
+              })
+            }
+            disabled={loading || (attach && !stageId) || mustSelectFormTemplate}
           >
             Continuar
           </Button>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, Image, Link2, MessageSquare, Mail, Loader2, FileText, Mic, Square, Volume2, Pencil } from 'lucide-react';
+import { Plus, Trash2, Save, Image, Link2, MessageSquare, Mail, Loader2, FileText, Mic, Square, Volume2, Pencil, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,6 +48,19 @@ const VARIABLES = [
 const fieldClass = 'h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]';
 const sectionCardClass = 'rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]';
 
+const getDefaultBodyByChannel = (channel: string) => {
+  if (channel === 'whatsapp') {
+    return 'Ola! Sou da {{sua_empresa}}. Preparamos uma analise exclusiva para {{nome_empresa}}.\n\nVeja sua proposta: {{link_proposta}}';
+  }
+  if (channel === 'email') {
+    return 'Ola, {{nome_empresa}}!\n\nAnalisamos o seu negocio e preparamos uma proposta personalizada com oportunidades praticas de crescimento.\n\nAcesse aqui: {{link_proposta}}\n\nAtenciosamente,\n{{sua_empresa}}';
+  }
+  if (channel === 'formulario') {
+    return 'Ola, {{nome_empresa}}! Para personalizarmos sua proposta, responda este formulario rapido:\n\nNome:\nWhatsApp:\nPrincipal desafio hoje:\nObjetivo para os proximos 90 dias:\n\nLink: {{link_proposta}}';
+  }
+  return '';
+};
+
 const TemplatesManager = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -56,6 +69,7 @@ const TemplatesManager = () => {
   const [activeTab, setActiveTab] = useState('whatsapp');
   const [showEditor, setShowEditor] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [creationChannel, setCreationChannel] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [formName, setFormName] = useState('');
@@ -91,14 +105,12 @@ const TemplatesManager = () => {
 
   const openCreate = (channel: string) => {
     setEditingTemplate(null);
+    setCreationChannel(channel);
+    setActiveTab(channel);
     setFormName('');
     setFormChannel(channel);
     setFormSubject('');
-    setFormBody(
-      channel === 'whatsapp'
-        ? 'Ola! Sou da {{sua_empresa}}. Preparamos uma analise exclusiva para {{nome_empresa}}.\n\nVeja sua proposta: {{link_proposta}}'
-        : ''
-    );
+    setFormBody(getDefaultBodyByChannel(channel));
     setFormImageUrl('');
     setFormIncludeLink(true);
     setFormSendAsAudio(false);
@@ -113,6 +125,7 @@ const TemplatesManager = () => {
 
   const openEdit = (t: Template) => {
     setEditingTemplate(t);
+    setCreationChannel(null);
     setFormName(t.name);
     setFormChannel(t.channel);
     setFormSubject(t.subject);
@@ -233,6 +246,20 @@ const TemplatesManager = () => {
       .replace(/\{\{sua_empresa\}\}/g, 'Minha Empresa');
   };
 
+  const getChannelLabel = (channel: string) => {
+    if (channel === 'whatsapp') return 'WhatsApp';
+    if (channel === 'email') return 'Email';
+    if (channel === 'formulario') return 'Formulario';
+    return channel;
+  };
+
+  const getChannelIcon = (channel: string) => {
+    if (channel === 'whatsapp') return <MessageSquare className="h-5 w-5 text-[#EF3333]" />;
+    if (channel === 'email') return <Mail className="h-5 w-5 text-[#EF3333]" />;
+    if (channel === 'formulario') return <ClipboardList className="h-5 w-5 text-[#EF3333]" />;
+    return <FileText className="h-5 w-5 text-[#EF3333]" />;
+  };
+
   const handleAudioPreview = async () => {
     if (!user || !formBody.trim()) return;
 
@@ -292,6 +319,7 @@ const TemplatesManager = () => {
 
   const whatsappTemplates = templates.filter((t) => t.channel === 'whatsapp');
   const emailTemplates = templates.filter((t) => t.channel === 'email');
+  const formularioTemplates = templates.filter((t) => t.channel === 'formulario');
 
   const renderTemplateList = (list: Template[], channel: string) => (
     <div className="space-y-4">
@@ -309,12 +337,12 @@ const TemplatesManager = () => {
 
       <Button onClick={() => openCreate(channel)} variant="outline" className="h-10 w-full rounded-xl gap-2 border-dashed border-[#e5e5ea] hover:bg-[#fafafd]">
         <Plus className="h-4 w-4" />
-        Novo Template de {channel === 'whatsapp' ? 'WhatsApp' : 'Email'}
+        Novo Template de {getChannelLabel(channel)}
       </Button>
 
       {list.length === 0 ? (
         <Card className={sectionCardClass}>
-          <p className="py-8 text-center text-sm text-[#6d6d75]">Nenhum template de {channel === 'whatsapp' ? 'WhatsApp' : 'Email'} criado ainda.</p>
+          <p className="py-8 text-center text-sm text-[#6d6d75]">Nenhum template de {getChannelLabel(channel)} criado ainda.</p>
         </Card>
       ) : (
         list.map((t) => (
@@ -394,7 +422,7 @@ const TemplatesManager = () => {
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid h-auto w-full grid-cols-3 rounded-[22px] border border-[#ececf0] bg-[#f4f4f6] p-1.5">
+        <TabsList className="grid h-auto w-full grid-cols-4 rounded-[22px] border border-[#ececf0] bg-[#f4f4f6] p-1.5">
           <TabsTrigger
             value="whatsapp"
             className="flex h-11 items-center gap-2 rounded-2xl text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-[#1A1A1A] data-[state=active]:shadow-[inset_0_0_0_1px_rgba(239,51,51,0.22)]"
@@ -406,6 +434,12 @@ const TemplatesManager = () => {
             className="flex h-11 items-center gap-2 rounded-2xl text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-[#1A1A1A] data-[state=active]:shadow-[inset_0_0_0_1px_rgba(239,51,51,0.22)]"
           >
             <Mail className="h-4 w-4 text-[#EF3333]" /> Email ({emailTemplates.length})
+          </TabsTrigger>
+          <TabsTrigger
+            value="formulario"
+            className="flex h-11 items-center gap-2 rounded-2xl text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-[#1A1A1A] data-[state=active]:shadow-[inset_0_0_0_1px_rgba(239,51,51,0.22)]"
+          >
+            <ClipboardList className="h-4 w-4 text-[#EF3333]" /> Formulario ({formularioTemplates.length})
           </TabsTrigger>
           <TabsTrigger
             value="proposta"
@@ -420,6 +454,9 @@ const TemplatesManager = () => {
         <TabsContent value="email" className="mt-4">
           {renderTemplateList(emailTemplates, 'email')}
         </TabsContent>
+        <TabsContent value="formulario" className="mt-4">
+          {renderTemplateList(formularioTemplates, 'formulario')}
+        </TabsContent>
         <TabsContent value="proposta" className="mt-4">
           <Card className={sectionCardClass}>
             <ProposalTemplateTab />
@@ -428,15 +465,29 @@ const TemplatesManager = () => {
       </Tabs>
 
       <Dialog open={showEditor} onOpenChange={setShowEditor}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-[22px] border border-[#ececf0] bg-white">
+        <DialogContent key={`${editingTemplate?.id || 'new'}-${formChannel}`} className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-[22px] border border-[#ececf0] bg-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#1A1A1A]">
-              {formChannel === 'whatsapp' ? <MessageSquare className="h-5 w-5 text-[#EF3333]" /> : <Mail className="h-5 w-5 text-[#EF3333]" />}
-              {editingTemplate ? 'Editar Template' : 'Novo Template'}
+              {getChannelIcon(formChannel)}
+              {editingTemplate ? `Editar Template de ${getChannelLabel(formChannel)}` : `Novo Template de ${getChannelLabel(formChannel)}`}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Canal</Label>
+              <Select value={formChannel} onValueChange={setFormChannel} disabled={!editingTemplate && !!creationChannel}>
+                <SelectTrigger className={fieldClass}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="formulario">Formulario</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label>Nome do Template *</Label>
               <Input className={fieldClass} value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Proposta Restaurantes" />

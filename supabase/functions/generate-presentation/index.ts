@@ -9,7 +9,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { analysis, business, dna, profile, testimonials, clientLogos, template, tone: requestedTone, customInstructions, publicId } = await req.json();
+    const {
+      analysis,
+      business,
+      dna,
+      profile,
+      testimonials,
+      clientLogos,
+      template,
+      tone: requestedTone,
+      customInstructions,
+      publicId,
+      responseMode: requestedResponseMode,
+      formTemplateId,
+      formTemplateName,
+      formTemplateBody,
+    } = await req.json();
 
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
     const respondFnUrl = `${SUPABASE_URL}/functions/v1/respond-presentation`;
@@ -38,6 +53,7 @@ Deno.serve(async (req) => {
     const selectedTemplate = template || 'modern-dark';
     const selectedTone = requestedTone || dna?.tone || 'professional';
     const toneGuide = toneDescriptions[selectedTone] || toneDescriptions['professional'];
+    const responseMode = requestedResponseMode === 'form' ? 'form' : 'buttons';
 
     let styleGuide: string;
     if (selectedTemplate === 'custom') {
@@ -70,6 +86,16 @@ Deno.serve(async (req) => {
     const priceRange = dna?.price_range || 'Nao informado';
     const caseMetrics = dna?.case_metrics || 'Nao informado';
     const guarantee = dna?.guarantee || 'Nao informado';
+    const dnaFullJson = JSON.stringify(dna || {}, null, 2);
+    const dnaFilledKeys = Object.entries(dna || {})
+      .filter(([, value]) => {
+        if (value === null || value === undefined) return false;
+        if (typeof value === 'string') return value.trim().length > 0;
+        if (Array.isArray(value)) return value.length > 0;
+        return true;
+      })
+      .map(([key]) => key)
+      .join(', ') || 'nenhum';
 
     // Build WhatsApp link
     const rawPhone = profile?.phone || '';
@@ -91,6 +117,29 @@ ${testimonials.map((t: any, i: number) => `${i + 1}. "${t.testimonial}" — ${t.
 Exibir os logos em uma faixa horizontal centralizada, com espaçamento uniforme. Cada logo deve ter max-height de 50px e ser exibido com <img> tag. Se houver nome da empresa, usar como alt text.
 ${clientLogos.map((l: any, i: number) => `${i + 1}. ${l.company_name || 'Cliente'}: ${l.logo_url}`).join('\n')}`;
     }
+
+    const responseSectionNumber = 9 + (clientLogosBlock ? 1 : 0) + (testimonialsBlock ? 1 : 0);
+    const formSeed = String(formTemplateBody || '').trim();
+    const responseSectionInstruction =
+      responseMode === 'form'
+        ? `${responseSectionNumber}. **Seção de Resposta com Formulário (sem botões de aceitar/recusar)**:
+   - Criar um formulário HTML elegante para o lead preencher dados antes do contato comercial.
+   - Usar os campos sugeridos por este template de formulário: "${formSeed || 'Nome, WhatsApp, Email, principal desafio, objetivo em 90 dias'}".
+   - Campos obrigatórios mínimos: nome, telefone/WhatsApp e principal desafio.
+   - Incluir botão principal vermelho (#EF3333) com texto "Enviar formulário".
+   - No submit, executar JavaScript inline que:
+     1) envia fetch POST para "${respondFnUrl}" com JSON {"public_id":"PUBLIC_ID_PLACEHOLDER","response":"accepted"} para marcar interesse;
+     2) monta uma mensagem com as respostas do formulário;
+     3) abre o WhatsApp ${whatsappUrl || '[sem telefone]'} com essa mensagem preenchida (se houver telefone configurado);
+     4) exibe feedback visual de sucesso para o lead.
+   - Não incluir os botões "Quero receber contato" e "Agora não" neste modo.
+   - Abaixo do botão principal, incluir microcopy de confiança: "Leva menos de 1 minuto" e "Sem compromisso".`
+        : `${responseSectionNumber}. **Seção de Resposta com DOIS botões lado a lado**:
+   - Botão "✅ Quero receber contato" — vermelho (#EF3333), grande, com microcopy de baixo atrito ("1 clique, sem compromisso"), que ao clicar executa um fetch POST para "${respondFnUrl}" com body JSON {"public_id":"PUBLIC_ID_PLACEHOLDER","response":"accepted"} e depois redireciona para a URL do WhatsApp: ${whatsappUrl || '[sem telefone]'}
+   - Botão "❌ Agora não" — vermelho/cinza escuro, mesmo tamanho, que ao clicar executa um fetch POST para "${respondFnUrl}" com body JSON {"public_id":"PUBLIC_ID_PLACEHOLDER","response":"rejected"} e mostra mensagem "Obrigado pelo retorno. Se mudar de ideia, entre em contato!"
+   
+   IMPORTANTE: Use JavaScript inline nos onclick dos botões. Após o fetch, desabilite ambos os botões e mostre feedback visual. Use o texto PUBLIC_ID_PLACEHOLDER como placeholder — ele será substituído pelo ID real.
+   Abaixo dos botões colocar texto "Resposta em menos de 10 segundos" e "Sem compromisso".`;
 
     const systemPrompt = `Você é um especialista em criar apresentações comerciais de vendas persuasivas. Seu objetivo é gerar uma apresentação HTML que VENDA os serviços da empresa prospectora para o lead analisado.
 
@@ -132,12 +181,7 @@ ${youtubeUrl ? `   - YouTube: link "${youtubeUrl}" com ícone do YouTube (usar S
    Estilo: ícones lado a lado, centralizados, com hover effect sutil. Abrir em nova aba.` : ''}
 ${clientLogosBlock ? `${testimonialsBlock ? '9' : '9'}. **Nossos Clientes** — Seção "Empresas que confiam em nós" com os logos dos clientes dispostos em faixa horizontal centralizada` : ''}
 ${testimonialsBlock ? `${clientLogosBlock ? '10' : '9'}. **Depoimentos de Clientes** — Seção com os depoimentos reais (com foto se disponível), mostrando resultados de outros clientes` : ''}
-${(() => { const next = 9 + (clientLogosBlock ? 1 : 0) + (testimonialsBlock ? 1 : 0); return `${next}`; })()}. **Seção de Resposta com DOIS botões lado a lado**:
-   - Botão "✅ Quero receber contato" — vermelho (#EF3333), grande, com microcopy de baixo atrito ("1 clique, sem compromisso"), que ao clicar executa um fetch POST para "${respondFnUrl}" com body JSON {"public_id":"PUBLIC_ID_PLACEHOLDER","response":"accepted"} e depois redireciona para a URL do WhatsApp: ${whatsappUrl || '[sem telefone]'}
-   - Botão "❌ Agora não" — vermelho/cinza escuro, mesmo tamanho, que ao clicar executa um fetch POST para "${respondFnUrl}" com body JSON {"public_id":"PUBLIC_ID_PLACEHOLDER","response":"rejected"} e mostra mensagem "Obrigado pelo retorno. Se mudar de ideia, entre em contato!"
-   
-   IMPORTANTE: Use JavaScript inline nos onclick dos botões. Após o fetch, desabilite ambos os botões e mostre feedback visual. Use o texto PUBLIC_ID_PLACEHOLDER como placeholder — ele será substituído pelo ID real.
-   Abaixo dos botões colocar texto "Resposta em menos de 10 segundos" e "Sem compromisso".
+${responseSectionInstruction}
 
 Use CSS inline e HTML puro (sem frameworks). Garanta que fique bonito e profissional em qualquer navegador.
 Retorne APENAS o HTML completo, começando com <!DOCTYPE html>.`;
@@ -187,7 +231,27 @@ ${JSON.stringify(analysis, null, 2)}
 
 IMPORTANTE: A apresentação deve posicionar os serviços "${services}" como a solução para os problemas encontrados na análise. Cada problema deve ser conectado a um serviço específico. A apresentação é uma ferramenta de VENDAS.
 
+MODO DE RESPOSTA DA PROPOSTA:
+- Modo selecionado: ${responseMode === 'form' ? 'formulario' : 'botoes'}
+- Respeite este modo estritamente na seção final da proposta.
+${responseMode === 'form' ? `- ID do template de formulário: ${formTemplateId || 'nao informado'}
+- Nome do template de formulário: ${formTemplateName || 'Formulario personalizado'}
+- Conteudo base do template de formulário: ${formSeed || 'Nome, WhatsApp, Email, principal desafio, objetivo em 90 dias'}` : ''}
+
 Gere o HTML completo da apresentação.`;
+
+    const systemPromptWithDna = `${systemPrompt}
+
+REQUISITO DE COBERTURA DE DNA:
+- Analise TODO o DNA.
+- Nao ignore campos preenchidos.
+- Use os campos de DNA para personalizar copy, estrutura, oferta, prova social, objecoes e CTA.
+- Campos de DNA preenchidos: ${dnaFilledKeys}.`;
+
+    const userPromptWithDna = `${userPrompt}
+
+DNA COMPLETO (JSON) PARA ANALISE OBRIGATORIA:
+${dnaFullJson}`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -198,8 +262,8 @@ Gere o HTML completo da apresentação.`;
       body: JSON.stringify({
         model: 'google/gemini-3-flash-preview',
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
+          { role: 'system', content: systemPromptWithDna },
+          { role: 'user', content: userPromptWithDna },
         ],
       }),
     });

@@ -16,6 +16,14 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
+type ProposalResponseMode = 'buttons' | 'form';
+
+type ProposalFormTemplate = {
+  id: string;
+  name: string;
+  body: string;
+};
+
 const Index = () => {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -108,7 +116,11 @@ const Index = () => {
     setShowPipelineDialog(true);
   };
 
-  const startAnalysis = async (pipelineStageId?: string) => {
+  const startAnalysis = async (
+    pipelineStageId?: string,
+    responseMode: ProposalResponseMode = 'buttons',
+    formTemplate?: ProposalFormTemplate
+  ) => {
     if (!user) return;
     const selected = businesses.filter((b) => selectedIds.has(b.id));
 
@@ -181,6 +193,10 @@ const Index = () => {
             template: (dna as any)?.presentation_template || 'modern-dark',
             tone: (dna as any)?.presentation_tone || 'professional',
             customInstructions: (dna as any)?.presentation_instructions || '',
+            responseMode,
+            formTemplateId: responseMode === 'form' ? formTemplate?.id || null : null,
+            formTemplateName: responseMode === 'form' ? formTemplate?.name || null : null,
+            formTemplateBody: responseMode === 'form' ? formTemplate?.body || null : null,
           },
         });
 
@@ -228,7 +244,17 @@ const Index = () => {
         open={showPipelineDialog}
         onConfirm={(result) => {
           setShowPipelineDialog(false);
-          startAnalysis(result.attach ? result.stageId : undefined);
+          startAnalysis(
+            result.attach ? result.stageId : undefined,
+            result.responseMode,
+            result.responseMode === 'form' && result.formTemplateId
+              ? {
+                  id: result.formTemplateId,
+                  name: result.formTemplateName || 'Formulario',
+                  body: result.formTemplateBody || '',
+                }
+              : undefined
+          );
         }}
         onCancel={() => setShowPipelineDialog(false)}
       />

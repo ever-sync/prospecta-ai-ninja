@@ -35,6 +35,7 @@ export const generateMockBusinesses = (niches: string[], count: number = 15): Bu
       name,
       address: `${street}, ${number} - São Paulo, SP`,
       phone: `(11) ${Math.floor(Math.random() * 9000) + 1000}-${Math.floor(Math.random() * 9000) + 1000}`,
+      email: '',
       website: `www.${name.toLowerCase().replace(/[^a-z0-9]/g, '')}.com.br`,
       category: niche,
       distance: parseFloat((Math.random() * 10).toFixed(1)),

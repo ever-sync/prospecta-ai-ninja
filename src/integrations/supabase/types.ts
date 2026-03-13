@@ -424,6 +424,7 @@ export type Database = {
           analysis_data: Json | null
           business_address: string | null
           business_category: string | null
+          business_email: string | null
           business_name: string | null
           business_phone: string | null
           business_rating: number | null
@@ -441,6 +442,7 @@ export type Database = {
           analysis_data?: Json | null
           business_address?: string | null
           business_category?: string | null
+          business_email?: string | null
           business_name?: string | null
           business_phone?: string | null
           business_rating?: number | null
@@ -458,6 +460,7 @@ export type Database = {
           analysis_data?: Json | null
           business_address?: string | null
           business_category?: string | null
+          business_email?: string | null
           business_name?: string | null
           business_phone?: string | null
           business_rating?: number | null

@@ -3,6 +3,7 @@ export interface Business {
   name: string;
   address: string;
   phone: string;
+  email: string;
   website: string;
   category: string;
   distance: number;

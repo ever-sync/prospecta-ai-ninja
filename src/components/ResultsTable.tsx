@@ -1,4 +1,4 @@
-import { ExternalLink, Phone, MapPin, Star, Sparkles } from 'lucide-react';
+import { ExternalLink, Phone, MapPin, Star, Sparkles, Mail } from 'lucide-react';
 import { Business, AVAILABLE_NICHES } from '@/types/business';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -87,6 +87,14 @@ export const ResultsTable = ({ businesses, onSelectBusiness, selectedIds, onTogg
                     </div>
                   ) : (
                     <span className="text-xs text-muted-foreground italic">Sem telefone</span>
+                  )}
+                  {business.email ? (
+                    <a href={`mailto:${business.email}`} className="flex items-center gap-1 text-xs text-primary hover:underline">
+                      <Mail className="w-3 h-3" />
+                      {business.email}
+                    </a>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">Sem email</span>
                   )}
                   {business.website ? (
                     <a href={`https://${business.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">

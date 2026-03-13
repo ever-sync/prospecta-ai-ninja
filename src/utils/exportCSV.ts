@@ -1,7 +1,7 @@
 import { Business } from '@/types/business';
 
 export const exportToCSV = (businesses: Business[], filename: string = 'prospecta-resultados') => {
-  const headers = ['Nome', 'Endereço', 'Telefone', 'Website', 'Categoria', 'Distância (km)', 'Avaliação'];
+  const headers = ['Nome', 'Endereço', 'Telefone', 'Email', 'Website', 'Categoria', 'Distância (km)', 'Avaliação'];
   
   const categoryLabels: Record<string, string> = {
     restaurant: 'Restaurante',
@@ -22,6 +22,7 @@ export const exportToCSV = (businesses: Business[], filename: string = 'prospect
     business.name,
     business.address,
     business.phone,
+    business.email || '',
     business.website,
     categoryLabels[business.category] || business.category,
     business.distance.toString(),

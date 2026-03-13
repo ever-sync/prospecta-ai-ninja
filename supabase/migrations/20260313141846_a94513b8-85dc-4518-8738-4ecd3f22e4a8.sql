@@ -1,0 +1,1 @@
+ALTER TABLE public.presentations ADD COLUMN business_email text;

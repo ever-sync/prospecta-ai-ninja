@@ -240,6 +240,27 @@ const Index = () => {
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {hasSearched && businesses.length > 0 && (
+                <div className="flex items-center gap-1 border border-border rounded-lg p-0.5">
+                  {([
+                    { value: 'all', label: 'Todos' },
+                    { value: 'any', label: 'Com contato' },
+                    { value: 'email', label: 'Com email' },
+                    { value: 'phone', label: 'Com telefone' },
+                  ] as const).map(opt => (
+                    <Button
+                      key={opt.value}
+                      variant={contactFilter === opt.value ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-7 text-xs px-2.5"
+                      onClick={() => setContactFilter(opt.value)}
+                    >
+                      {opt.value === 'all' && <Filter className="w-3 h-3 mr-1" />}
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
               {selectedIds.size > 0 && (
                 <Button
                   onClick={handleAnalyzeSelected}

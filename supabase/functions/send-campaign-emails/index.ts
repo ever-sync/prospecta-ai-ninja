@@ -5,6 +5,14 @@ const corsHeaders = {
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+function resolveBaseOrigin(domain: string | null | undefined, requestOrigin: string | null): string {
+  const fallback = requestOrigin || 'https://prospecta-ai-ninja.lovable.app';
+  const value = (domain || '').trim().replace(/\/+$/, '');
+  if (!value) return fallback;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://${value}`;
+}
+
 async function logApiUsage(userId: string, service: string, operation: string, costCents: number, metadata: Record<string, any> = {}) {
   try {
     const svc = createClient(
@@ -93,12 +101,13 @@ Deno.serve(async (req) => {
     // Get user profile
     const { data: profile } = await supabase
       .from('profiles')
-      .select('company_name, email')
+      .select('company_name, email, campaign_sender_email, campaign_sender_name, proposal_link_domain')
       .eq('user_id', user.id)
       .single();
 
-    const senderName = profile?.company_name || 'Prospecta IA';
-    const fromEmail = 'onboarding@resend.dev';
+    const senderName = profile?.campaign_sender_name || profile?.company_name || 'Prospecta IA';
+    const fromEmail = profile?.campaign_sender_email || 'onboarding@resend.dev';
+    const baseOrigin = resolveBaseOrigin(profile?.proposal_link_domain, req.headers.get('origin'));
 
     const replaceVariables = (text: string, pres: any, publicUrl: string) => {
       return text
@@ -122,7 +131,6 @@ Deno.serve(async (req) => {
       if (!businessEmail) continue;
       if (!cpRow) continue;
 
-      const baseOrigin = req.headers.get('origin') || 'https://prospecta-ai-ninja.lovable.app';
       const tracked = new URLSearchParams({
         cid: campaign_id,
         cpid: cpRow.id,

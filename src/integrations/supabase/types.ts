@@ -47,6 +47,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_ai_api_keys: {
+        Row: {
+          api_key: string
+          created_at: string
+          custom_provider: string | null
+          id: string
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key: string
+          created_at?: string
+          custom_provider?: string | null
+          id?: string
+          provider: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string
+          created_at?: string
+          custom_provider?: string | null
+          id?: string
+          provider?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       campaign_message_attempts: {
         Row: {
           attempt_no: number
@@ -305,19 +335,29 @@ export type Database = {
       company_dna: {
         Row: {
           additional_info: string | null
+          case_metrics: string | null
+          common_objections: string[] | null
           created_at: string | null
           custom_bg_color: string | null
           custom_button_color: string | null
           custom_text_color: string | null
           differentials: string[] | null
           facebook_url: string | null
+          guarantee: string | null
           id: string
+          icp_company_size: string | null
+          icp_digital_maturity: string | null
+          icp_segments: string[] | null
           instagram_url: string | null
           linkedin_url: string | null
+          objection_responses: string | null
+          offer_packages: string | null
           portfolio_url: string | null
+          price_range: string | null
           presentation_instructions: string | null
           presentation_template: string | null
           presentation_tone: string | null
+          priority_pains: string[] | null
           services: string[] | null
           target_audience: string | null
           tone: string | null
@@ -328,19 +368,29 @@ export type Database = {
         }
         Insert: {
           additional_info?: string | null
+          case_metrics?: string | null
+          common_objections?: string[] | null
           created_at?: string | null
           custom_bg_color?: string | null
           custom_button_color?: string | null
           custom_text_color?: string | null
           differentials?: string[] | null
           facebook_url?: string | null
+          guarantee?: string | null
           id?: string
+          icp_company_size?: string | null
+          icp_digital_maturity?: string | null
+          icp_segments?: string[] | null
           instagram_url?: string | null
           linkedin_url?: string | null
+          objection_responses?: string | null
+          offer_packages?: string | null
           portfolio_url?: string | null
+          price_range?: string | null
           presentation_instructions?: string | null
           presentation_template?: string | null
           presentation_tone?: string | null
+          priority_pains?: string[] | null
           services?: string[] | null
           target_audience?: string | null
           tone?: string | null
@@ -351,19 +401,29 @@ export type Database = {
         }
         Update: {
           additional_info?: string | null
+          case_metrics?: string | null
+          common_objections?: string[] | null
           created_at?: string | null
           custom_bg_color?: string | null
           custom_button_color?: string | null
           custom_text_color?: string | null
           differentials?: string[] | null
           facebook_url?: string | null
+          guarantee?: string | null
           id?: string
+          icp_company_size?: string | null
+          icp_digital_maturity?: string | null
+          icp_segments?: string[] | null
           instagram_url?: string | null
           linkedin_url?: string | null
+          objection_responses?: string | null
+          offer_packages?: string | null
           portfolio_url?: string | null
+          price_range?: string | null
           presentation_instructions?: string | null
           presentation_template?: string | null
           presentation_tone?: string | null
+          priority_pains?: string[] | null
           services?: string[] | null
           target_audience?: string | null
           tone?: string | null
@@ -740,6 +800,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          campaign_sender_email: string | null
+          campaign_sender_name: string | null
           company_logo_url: string | null
           company_name: string | null
           created_at: string | null
@@ -747,9 +809,18 @@ export type Database = {
           email: string | null
           id: string
           phone: string | null
+          proposal_link_domain: string | null
           user_id: string
+          whatsapp_connection_type: string
+          whatsapp_official_access_token: string | null
+          whatsapp_official_phone_number_id: string | null
+          whatsapp_unofficial_api_token: string | null
+          whatsapp_unofficial_api_url: string | null
+          whatsapp_unofficial_instance: string | null
         }
         Insert: {
+          campaign_sender_email?: string | null
+          campaign_sender_name?: string | null
           company_logo_url?: string | null
           company_name?: string | null
           created_at?: string | null
@@ -757,9 +828,18 @@ export type Database = {
           email?: string | null
           id?: string
           phone?: string | null
+          proposal_link_domain?: string | null
           user_id: string
+          whatsapp_connection_type?: string
+          whatsapp_official_access_token?: string | null
+          whatsapp_official_phone_number_id?: string | null
+          whatsapp_unofficial_api_token?: string | null
+          whatsapp_unofficial_api_url?: string | null
+          whatsapp_unofficial_instance?: string | null
         }
         Update: {
+          campaign_sender_email?: string | null
+          campaign_sender_name?: string | null
           company_logo_url?: string | null
           company_name?: string | null
           created_at?: string | null
@@ -767,7 +847,14 @@ export type Database = {
           email?: string | null
           id?: string
           phone?: string | null
+          proposal_link_domain?: string | null
           user_id?: string
+          whatsapp_connection_type?: string
+          whatsapp_official_access_token?: string | null
+          whatsapp_official_phone_number_id?: string | null
+          whatsapp_unofficial_api_token?: string | null
+          whatsapp_unofficial_api_url?: string | null
+          whatsapp_unofficial_instance?: string | null
         }
         Relationships: []
       }

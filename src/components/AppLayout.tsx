@@ -167,7 +167,7 @@ export const AppLayout = () => {
           )}
         </div>
 
-        <div className={cn('flex-1 overflow-y-auto py-4', collapsed ? 'px-2' : 'px-3')}>
+        <div className={cn('flex-1 overflow-hidden py-4', collapsed ? 'px-2' : 'px-3')}>
           {!collapsed && (
             <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8f8f97]">
               Menu
@@ -233,8 +233,8 @@ export const AppLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#121316] p-2 sm:p-3 lg:p-4">
-      <div className="flex min-h-[calc(100vh-1rem)] w-full overflow-hidden rounded-[30px] bg-[#f4f4f6] shadow-[0_25px_75px_rgba(0,0,0,0.34)] sm:min-h-[calc(100vh-1.5rem)] lg:min-h-[calc(100vh-2rem)]">
+    <div className="h-screen overflow-hidden bg-[#121316] p-0 sm:p-3 lg:p-4">
+      <div className="flex h-screen w-full overflow-hidden rounded-none bg-[#f4f4f6] shadow-none sm:h-[calc(100vh-1.5rem)] sm:rounded-[30px] sm:shadow-[0_25px_75px_rgba(0,0,0,0.34)] lg:h-[calc(100vh-2rem)]">
         <AnimatePresence>
           {sidebarOpen && (
             <>
@@ -251,7 +251,7 @@ export const AppLayout = () => {
                 animate={{ x: 0 }}
                 exit={{ x: '-100%' }}
                 transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-                className="fixed inset-y-2 left-2 z-50 w-[248px] rounded-[24px] border border-[#1a1a20] bg-[#0A0A0A] lg:hidden"
+                className="fixed inset-y-0 left-0 z-50 w-[82vw] max-w-[296px] border-r border-[#1a1a20] bg-[#0A0A0A] sm:inset-y-2 sm:left-2 sm:rounded-[24px] sm:border lg:hidden"
               >
                 {renderSidebarContent({ mobile: true })}
               </motion.aside>
@@ -261,7 +261,7 @@ export const AppLayout = () => {
 
         <aside
           className={cn(
-            'relative hidden shrink-0 border-r border-[#1a1a20] bg-[#0A0A0A] transition-[width] duration-300 ease-out lg:flex',
+            'relative hidden h-full shrink-0 border-r border-[#1a1a20] bg-[#0A0A0A] transition-[width] duration-300 ease-out lg:flex',
             isSidebarCollapsed ? 'w-[78px]' : 'w-[248px]'
           )}
         >
@@ -269,7 +269,7 @@ export const AppLayout = () => {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-[74px] shrink-0 items-center justify-between border-b border-[#ebebef] bg-white/90 px-3 backdrop-blur lg:px-4">
+          <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-[#ebebef] bg-white/90 px-2.5 backdrop-blur sm:h-[74px] sm:px-3 lg:px-4">
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
@@ -325,6 +325,7 @@ export const AppLayout = () => {
             </AnimatePresence>
           </main>
         </div>
+
       </div>
     </div>
   );

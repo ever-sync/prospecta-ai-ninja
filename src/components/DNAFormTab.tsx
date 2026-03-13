@@ -18,6 +18,16 @@ const DNAFormTab = () => {
   const [targetAudience, setTargetAudience] = useState('');
   const [valueProposition, setValueProposition] = useState('');
   const [tone, setTone] = useState('');
+  const [icpSegments, setIcpSegments] = useState<string[]>([]);
+  const [icpCompanySize, setIcpCompanySize] = useState('');
+  const [icpDigitalMaturity, setIcpDigitalMaturity] = useState('');
+  const [priorityPains, setPriorityPains] = useState<string[]>([]);
+  const [commonObjections, setCommonObjections] = useState<string[]>([]);
+  const [objectionResponses, setObjectionResponses] = useState('');
+  const [offerPackages, setOfferPackages] = useState('');
+  const [priceRange, setPriceRange] = useState('');
+  const [caseMetrics, setCaseMetrics] = useState('');
+  const [guarantee, setGuarantee] = useState('');
   const [additionalInfo, setAdditionalInfo] = useState('');
   const [portfolioUrl, setPortfolioUrl] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
@@ -26,6 +36,9 @@ const DNAFormTab = () => {
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [newService, setNewService] = useState('');
   const [newDifferential, setNewDifferential] = useState('');
+  const [newIcpSegment, setNewIcpSegment] = useState('');
+  const [newPriorityPain, setNewPriorityPain] = useState('');
+  const [newCommonObjection, setNewCommonObjection] = useState('');
   const [saving, setSaving] = useState(false);
   const [hasRecord, setHasRecord] = useState(false);
 
@@ -44,6 +57,16 @@ const DNAFormTab = () => {
           setTargetAudience(data.target_audience || '');
           setValueProposition(data.value_proposition || '');
           setTone(data.tone || '');
+          setIcpSegments((data as any).icp_segments || []);
+          setIcpCompanySize((data as any).icp_company_size || '');
+          setIcpDigitalMaturity((data as any).icp_digital_maturity || '');
+          setPriorityPains((data as any).priority_pains || []);
+          setCommonObjections((data as any).common_objections || []);
+          setObjectionResponses((data as any).objection_responses || '');
+          setOfferPackages((data as any).offer_packages || '');
+          setPriceRange((data as any).price_range || '');
+          setCaseMetrics((data as any).case_metrics || '');
+          setGuarantee((data as any).guarantee || '');
           setAdditionalInfo(data.additional_info || '');
           setPortfolioUrl((data as any).portfolio_url || '');
           setInstagramUrl((data as any).instagram_url || '');
@@ -68,12 +91,22 @@ const DNAFormTab = () => {
 
   const completeness = () => {
     let filled = 0;
-    const total = 11;
+    const total = 21;
     if (services.length > 0) filled++;
     if (differentials.length > 0) filled++;
     if (targetAudience.trim()) filled++;
     if (valueProposition.trim()) filled++;
     if (tone.trim()) filled++;
+    if (icpSegments.length > 0) filled++;
+    if (icpCompanySize.trim()) filled++;
+    if (icpDigitalMaturity.trim()) filled++;
+    if (priorityPains.length > 0) filled++;
+    if (commonObjections.length > 0) filled++;
+    if (objectionResponses.trim()) filled++;
+    if (offerPackages.trim()) filled++;
+    if (priceRange.trim()) filled++;
+    if (caseMetrics.trim()) filled++;
+    if (guarantee.trim()) filled++;
     if (additionalInfo.trim()) filled++;
     if (portfolioUrl.trim()) filled++;
     if (instagramUrl.trim()) filled++;
@@ -94,6 +127,16 @@ const DNAFormTab = () => {
       target_audience: targetAudience,
       value_proposition: valueProposition,
       tone,
+      icp_segments: icpSegments,
+      icp_company_size: icpCompanySize,
+      icp_digital_maturity: icpDigitalMaturity,
+      priority_pains: priorityPains,
+      common_objections: commonObjections,
+      objection_responses: objectionResponses,
+      offer_packages: offerPackages,
+      price_range: priceRange,
+      case_metrics: caseMetrics,
+      guarantee,
       additional_info: additionalInfo,
       portfolio_url: portfolioUrl,
       instagram_url: instagramUrl,
@@ -230,6 +273,171 @@ const DNAFormTab = () => {
             onChange={(e) => setTone(e.target.value)}
             placeholder="Ex: Profissional, amigavel, tecnico..."
             className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+          />
+        </div>
+
+        <div className="space-y-3">
+          <Label className="text-sm font-medium text-foreground">ICP - Segmentos Ideais</Label>
+          <div className="flex gap-2">
+            <Input
+              value={newIcpSegment}
+              onChange={(e) => setNewIcpSegment(e.target.value)}
+              placeholder="Ex: Clinicas medicas, imobiliarias, e-commerce..."
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(icpSegments, setIcpSegments, newIcpSegment, setNewIcpSegment))}
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-11 w-11 rounded-xl border-[#e6e6eb] bg-white hover:bg-[#fff1f3] hover:text-[#EF3333]"
+              onClick={() => addTag(icpSegments, setIcpSegments, newIcpSegment, setNewIcpSegment)}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {icpSegments.map((segment, i) => (
+              <Badge key={i} variant="secondary" className="gap-1 rounded-full border border-[#f0d9dd] bg-[#fff5f6] pr-1 text-[#702530]">
+                {segment}
+                <button onClick={() => removeTag(icpSegments, setIcpSegments, i)} className="ml-1 hover:text-destructive">
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">ICP - Porte de Empresa</Label>
+            <Input
+              value={icpCompanySize}
+              onChange={(e) => setIcpCompanySize(e.target.value)}
+              placeholder="Ex: 5 a 50 funcionarios, faturamento de 100k a 2M"
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">ICP - Maturidade Digital</Label>
+            <Input
+              value={icpDigitalMaturity}
+              onChange={(e) => setIcpDigitalMaturity(e.target.value)}
+              placeholder="Ex: tem site e redes, mas sem processo comercial estruturado"
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <Label className="text-sm font-medium text-foreground">Dores Prioritarias que Mais Convertem</Label>
+          <div className="flex gap-2">
+            <Input
+              value={newPriorityPain}
+              onChange={(e) => setNewPriorityPain(e.target.value)}
+              placeholder="Ex: poucos leads qualificados, baixo retorno de anuncios..."
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(priorityPains, setPriorityPains, newPriorityPain, setNewPriorityPain))}
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-11 w-11 rounded-xl border-[#e6e6eb] bg-white hover:bg-[#fff1f3] hover:text-[#EF3333]"
+              onClick={() => addTag(priorityPains, setPriorityPains, newPriorityPain, setNewPriorityPain)}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {priorityPains.map((pain, i) => (
+              <Badge key={i} variant="secondary" className="gap-1 rounded-full border border-[#f0d9dd] bg-[#fff5f6] pr-1 text-[#702530]">
+                {pain}
+                <button onClick={() => removeTag(priorityPains, setPriorityPains, i)} className="ml-1 hover:text-destructive">
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <Label className="text-sm font-medium text-foreground">Objecoes Comuns</Label>
+          <div className="flex gap-2">
+            <Input
+              value={newCommonObjection}
+              onChange={(e) => setNewCommonObjection(e.target.value)}
+              placeholder='Ex: "esta caro", "ja tenho agencia", "nao tenho tempo"...'
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(commonObjections, setCommonObjections, newCommonObjection, setNewCommonObjection))}
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-11 w-11 rounded-xl border-[#e6e6eb] bg-white hover:bg-[#fff1f3] hover:text-[#EF3333]"
+              onClick={() => addTag(commonObjections, setCommonObjections, newCommonObjection, setNewCommonObjection)}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {commonObjections.map((objection, i) => (
+              <Badge key={i} variant="secondary" className="gap-1 rounded-full border border-[#f0d9dd] bg-[#fff5f6] pr-1 text-[#702530]">
+                {objection}
+                <button onClick={() => removeTag(commonObjections, setCommonObjections, i)} className="ml-1 hover:text-destructive">
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">Playbook de Resposta de Objecao</Label>
+          <Textarea
+            value={objectionResponses}
+            onChange={(e) => setObjectionResponses(e.target.value)}
+            placeholder="Ex: quando falar preco, mostrar ROI em 90 dias e oferecer piloto..."
+            className="min-h-[90px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">Ofertas e Pacotes</Label>
+          <Textarea
+            value={offerPackages}
+            onChange={(e) => setOfferPackages(e.target.value)}
+            placeholder="Descreva seus produtos/pacotes, entregaveis e diferencas entre eles"
+            className="min-h-[90px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+          />
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">Faixa de Preco / Ticket</Label>
+            <Input
+              value={priceRange}
+              onChange={(e) => setPriceRange(e.target.value)}
+              placeholder="Ex: setup de R$2.000 + mensalidade de R$1.200 a R$3.000"
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">Garantia / Risco Reverso</Label>
+            <Input
+              value={guarantee}
+              onChange={(e) => setGuarantee(e.target.value)}
+              placeholder="Ex: 30 dias de acompanhamento com revisao sem custo"
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">Cases e Metricas de Resultado</Label>
+          <Textarea
+            value={caseMetrics}
+            onChange={(e) => setCaseMetrics(e.target.value)}
+            placeholder="Ex: Clinica X: +42% leads em 60 dias, E-commerce Y: +28% conversao..."
+            className="min-h-[90px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
           />
         </div>
 

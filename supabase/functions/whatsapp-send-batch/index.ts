@@ -150,6 +150,14 @@ function buildTrackedPresentationUrl(
   return `${baseOrigin}/presentation/${publicId}?${params.toString()}`;
 }
 
+function resolveBaseOrigin(domain: string | null | undefined, requestOrigin: string | null): string {
+  const fallback = requestOrigin || "https://prospecta-ai-ninja.lovable.app";
+  const value = (domain || "").trim().replace(/\/+$/, "");
+  if (!value) return fallback;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://${value}`;
+}
+
 function replaceVariables(
   text: string,
   pres: any,
@@ -243,6 +251,54 @@ async function sendMetaMessage(
   };
 }
 
+async function sendUnofficialMessage(
+  apiUrl: string,
+  apiToken: string | null,
+  instance: string | null,
+  to: string,
+  message: string,
+): Promise<{ ok: boolean; status: number; providerMessageId?: string; error?: string }> {
+  const normalizedBase = apiUrl.trim().replace(/\/+$/, "");
+  const endpoint = instance?.trim()
+    ? `${normalizedBase}/message/sendText/${encodeURIComponent(instance.trim())}`
+    : `${normalizedBase}/message/sendText`;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (apiToken?.trim()) {
+    headers.Authorization = `Bearer ${apiToken.trim()}`;
+    headers.apikey = apiToken.trim();
+  }
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      number: to,
+      text: message,
+      textMessage: { text: message },
+      options: { delay: 1200, presence: "composing" },
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      error: JSON.stringify(data),
+    };
+  }
+
+  return {
+    ok: true,
+    status: response.status,
+    providerMessageId: data?.key?.id || data?.messageId || data?.id || undefined,
+  };
+}
+
 async function getNextAttemptNo(svc: any, campaignPresentationId: string): Promise<number> {
   const { count } = await svc
     .from("campaign_message_attempts")
@@ -307,8 +363,8 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const metaToken = Deno.env.get("META_WHATSAPP_ACCESS_TOKEN");
-    const phoneNumberId = Deno.env.get("META_WHATSAPP_PHONE_NUMBER_ID");
+    const envMetaToken = Deno.env.get("META_WHATSAPP_ACCESS_TOKEN");
+    const envPhoneNumberId = Deno.env.get("META_WHATSAPP_PHONE_NUMBER_ID");
 
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -347,12 +403,55 @@ Deno.serve(async (req) => {
 
     const { data: profileData } = await svc
       .from("profiles")
-      .select("company_name")
+      .select(
+        "company_name, proposal_link_domain, whatsapp_connection_type, whatsapp_official_access_token, whatsapp_official_phone_number_id, whatsapp_unofficial_api_url, whatsapp_unofficial_api_token, whatsapp_unofficial_instance",
+      )
       .eq("user_id", user.id)
       .maybeSingle();
-    const senderName = (profileData as any)?.company_name || "Nossa Empresa";
+    const profile = (profileData as any) || {};
+    const senderName = profile.company_name || "Nossa Empresa";
+    const publishedOrigin = resolveBaseOrigin(profile.proposal_link_domain, req.headers.get("origin"));
+    const waConnectionType: "unofficial" | "meta_official" =
+      profile.whatsapp_connection_type === "meta_official" ? "meta_official" : "unofficial";
 
-    const publishedOrigin = req.headers.get("origin") || "https://prospecta-ai-ninja.lovable.app";
+    const metaToken = (profile.whatsapp_official_access_token || envMetaToken || "").trim();
+    const phoneNumberId = (profile.whatsapp_official_phone_number_id || envPhoneNumberId || "").trim();
+    const unofficialApiUrl = (profile.whatsapp_unofficial_api_url || "").trim();
+    const unofficialApiToken = (profile.whatsapp_unofficial_api_token || "").trim() || null;
+    const unofficialInstance = (profile.whatsapp_unofficial_instance || "").trim() || null;
+    const providerName = waConnectionType === "meta_official" ? "meta_cloud" : "other";
+
+    const sendWhatsAppMessage = async (
+      to: string,
+      message: string,
+    ): Promise<{ ok: boolean; status: number; providerMessageId?: string; error?: string }> => {
+      if (waConnectionType === "meta_official") {
+        if (!metaToken || !phoneNumberId) {
+          return {
+            ok: false,
+            status: 400,
+            error: "missing_meta_credentials",
+          };
+        }
+        return sendMetaMessage(metaToken, phoneNumberId, to, message);
+      }
+
+      if (!unofficialApiUrl) {
+        return {
+          ok: false,
+          status: 400,
+          error: "missing_unofficial_api_url",
+        };
+      }
+
+      return sendUnofficialMessage(
+        unofficialApiUrl,
+        unofficialApiToken,
+        unofficialInstance,
+        to,
+        message,
+      );
+    };
     const { selected: selectedTemplate, variants } = await loadTemplatesForCampaign(svc, campaign);
 
     const processDueRetries = async (): Promise<{ sent: number; failed: number }> => {
@@ -452,7 +551,7 @@ Deno.serve(async (req) => {
             variant_id: variantId,
             channel: "whatsapp",
             send_mode: "api",
-            provider: "meta_cloud",
+            provider: providerName,
             attempt_no: attemptNo,
             status: "failed",
             error_reason: "invalid_phone_retry",
@@ -482,7 +581,7 @@ Deno.serve(async (req) => {
           senderName,
         );
 
-        const sendResult = await sendMetaMessage(metaToken!, phoneNumberId!, fullPhone, message);
+        const sendResult = await sendWhatsAppMessage(fullPhone, message);
         const now = new Date().toISOString();
         const isTransient = isTransientStatus(sendResult.status);
         const canRetryAgain = attemptNo < 4;
@@ -511,7 +610,7 @@ Deno.serve(async (req) => {
             variant_id: variantId,
             channel: "whatsapp",
             send_mode: "api",
-            provider: "meta_cloud",
+            provider: providerName,
             attempt_no: attemptNo,
             status: "sent",
             provider_message_id: sendResult.providerMessageId || null,
@@ -559,7 +658,7 @@ Deno.serve(async (req) => {
           variant_id: variantId,
           channel: "whatsapp",
           send_mode: "api",
-          provider: "meta_cloud",
+          provider: providerName,
           attempt_no: attemptNo,
           status: isTransient && canRetryAgain ? "retrying" : "failed",
           error_reason: sendResult.error || "retry_failed",
@@ -576,12 +675,18 @@ Deno.serve(async (req) => {
       return { sent, failed };
     };
 
-    if (!metaToken || !phoneNumberId) {
+    if (
+      (waConnectionType === "meta_official" && (!metaToken || !phoneNumberId)) ||
+      (waConnectionType === "unofficial" && !unofficialApiUrl)
+    ) {
       return new Response(
         JSON.stringify({
           success: true,
           mode: "manual_fallback",
-          reason: "Meta Cloud API is not configured",
+          reason:
+            waConnectionType === "meta_official"
+              ? "Meta Cloud API is not configured"
+              : "Unofficial WhatsApp API is not configured",
           campaign_id,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -649,7 +754,7 @@ Deno.serve(async (req) => {
         const nextStep = (cp.followup_step || 0) + 1;
         const nextFollowupAt = nextStep < 2 ? addDaysIso(2) : null;
 
-        const sendResult = await sendMetaMessage(metaToken, phoneNumberId, fullPhone, message);
+        const sendResult = await sendWhatsAppMessage(fullPhone, message);
         if (sendResult.ok) {
           await svc
             .from("campaign_presentations")
@@ -671,7 +776,7 @@ Deno.serve(async (req) => {
             variant_id: chosenVariant?.id || null,
             channel: "whatsapp",
             send_mode: "followup",
-            provider: "meta_cloud",
+            provider: providerName,
             attempt_no: attemptNo,
             status: "sent",
             provider_message_id: sendResult.providerMessageId || null,
@@ -708,7 +813,7 @@ Deno.serve(async (req) => {
             variant_id: chosenVariant?.id || null,
             channel: "whatsapp",
             send_mode: "followup",
-            provider: "meta_cloud",
+            provider: providerName,
             attempt_no: attemptNo,
             status: "failed",
             error_reason: sendResult.error || "followup_send_failed",
@@ -834,7 +939,7 @@ Deno.serve(async (req) => {
           variant_id: variantId,
           channel: "whatsapp",
           send_mode: "api",
-          provider: "meta_cloud",
+          provider: providerName,
           attempt_no: attemptNo,
           status: "failed",
           error_reason: "invalid_phone",
@@ -850,7 +955,7 @@ Deno.serve(async (req) => {
       };
 
       for (let retry = 0; retry < 2; retry++) {
-        const result = await sendMetaMessage(metaToken, phoneNumberId, fullPhone, message);
+        const result = await sendWhatsAppMessage(fullPhone, message);
         finalResult = result;
         if (result.ok) break;
         if (!isTransientStatus(result.status) || retry === 1) break;
@@ -881,7 +986,7 @@ Deno.serve(async (req) => {
           variant_id: variantId,
           channel: "whatsapp",
           send_mode: "api",
-          provider: "meta_cloud",
+          provider: providerName,
           attempt_no: attemptNo,
           status: "sent",
           provider_message_id: finalResult.providerMessageId || null,
@@ -929,10 +1034,10 @@ Deno.serve(async (req) => {
           variant_id: variantId,
           channel: "whatsapp",
           send_mode: "api",
-          provider: "meta_cloud",
+          provider: providerName,
           attempt_no: attemptNo,
           status: transient ? "retrying" : "failed",
-          error_reason: finalResult.error || "meta_send_failed",
+          error_reason: finalResult.error || "whatsapp_send_failed",
           next_retry_at: transient ? addMinutesIso(15) : null,
           metadata: { status: finalResult.status, transient },
         });

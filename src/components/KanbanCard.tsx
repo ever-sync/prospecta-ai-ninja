@@ -3,10 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ChevronDown, ChevronUp, Phone, Tag, GripVertical, Plus, StickyNote, Trash2, Loader2, MessageCircle, Mail, Globe } from 'lucide-react';
+import { ChevronDown, ChevronUp, Phone, Tag, GripVertical, Plus, StickyNote, Trash2, Loader2, MessageCircle, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
@@ -55,16 +52,20 @@ export const KanbanCard = ({ lead, onDragStart }: KanbanCardProps) => {
   const handleAddNote = async () => {
     if (!user || !newNote.trim()) return;
     setAddingNote(true);
-    const { data, error } = await supabase.from('lead_notes').insert({
-      presentation_id: lead.id,
-      user_id: user.id,
-      content: newNote.trim(),
-    } as any).select('id, content, created_at').single();
+    const { data, error } = await supabase
+      .from('lead_notes')
+      .insert({
+        presentation_id: lead.id,
+        user_id: user.id,
+        content: newNote.trim(),
+      } as never)
+      .select('id, content, created_at')
+      .single();
 
     if (error) {
       toast.error('Erro ao salvar nota');
     } else if (data) {
-      setNotes(prev => [data as LeadNote, ...prev]);
+      setNotes((prev) => [data as LeadNote, ...prev]);
       setNewNote('');
       toast.success('Nota adicionada');
     }
@@ -76,7 +77,7 @@ export const KanbanCard = ({ lead, onDragStart }: KanbanCardProps) => {
     if (error) {
       toast.error('Erro ao excluir nota');
     } else {
-      setNotes(prev => prev.filter(n => n.id !== noteId));
+      setNotes((prev) => prev.filter((n) => n.id !== noteId));
     }
   };
 
@@ -90,39 +91,40 @@ export const KanbanCard = ({ lead, onDragStart }: KanbanCardProps) => {
       transition={{ duration: 0.2 }}
       draggable
       onDragStart={(e) => onDragStart(e as unknown as DragEvent<HTMLDivElement>, lead.id)}
-      className="bg-background rounded-lg border border-border p-3 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow group"
+      className="group cursor-grab rounded-2xl border border-[#e6e6eb] bg-white p-3 shadow-[0_6px_18px_rgba(18,18,22,0.05)] transition-all hover:border-[#dedee5] hover:shadow-[0_10px_20px_rgba(18,18,22,0.08)] active:cursor-grabbing"
     >
       <div className="flex items-start gap-2">
-        <GripVertical className="w-3.5 h-3.5 text-muted-foreground/40 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-        <div className="flex-1 min-w-0 space-y-1.5">
+        <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#b1b1ba] opacity-0 transition-opacity group-hover:opacity-100" />
+        <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-foreground truncate">{lead.business_name || '—'}</p>
+            <p className="truncate text-sm font-semibold text-[#1A1A1A]">{lead.business_name || '-'}</p>
             <button
-              onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
-              className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded(!expanded);
+              }}
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[#8f8f97] transition-colors hover:bg-[#f4f4f7] hover:text-[#1A1A1A]"
             >
-              {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </button>
           </div>
+
           {lead.business_category && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Tag className="w-3 h-3" />
+            <div className="flex items-center gap-1 text-xs text-[#6f6f77]">
+              <Tag className="h-3 w-3" />
               <span className="truncate">{lead.business_category}</span>
             </div>
           )}
+
           {lead.business_phone && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Phone className="w-3 h-3" />
+            <div className="flex items-center gap-1 text-xs text-[#6f6f77]">
+              <Phone className="h-3 w-3" />
               <span>{lead.business_phone}</span>
             </div>
           )}
-          {lead.created_at && (
-            <p className="text-[10px] text-muted-foreground/60">
-              {new Date(lead.created_at).toLocaleDateString('pt-BR')}
-            </p>
-          )}
 
-          {/* Action buttons */}
+          {lead.created_at && <p className="text-[10px] text-[#94949b]">{new Date(lead.created_at).toLocaleDateString('pt-BR')}</p>}
+
           <div className="flex items-center gap-1 pt-1">
             {lead.business_phone && (
               <a
@@ -130,10 +132,10 @@ export const KanbanCard = ({ lead, onDragStart }: KanbanCardProps) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#EF3333]/10 text-[#EF3333] hover:bg-[#EF3333]/20 transition-colors"
+                className="inline-flex items-center gap-1 rounded-lg bg-[#fff0f2] px-2 py-1 text-[10px] font-medium text-[#c4344c] transition-colors hover:bg-[#ffe4e8]"
                 title="Abrir WhatsApp"
               >
-                <MessageCircle className="w-3 h-3" />
+                <MessageCircle className="h-3 w-3" />
                 WhatsApp
               </a>
             )}
@@ -141,16 +143,15 @@ export const KanbanCard = ({ lead, onDragStart }: KanbanCardProps) => {
               <a
                 href={`mailto:?subject=Proposta - ${lead.business_name || ''}`}
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                className="inline-flex items-center gap-1 rounded-lg bg-[#f3f3f7] px-2 py-1 text-[10px] font-medium text-[#4e4e57] transition-colors hover:bg-[#ececf2]"
                 title="Enviar e-mail"
               >
-                <Mail className="w-3 h-3" />
+                <Mail className="h-3 w-3" />
                 E-mail
               </a>
             )}
           </div>
 
-          {/* Expanded details */}
           <AnimatePresence>
             {expanded && (
               <motion.div
@@ -160,52 +161,47 @@ export const KanbanCard = ({ lead, onDragStart }: KanbanCardProps) => {
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="pt-2 mt-2 border-t border-border space-y-2">
-                  <div className="flex items-center gap-1 text-xs font-medium text-foreground">
-                    <StickyNote className="w-3 h-3" />
+                <div className="mt-2 space-y-2 border-t border-[#ececf0] pt-2">
+                  <div className="flex items-center gap-1 text-xs font-semibold text-[#1A1A1A]">
+                    <StickyNote className="h-3 w-3" />
                     Notas ({notes.length})
                   </div>
 
-                  {/* Add note */}
                   <div className="flex gap-1.5">
                     <Input
                       value={newNote}
                       onChange={(e) => setNewNote(e.target.value)}
                       placeholder="Adicionar nota..."
-                      className="h-7 text-xs"
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddNote(); }}
+                      className="h-7 rounded-lg border-[#e6e6eb] bg-[#fcfcfd] text-xs focus-visible:ring-[#EF3333]"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddNote();
+                      }}
                     />
-                    <Button
-                      size="sm"
-                      className="h-7 px-2"
-                      onClick={handleAddNote}
-                      disabled={addingNote || !newNote.trim()}
-                    >
-                      {addingNote ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                    <Button size="sm" className="h-7 rounded-lg px-2 gradient-primary text-primary-foreground" onClick={handleAddNote} disabled={addingNote || !newNote.trim()}>
+                      {addingNote ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
                     </Button>
                   </div>
 
-                  {/* Notes list */}
                   {loadingNotes ? (
                     <div className="flex justify-center py-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      <Loader2 className="h-4 w-4 animate-spin text-[#8f8f97]" />
                     </div>
                   ) : notes.length === 0 ? (
-                    <p className="text-[10px] text-muted-foreground/50 text-center py-1">Nenhuma nota</p>
+                    <p className="py-1 text-center text-[10px] text-[#a1a1aa]">Nenhuma nota</p>
                   ) : (
-                    <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
+                    <div className="max-h-[140px] space-y-1.5 overflow-y-auto scrollbar-hidden">
                       {notes.map((note) => (
-                        <div key={note.id} className="bg-muted/50 rounded p-1.5 group/note">
+                        <div key={note.id} className="group/note rounded-lg border border-[#ececf0] bg-[#fafafd] p-1.5">
                           <div className="flex items-start justify-between gap-1">
-                            <p className="text-[11px] text-foreground leading-relaxed break-words flex-1">{note.content}</p>
+                            <p className="flex-1 break-words text-[11px] leading-relaxed text-[#1A1A1A]">{note.content}</p>
                             <button
                               onClick={() => handleDeleteNote(note.id)}
-                              className="w-4 h-4 flex items-center justify-center text-muted-foreground/40 hover:text-destructive opacity-0 group-hover/note:opacity-100 transition-opacity flex-shrink-0"
+                              className="flex h-4 w-4 shrink-0 items-center justify-center text-[#b0b0b8] opacity-0 transition-opacity hover:text-[#bc374e] group-hover/note:opacity-100"
                             >
-                              <Trash2 className="w-2.5 h-2.5" />
+                              <Trash2 className="h-2.5 w-2.5" />
                             </button>
                           </div>
-                          <p className="text-[9px] text-muted-foreground/50 mt-0.5">
+                          <p className="mt-0.5 text-[9px] text-[#9b9ba3]">
                             {new Date(note.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>

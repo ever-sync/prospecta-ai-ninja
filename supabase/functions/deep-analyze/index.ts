@@ -109,6 +109,20 @@ Deno.serve(async (req) => {
       : 'Sem conteúdo disponível';
     const metadata = scrapedContent?.metadata || {};
 
+    const dnaCommercialContext = dna ? `
+DNA COMERCIAL (use para priorizar oportunidades e recomendacoes):
+- ICP (segmentos): ${(dna.icp_segments || []).join(', ') || 'Nao informado'}
+- ICP (porte): ${dna.icp_company_size || 'Nao informado'}
+- ICP (maturidade digital): ${dna.icp_digital_maturity || 'Nao informado'}
+- Dores prioritarias: ${(dna.priority_pains || []).join(', ') || 'Nao informado'}
+- Objecoes comuns: ${(dna.common_objections || []).join(', ') || 'Nao informado'}
+- Playbook de objecoes: ${dna.objection_responses || 'Nao informado'}
+- Ofertas/pacotes: ${dna.offer_packages || 'Nao informado'}
+- Faixa de preco: ${dna.price_range || 'Nao informado'}
+- Cases e metricas: ${dna.case_metrics || 'Nao informado'}
+- Garantia/risco reverso: ${dna.guarantee || 'Nao informado'}
+` : '';
+
     const dnaContext = dna ? `
 DADOS DA SUA EMPRESA (quem está prospectando):
 - Serviços: ${(dna.services || []).join(', ') || 'Não informado'}
@@ -145,6 +159,7 @@ METADADOS:
 - Language: ${metadata.language || 'N/A'}
 
 ${dnaContext}
+${dnaCommercialContext}
 
 Analise e retorne os scores e recomendações para esta empresa.`;
 

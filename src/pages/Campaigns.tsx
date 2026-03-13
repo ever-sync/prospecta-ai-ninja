@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Megaphone, Plus, Trash2, Send, Clock, Loader2, Calendar } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Megaphone, Plus, Trash2, Send, Clock, Loader2, Calendar, CheckCircle2, BarChart3 } from 'lucide-react';
 import CampaignPreviewDialog from '@/components/CampaignPreviewDialog';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -73,6 +73,14 @@ interface PreviewLead {
 }
 
 const HYBRID_API_THRESHOLD = 15;
+
+const resolvePublicBaseOrigin = (domain?: string | null) => {
+  const fallback = 'https://prospecta-ai-ninja.lovable.app';
+  const value = (domain || '').trim().replace(/\/+$/, '');
+  if (!value) return fallback;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://${value}`;
+};
 
 const scoreBucket = (analysisData: any): 'low' | 'medium' | 'high' | 'unknown' => {
   const score = analysisData?.scores?.overall;
@@ -365,7 +373,7 @@ const Campaigns = () => {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('company_name, elevenlabs_voice_id')
+      .select('company_name, elevenlabs_voice_id, proposal_link_domain')
       .eq('user_id', user.id)
       .single();
 
@@ -410,7 +418,7 @@ const Campaigns = () => {
     };
 
     // Use published URL if available, fallback to current origin
-    const publishedOrigin = 'https://prospecta-ai-ninja.lovable.app';
+    const publishedOrigin = resolvePublicBaseOrigin((profile as any)?.proposal_link_domain);
     
     const cpIdByPresentation = new Map(cpRows.map((row) => [row.presentation_id, row.id]));
 
@@ -663,12 +671,12 @@ const Campaigns = () => {
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case 'draft': return <Badge variant="secondary">Rascunho</Badge>;
-      case 'scheduled': return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Agendada</Badge>;
-      case 'sending': return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Enviando</Badge>;
-      case 'sent': return <Badge className="bg-[#EF3333]/20 text-[#EF3333] border-[#EF3333]/30">Enviada</Badge>;
-      case 'cancelled': return <Badge variant="destructive">Cancelada</Badge>;
-      default: return <Badge variant="secondary">{status}</Badge>;
+      case 'draft': return <Badge className="rounded-full border border-[#e7e7ec] bg-[#f7f7fa] text-[#5f5f68]">Rascunho</Badge>;
+      case 'scheduled': return <Badge className="rounded-full border border-[#d9e4ff] bg-[#f4f7ff] text-[#365fc2]">Agendada</Badge>;
+      case 'sending': return <Badge className="rounded-full border border-[#efe3cc] bg-[#fff9ef] text-[#9a7a2b]">Enviando</Badge>;
+      case 'sent': return <Badge className="rounded-full border border-[#f2d4d8] bg-[#fff3f5] text-[#9b2a3d]">Enviada</Badge>;
+      case 'cancelled': return <Badge className="rounded-full border border-[#f5c8ce] bg-[#fff0f2] text-[#c23a4f]">Cancelada</Badge>;
+      default: return <Badge className="rounded-full border border-[#e7e7ec] bg-[#f7f7fa] text-[#5f5f68]">{status}</Badge>;
     }
   };
 
@@ -681,6 +689,16 @@ const Campaigns = () => {
     }
   };
 
+  const overview = useMemo(() => {
+    const totalCampaigns = campaigns.length;
+    const active = campaigns.filter(c => c.status === 'draft' || c.status === 'scheduled' || c.status === 'sending').length;
+    const sent = campaigns.filter(c => c.status === 'sent').length;
+    const totalLeads = campaigns.reduce((acc, c) => acc + (c.total || 0), 0);
+    const totalAccepted = campaigns.reduce((acc, c) => acc + (c.accepted || 0), 0);
+    const conversion = totalLeads > 0 ? Math.round((totalAccepted / totalLeads) * 100) : 0;
+    return { totalCampaigns, active, sent, totalLeads, conversion };
+  }, [campaigns]);
+
   if (loading) {
     return (
       <div className="p-4 lg:p-8 flex justify-center">
@@ -690,37 +708,78 @@ const Campaigns = () => {
   }
 
   return (
-    <div className="p-4 lg:p-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
-          <Megaphone className="w-6 h-6 text-primary" />
-          Campanhas ({campaigns.length})
-        </h1>
-        <Button onClick={() => setShowCreate(true)} className="gap-2 gradient-primary text-primary-foreground glow-primary w-full sm:w-auto">
-          <Plus className="w-4 h-4" />
-          Nova Campanha
-        </Button>
+    <div className="space-y-4 p-2 lg:space-y-5 lg:p-4">
+      <div className="rounded-[28px] border border-[#ececf0] bg-white px-5 py-6 shadow-[0_14px_36px_rgba(20,20,24,0.06)] lg:px-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-[#75757d]">Orquestracao Comercial</p>
+            <h1 className="mt-1 flex items-center gap-2 text-3xl font-semibold tracking-tight text-[#1A1A1A] lg:text-4xl">
+              <Megaphone className="h-7 w-7 text-[#EF3333]" />
+              Campanhas
+            </h1>
+            <p className="mt-2 text-sm text-[#66666d] lg:text-base">Crie, dispare e acompanhe campanhas de WhatsApp e Email com visual premium.</p>
+          </div>
+          <Button onClick={() => setShowCreate(true)} className="h-10 rounded-xl gap-2 gradient-primary text-primary-foreground glow-primary">
+            <Plus className="h-4 w-4" />
+            Nova Campanha
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+          <p className="text-sm text-[#6f6f76]">Campanhas</p>
+          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.totalCampaigns}</p>
+        </Card>
+        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-[#7c7c83]" />
+            <p className="text-sm text-[#6f6f76]">Ativas</p>
+          </div>
+          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.active}</p>
+        </Card>
+        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+          <div className="flex items-center gap-2">
+            <Send className="h-4 w-4 text-[#EF3333]" />
+            <p className="text-sm text-[#6f6f76]">Enviadas</p>
+          </div>
+          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.sent}</p>
+        </Card>
+        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-[#EF3333]" />
+            <p className="text-sm text-[#6f6f76]">Leads totais</p>
+          </div>
+          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.totalLeads}</p>
+        </Card>
+        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-[#EF3333]" />
+            <p className="text-sm text-[#6f6f76]">Conversao</p>
+          </div>
+          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.conversion}%</p>
+        </Card>
       </div>
 
       {/* Create Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="bg-card">
+        <DialogContent className="max-w-xl rounded-[22px] border border-[#ececf0] bg-white">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Nova Campanha</DialogTitle>
+            <DialogTitle className="text-[#1A1A1A]">Nova Campanha</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Nome *</Label>
-              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Restaurantes SP - Março" />
+              <Input className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Restaurantes SP - Marco" />
             </div>
             <div className="space-y-2">
-              <Label>Descrição</Label>
-              <Textarea value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Objetivo da campanha..." />
+              <Label>Descricao</Label>
+              <Textarea className="rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]" value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Objetivo da campanha..." />
             </div>
             <div className="space-y-2">
               <Label>Canal de Envio</Label>
               <Select value={formChannel} onValueChange={(v) => { setFormChannel(v); setFormTemplateId(''); }}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -734,13 +793,13 @@ const Campaigns = () => {
             <div className="space-y-2">
               <Label>Template de Mensagem</Label>
               <Select value={formTemplateId} onValueChange={setFormTemplateId}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd]">
                   <SelectValue placeholder="Selecione um template (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
                   {templates.filter(t => t.channel === formChannel).length === 0 ? (
                     <div className="px-3 py-2 text-sm text-muted-foreground">
-                      Nenhum template de {formChannel === 'whatsapp' ? 'WhatsApp' : 'Email'}. Crie um em Configurações → Templates.
+                      Nenhum template de {formChannel === 'whatsapp' ? 'WhatsApp' : 'Email'}. Crie um em Configuracoes (menu Templates).
                     </div>
                   ) : (
                     templates
@@ -754,12 +813,12 @@ const Campaigns = () => {
             </div>
             <div className="space-y-2">
               <Label>Agendamento (opcional)</Label>
-              <Input type="datetime-local" value={formSchedule} onChange={e => setFormSchedule(e.target.value)} />
+              <Input className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]" type="datetime-local" value={formSchedule} onChange={e => setFormSchedule(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={creating || !formName.trim()} className="gradient-primary text-primary-foreground glow-primary">
+            <Button onClick={handleCreate} disabled={creating || !formName.trim()} className="rounded-xl gradient-primary text-primary-foreground glow-primary">
               {creating ? 'Criando...' : 'Criar'}
             </Button>
           </DialogFooter>
@@ -768,16 +827,16 @@ const Campaigns = () => {
 
       {/* Add Presentations Dialog */}
       <Dialog open={!!showAddPresentations} onOpenChange={() => setShowAddPresentations(null)}>
-        <DialogContent className="bg-card max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto rounded-[22px] border border-[#ececf0] bg-white">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Adicionar Apresentações</DialogTitle>
+            <DialogTitle className="text-[#1A1A1A]">Adicionar Apresentacoes</DialogTitle>
           </DialogHeader>
           {availablePresentations.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-4">Nenhuma apresentação disponível para adicionar.</p>
+            <p className="text-muted-foreground text-sm py-4">Nenhuma apresentacao disponivel para adicionar.</p>
           ) : (
             <div className="space-y-2">
               {availablePresentations.map(p => (
-                <label key={p.id} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-secondary/50 cursor-pointer transition-colors">
+                <label key={p.id} className="flex items-center gap-3 p-3 rounded-xl border border-[#e8e8ec] bg-white hover:bg-[#fafafd] cursor-pointer transition-colors">
                   <Checkbox
                     checked={selectedPresentationIds.has(p.id)}
                     onCheckedChange={(checked) => {
@@ -792,7 +851,7 @@ const Campaigns = () => {
                   />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-foreground">{p.business_name}</p>
-                    <p className="text-xs text-muted-foreground">{p.business_phone || 'Sem telefone'}</p>
+                    <p className="text-xs text-[#6e6e76]">{p.business_phone || 'Sem telefone'}</p>
                   </div>
                 </label>
               ))}
@@ -800,7 +859,7 @@ const Campaigns = () => {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddPresentations(null)}>Cancelar</Button>
-            <Button onClick={handleAddPresentations} disabled={selectedPresentationIds.size === 0} className="gradient-primary text-primary-foreground glow-primary">
+            <Button onClick={handleAddPresentations} disabled={selectedPresentationIds.size === 0} className="rounded-xl gradient-primary text-primary-foreground glow-primary">
               Adicionar ({selectedPresentationIds.size})
             </Button>
           </DialogFooter>
@@ -821,46 +880,46 @@ const Campaigns = () => {
 
       {/* Campaigns List */}
       {campaigns.length === 0 ? (
-        <Card className="p-12 text-center">
-          <div className="w-16 h-16 rounded-full bg-secondary mx-auto flex items-center justify-center mb-4">
-            <Megaphone className="w-8 h-8 text-muted-foreground" />
+        <Card className="rounded-[24px] border border-[#ececf0] bg-white p-12 text-center shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+          <div className="w-16 h-16 rounded-full bg-[#fff1f3] mx-auto flex items-center justify-center mb-4">
+            <Megaphone className="w-8 h-8 text-[#EF3333]" />
           </div>
-          <h3 className="text-lg font-medium text-foreground">Nenhuma campanha ainda</h3>
+          <h3 className="text-lg font-medium text-[#1A1A1A]">Nenhuma campanha ainda</h3>
           <p className="text-sm text-muted-foreground mt-1">Crie uma campanha para enviar apresentações em massa.</p>
         </Card>
       ) : (
         <div className="grid gap-4">
           {campaigns.map(c => (
-            <Card key={c.id} className="p-6">
+            <Card key={c.id} className="rounded-[22px] border border-[#ececf0] bg-white p-6 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <h3 className="font-semibold text-foreground text-lg truncate">{c.name}</h3>
+                    <h3 className="font-semibold text-[#1A1A1A] text-lg truncate">{c.name}</h3>
                     {statusBadge(c.status)}
-                    <Badge variant="outline" className="text-xs">{channelLabel(c.channel)}</Badge>
+                    <Badge variant="outline" className="rounded-full border-[#ececf0] bg-[#f8f8fa] text-xs text-[#5f5f67]">{channelLabel(c.channel)}</Badge>
                   </div>
-                  {c.description && <p className="text-sm text-muted-foreground mb-3">{c.description}</p>}
+                  {c.description && <p className="text-sm text-[#6e6e76] mb-3">{c.description}</p>}
 
                   {/* Metrics */}
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                    <div className="text-center p-2 rounded-lg bg-secondary/50">
-                      <p className="text-xl font-bold text-foreground">{c.total}</p>
-                      <p className="text-xs text-muted-foreground">Leads</p>
+                    <div className="text-center p-2 rounded-xl bg-[#f7f7fa]">
+                      <p className="text-xl font-bold text-[#1A1A1A]">{c.total}</p>
+                      <p className="text-xs text-[#7b7b83]">Leads</p>
                     </div>
-                    <div className="text-center p-2 rounded-lg bg-secondary/50">
-                      <p className="text-xl font-bold text-foreground">{c.sent_count}</p>
-                      <p className="text-xs text-muted-foreground">Enviadas</p>
+                    <div className="text-center p-2 rounded-xl bg-[#f7f7fa]">
+                      <p className="text-xl font-bold text-[#1A1A1A]">{c.sent_count}</p>
+                      <p className="text-xs text-[#7b7b83]">Enviadas</p>
                     </div>
-                    <div className="text-center p-2 rounded-lg bg-[#EF3333]/10">
+                    <div className="text-center p-2 rounded-xl bg-[#fff3f5]">
                       <p className="text-xl font-bold text-[#EF3333]">{c.accepted}</p>
-                      <p className="text-xs text-muted-foreground">Aceitas</p>
+                      <p className="text-xs text-[#7b7b83]">Aceitas</p>
                     </div>
-                    <div className="text-center p-2 rounded-lg bg-red-500/10">
-                      <p className="text-xl font-bold text-red-400">{c.rejected}</p>
-                      <p className="text-xs text-muted-foreground">Recusadas</p>
+                    <div className="text-center p-2 rounded-xl bg-[#fff0f2]">
+                      <p className="text-xl font-bold text-[#c23a4f]">{c.rejected}</p>
+                      <p className="text-xs text-[#7b7b83]">Recusadas</p>
                     </div>
-                    <div className="text-center p-2 rounded-lg bg-secondary/50">
-                      <p className="text-xl font-bold text-foreground">
+                    <div className="text-center p-2 rounded-xl bg-[#f7f7fa]">
+                      <p className="text-xl font-bold text-[#1A1A1A]">
                         {c.total > 0 ? Math.round((c.accepted / c.total) * 100) : 0}%
                       </p>
                       <p className="text-xs text-muted-foreground">Conversão</p>
@@ -868,7 +927,7 @@ const Campaigns = () => {
                   </div>
 
                   {c.scheduled_at && (
-                    <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                    <p className="text-xs text-[#7b7b83] mt-3 flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       Agendada: {new Date(c.scheduled_at).toLocaleString('pt-BR')}
                     </p>
@@ -876,23 +935,23 @@ const Campaigns = () => {
                 </div>
 
                 <div className="flex sm:flex-col flex-row flex-wrap gap-1 shrink-0">
-                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => openAddPresentations(c.id)}>
+                  <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#e6e6eb] hover:bg-[#f8f8fa]" onClick={() => openAddPresentations(c.id)}>
                     <Plus className="w-3.5 h-3.5" />
                     Leads
                   </Button>
                   {c.status !== 'sent' && c.total > 0 && (
-                    <Button size="sm" className="gap-1.5 gradient-primary text-primary-foreground glow-primary" onClick={() => handleSendCampaign(c)}>
+                    <Button size="sm" className="h-9 rounded-xl gap-1.5 gradient-primary text-primary-foreground glow-primary" onClick={() => handleSendCampaign(c)}>
                       <Send className="w-3.5 h-3.5" />
                       Enviar
                     </Button>
                   )}
                   {c.channel === 'whatsapp' && c.status === 'sent' && (
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleRunFollowup(c.id)}>
+                    <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#e6e6eb] hover:bg-[#f8f8fa]" onClick={() => handleRunFollowup(c.id)}>
                       <Clock className="w-3.5 h-3.5" />
                       Follow-up
                     </Button>
                   )}
-                  <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(c.id)}>
+                  <Button variant="ghost" size="sm" className="h-9 rounded-xl gap-1.5 text-[#8a8a92] hover:bg-[#fff1f3] hover:text-[#bc374e]" onClick={() => handleDelete(c.id)}>
                     <Trash2 className="w-3.5 h-3.5" />
                     Excluir
                   </Button>

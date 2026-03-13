@@ -60,6 +60,16 @@ Deno.serve(async (req) => {
     const linkedinUrl = dna?.linkedin_url || '';
     const facebookUrl = dna?.facebook_url || '';
     const youtubeUrl = dna?.youtube_url || '';
+    const icpSegments = (dna?.icp_segments || []).join(', ') || 'Nao informado';
+    const icpCompanySize = dna?.icp_company_size || 'Nao informado';
+    const icpDigitalMaturity = dna?.icp_digital_maturity || 'Nao informado';
+    const priorityPains = (dna?.priority_pains || []).join(', ') || 'Nao informado';
+    const commonObjections = (dna?.common_objections || []).join(', ') || 'Nao informado';
+    const objectionResponses = dna?.objection_responses || 'Nao informado';
+    const offerPackages = dna?.offer_packages || 'Nao informado';
+    const priceRange = dna?.price_range || 'Nao informado';
+    const caseMetrics = dna?.case_metrics || 'Nao informado';
+    const guarantee = dna?.guarantee || 'Nao informado';
 
     // Build WhatsApp link
     const rawPhone = profile?.phone || '';
@@ -150,6 +160,17 @@ EMPRESA QUE ESTÁ VENDENDO (prospectora):
 - Telefone/contato: ${profile?.phone || 'Não informado'}
 - Email: ${profile?.email || 'Não informado'}
 - WhatsApp URL para CTA: ${whatsappUrl || 'Sem telefone cadastrado'}
+- DNA comercial (usar para personalizar a narrativa):
+  - ICP segmentos: ${icpSegments}
+  - ICP porte: ${icpCompanySize}
+  - ICP maturidade digital: ${icpDigitalMaturity}
+  - Dores prioritarias: ${priorityPains}
+  - Objecoes comuns: ${commonObjections}
+  - Playbook de objecoes: ${objectionResponses}
+  - Ofertas/pacotes: ${offerPackages}
+  - Faixa de preco: ${priceRange}
+  - Cases e metricas: ${caseMetrics}
+  - Garantia/risco reverso: ${guarantee}
 ${testimonialsBlock}
 ${clientLogosBlock}
 

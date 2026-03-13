@@ -56,6 +56,27 @@
 @layer base {
   * {
     @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: #EF3333 #f2f2f5;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: #f2f2f5;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: #EF3333;
+    border-radius: 9999px;
+    border: 2px solid #f2f2f5;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: #d92f2f;
   }
 
   body {
@@ -101,6 +122,15 @@
 
   .animate-slide-up {
     animation: slideUp 0.4s ease-out;
+  }
+
+  .scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
   }
 }
 

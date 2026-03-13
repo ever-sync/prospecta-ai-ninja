@@ -28,6 +28,14 @@ type PresentationRow = {
   created_at: string;
 };
 
+const resolvePublicBaseOrigin = (domain?: string | null) => {
+  const fallback = 'https://prospecta-ai-ninja.lovable.app';
+  const value = (domain || '').trim().replace(/\/+$/, '');
+  if (!value) return fallback;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://${value}`;
+};
+
 const Presentations = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -45,16 +53,19 @@ const Presentations = () => {
     open: false,
     presentation: null,
   });
+  const [publicBaseOrigin, setPublicBaseOrigin] = useState('https://prospecta-ai-ninja.lovable.app');
 
   const fetchPresentations = async () => {
     if (!user) return;
     const { data, error } = await supabase.from('presentations').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+    const { data: profileData } = await supabase.from('profiles').select('proposal_link_domain').eq('user_id', user.id).maybeSingle();
 
     if (error) {
       console.error(error);
       toast({ title: 'Erro', description: 'Falha ao carregar apresentacoes', variant: 'destructive' });
     } else {
       setPresentations((data as any) || []);
+      setPublicBaseOrigin(resolvePublicBaseOrigin((profileData as any)?.proposal_link_domain));
     }
     setLoading(false);
   };
@@ -78,8 +89,7 @@ const Presentations = () => {
     }
   };
 
-  const publishedOrigin = 'https://prospecta-ai-ninja.lovable.app';
-  const getPublicUrl = (publicId: string) => `${publishedOrigin}/presentation/${publicId}`;
+  const getPublicUrl = (publicId: string) => `${publicBaseOrigin}/presentation/${publicId}`;
 
   const handleRegenerate = async (
     template: string,

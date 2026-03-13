@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     const presIds = cpRows.map(r => r.presentation_id);
     const { data: presentations } = await supabase
       .from('presentations')
-      .select('id, public_id, business_name, business_phone, business_website, business_address, business_category, business_rating, analysis_data')
+      .select('id, public_id, business_name, business_phone, business_email, business_website, business_address, business_category, business_rating, analysis_data')
       .in('id', presIds);
 
     // Get user profile

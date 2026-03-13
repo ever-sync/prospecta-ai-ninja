@@ -6,6 +6,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const toWeekKey = (isoDate: string) => {
+  const d = new Date(isoDate);
+  const day = d.getUTCDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.toISOString().split("T")[0];
+};
+
+type AlertSeverity = "warning" | "critical";
+
+type OperationalAlert = {
+  type: "delivery_drop" | "failure_spike" | "acceptance_drop";
+  severity: AlertSeverity;
+  title: string;
+  description: string;
+  metricValue: number;
+  baselineValue: number;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -139,6 +158,196 @@ serve(async (req) => {
       ...data,
     }));
 
+    // Conversion funnel events for weekly baseline and template ranking
+    const { data: conversionEvents } = await supabase
+      .from("message_conversion_events")
+      .select("created_at, event_type, template_id, variant_id, channel")
+      .gte("created_at", isoPeriod);
+
+    const weeklyMap = new Map<string, { sent: number; opened: number; accepted: number; rejected: number }>();
+    const perfMap = new Map<string, {
+      template_id: string | null;
+      variant_id: string | null;
+      channel: string;
+      sent: number;
+      opened: number;
+      accepted: number;
+      rejected: number;
+    }>();
+
+    for (const event of conversionEvents || []) {
+      const weekKey = toWeekKey(event.created_at);
+      if (!weeklyMap.has(weekKey)) {
+        weeklyMap.set(weekKey, { sent: 0, opened: 0, accepted: 0, rejected: 0 });
+      }
+      const week = weeklyMap.get(weekKey)!;
+      if (event.event_type === "sent") week.sent++;
+      if (event.event_type === "opened") week.opened++;
+      if (event.event_type === "accepted") week.accepted++;
+      if (event.event_type === "rejected") week.rejected++;
+
+      const perfKey = `${event.template_id || "none"}::${event.variant_id || "none"}::${event.channel || "unknown"}`;
+      if (!perfMap.has(perfKey)) {
+        perfMap.set(perfKey, {
+          template_id: event.template_id || null,
+          variant_id: event.variant_id || null,
+          channel: event.channel || "unknown",
+          sent: 0,
+          opened: 0,
+          accepted: 0,
+          rejected: 0,
+        });
+      }
+      const perf = perfMap.get(perfKey)!;
+      if (event.event_type === "sent") perf.sent++;
+      if (event.event_type === "opened") perf.opened++;
+      if (event.event_type === "accepted") perf.accepted++;
+      if (event.event_type === "rejected") perf.rejected++;
+    }
+
+    const weeklyCohorts = Array.from(weeklyMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([week_start, row]) => {
+        const openRate = row.sent > 0 ? Math.round((row.opened / row.sent) * 100) : 0;
+        const acceptanceRate = row.sent > 0 ? Math.round((row.accepted / row.sent) * 100) : 0;
+        return { week_start, ...row, openRate, acceptanceRate };
+      });
+
+    const templateIds = Array.from(new Set(
+      Array.from(perfMap.values()).map((row) => row.template_id).filter(Boolean),
+    )) as string[];
+
+    let templateMeta = new Map<string, { name: string; variant_key: string | null; experiment_group: string | null }>();
+    if (templateIds.length > 0) {
+      const { data: templateRows } = await supabase
+        .from("message_templates")
+        .select("id, name, variant_key, experiment_group")
+        .in("id", templateIds);
+      templateMeta = new Map((templateRows || []).map((row: any) => [
+        row.id,
+        { name: row.name, variant_key: row.variant_key || null, experiment_group: row.experiment_group || null },
+      ]));
+    }
+
+    const templatePerformance = Array.from(perfMap.values())
+      .map((row) => {
+        const meta = row.template_id ? templateMeta.get(row.template_id) : null;
+        const openRate = row.sent > 0 ? Math.round((row.opened / row.sent) * 100) : 0;
+        const acceptanceRate = row.sent > 0 ? Math.round((row.accepted / row.sent) * 100) : 0;
+        return {
+          ...row,
+          name: meta?.name || "Sem template",
+          variant_key: meta?.variant_key || null,
+          experiment_group: meta?.experiment_group || null,
+          openRate,
+          acceptanceRate,
+        };
+      })
+      .sort((a, b) => b.acceptanceRate - a.acceptanceRate)
+      .slice(0, 20);
+
+    const alertsStart = new Date();
+    alertsStart.setDate(alertsStart.getDate() - 8);
+    const isoAlerts = alertsStart.toISOString();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const nowTs = Date.now();
+    const recentStartTs = nowTs - oneDayMs;
+
+    const { data: alertEvents } = await supabase
+      .from("message_conversion_events")
+      .select("created_at, event_type")
+      .eq("channel", "whatsapp")
+      .in("event_type", ["sent", "delivered", "opened", "accepted"])
+      .gte("created_at", isoAlerts);
+
+    const { data: alertAttempts } = await supabase
+      .from("campaign_message_attempts")
+      .select("created_at, status")
+      .eq("channel", "whatsapp")
+      .in("status", ["failed"])
+      .gte("created_at", isoAlerts);
+
+    let sentRecent = 0;
+    let deliveredRecent = 0;
+    let acceptedRecent = 0;
+    let sentBase = 0;
+    let deliveredBase = 0;
+    let acceptedBase = 0;
+
+    for (const event of alertEvents || []) {
+      const ts = new Date(event.created_at).getTime();
+      const isRecent = ts >= recentStartTs;
+      const isBaseline = ts >= new Date(isoAlerts).getTime() && ts < recentStartTs;
+      if (!isRecent && !isBaseline) continue;
+
+      if (event.event_type === "sent") {
+        if (isRecent) sentRecent++;
+        if (isBaseline) sentBase++;
+      }
+      if (event.event_type === "delivered" || event.event_type === "opened") {
+        if (isRecent) deliveredRecent++;
+        if (isBaseline) deliveredBase++;
+      }
+      if (event.event_type === "accepted") {
+        if (isRecent) acceptedRecent++;
+        if (isBaseline) acceptedBase++;
+      }
+    }
+
+    let failedRecent = 0;
+    let failedBase = 0;
+    for (const attempt of alertAttempts || []) {
+      const ts = new Date(attempt.created_at).getTime();
+      if (ts >= recentStartTs) failedRecent++;
+      else if (ts >= new Date(isoAlerts).getTime()) failedBase++;
+    }
+
+    const deliveryRateRecent = sentRecent > 0 ? deliveredRecent / sentRecent : 0;
+    const deliveryRateBase = sentBase > 0 ? deliveredBase / sentBase : 0;
+    const failRateRecent = sentRecent > 0 ? failedRecent / sentRecent : 0;
+    const failRateBase = sentBase > 0 ? failedBase / sentBase : 0;
+    const acceptRateRecent = sentRecent > 0 ? acceptedRecent / sentRecent : 0;
+    const acceptRateBase = sentBase > 0 ? acceptedBase / sentBase : 0;
+
+    const operationalAlerts: OperationalAlert[] = [];
+
+    if (sentRecent >= 20 && deliveryRateBase > 0 && deliveryRateRecent < deliveryRateBase * 0.7) {
+      operationalAlerts.push({
+        type: "delivery_drop",
+        severity: "warning",
+        title: "Queda de entrega no WhatsApp",
+        description: "A taxa de entrega/leitura das últimas 24h caiu mais de 30% versus baseline.",
+        metricValue: Math.round(deliveryRateRecent * 100),
+        baselineValue: Math.round(deliveryRateBase * 100),
+      });
+    }
+
+    if (
+      sentRecent >= 20 &&
+      failRateRecent > 0.08 &&
+      (failRateBase === 0 ? failRateRecent > 0.08 : failRateRecent > failRateBase * 1.5)
+    ) {
+      operationalAlerts.push({
+        type: "failure_spike",
+        severity: "critical",
+        title: "Pico de falhas/bloqueio",
+        description: "Falhas de envio cresceram de forma abrupta nas últimas 24h.",
+        metricValue: Math.round(failRateRecent * 100),
+        baselineValue: Math.round(failRateBase * 100),
+      });
+    }
+
+    if (sentRecent >= 20 && acceptRateBase > 0 && acceptRateRecent < acceptRateBase * 0.6) {
+      operationalAlerts.push({
+        type: "acceptance_drop",
+        severity: "warning",
+        title: "Queda brusca de aceite",
+        description: "A taxa de aceite das últimas 24h caiu mais de 40% versus baseline.",
+        metricValue: Math.round(acceptRateRecent * 100),
+        baselineValue: Math.round(acceptRateBase * 100),
+      });
+    }
+
     // Top users by presentations
     const { data: topUsers } = await supabase
       .from("presentations")
@@ -189,6 +398,9 @@ serve(async (req) => {
         emails: monthEmails || 0,
       },
       dailyStats,
+      weeklyCohorts,
+      templatePerformance,
+      operationalAlerts,
       topUsers: topUsersList,
       recentPresentations: recentPresentations || [],
     }), {

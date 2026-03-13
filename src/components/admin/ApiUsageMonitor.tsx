@@ -164,7 +164,7 @@ const ApiUsageMonitor = () => {
       <Card>
         <CardContent className="p-5">
           <div className="flex items-center gap-3">
-            <DollarSign className="w-5 h-5 text-emerald-500" />
+            <DollarSign className="w-5 h-5 text-[#EF3333]" />
             <div>
               <p className="text-sm text-muted-foreground">Custo Total Estimado ({period} dias)</p>
               <p className="text-xl font-bold">

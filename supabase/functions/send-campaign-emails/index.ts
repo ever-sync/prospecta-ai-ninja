@@ -19,6 +19,14 @@ async function logApiUsage(userId: string, service: string, operation: string, c
   } catch (e) { console.error('Failed to log API usage:', e); }
 }
 
+function scoreBucket(analysisData: any): 'low' | 'medium' | 'high' | 'unknown' {
+  const score = analysisData?.scores?.overall;
+  if (typeof score !== 'number') return 'unknown';
+  if (score < 40) return 'low';
+  if (score < 70) return 'medium';
+  return 'high';
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -79,7 +87,7 @@ Deno.serve(async (req) => {
     const presIds = cpRows.map(r => r.presentation_id);
     const { data: presentations } = await supabase
       .from('presentations')
-      .select('id, public_id, business_name, business_phone, business_email, business_website, business_address, business_category, business_rating, analysis_data')
+      .select('id, public_id, user_id, pipeline_stage_id, business_name, business_phone, business_email, business_website, business_address, business_category, business_rating, analysis_data')
       .in('id', presIds);
 
     // Get user profile
@@ -100,7 +108,7 @@ Deno.serve(async (req) => {
         .replace(/\{\{telefone\}\}/g, pres.business_phone || '')
         .replace(/\{\{website\}\}/g, pres.business_website || '')
         .replace(/\{\{rating\}\}/g, pres.business_rating?.toString() || '')
-        .replace(/\{\{score\}\}/g, (pres.analysis_data as any)?.overallScore?.toString() || '')
+        .replace(/\{\{score\}\}/g, (pres.analysis_data as any)?.scores?.overall?.toString() || '')
         .replace(/\{\{link_proposta\}\}/g, publicUrl)
         .replace(/\{\{sua_empresa\}\}/g, senderName);
     };
@@ -109,10 +117,23 @@ Deno.serve(async (req) => {
 
     for (const pres of (presentations || [])) {
       const businessEmail = pres.business_email || null;
+      const cpRow = cpRows.find(r => r.presentation_id === pres.id);
 
       if (!businessEmail) continue;
+      if (!cpRow) continue;
 
-      const publicUrl = `${req.headers.get('origin') || 'https://prospecta-ai-ninja.lovable.app'}/presentation/${pres.public_id}`;
+      const baseOrigin = req.headers.get('origin') || 'https://prospecta-ai-ninja.lovable.app';
+      const tracked = new URLSearchParams({
+        cid: campaign_id,
+        cpid: cpRow.id,
+        ch: 'email',
+        src: 'campaign_email',
+      });
+      if (campaign.template_id) {
+        tracked.set('tid', campaign.template_id);
+        tracked.set('vid', campaign.template_id);
+      }
+      const publicUrl = `${baseOrigin}/presentation/${pres.public_id}?${tracked.toString()}`;
 
       let emailSubject: string;
       let emailHtml: string;
@@ -180,24 +201,56 @@ Deno.serve(async (req) => {
         });
 
         if (resendResponse.ok) {
-          const cpRow = cpRows.find(r => r.presentation_id === pres.id);
-          if (cpRow) {
-            await supabase
-              .from('campaign_presentations')
-              .update({ send_status: 'sent', sent_at: new Date().toISOString() })
-              .eq('id', cpRow.id);
-          }
+          const sentAt = new Date().toISOString();
+          await supabase
+            .from('campaign_presentations')
+            .update({
+              send_status: 'sent',
+              sent_at: sentAt,
+              delivery_status: 'sent',
+              last_status_at: sentAt,
+              variant_id: campaign.template_id || null,
+            })
+            .eq('id', cpRow.id);
+
+          await supabase.from('campaign_message_attempts').insert({
+            user_id: user.id,
+            campaign_presentation_id: cpRow.id,
+            campaign_id,
+            presentation_id: pres.id,
+            template_id: campaign.template_id || null,
+            variant_id: campaign.template_id || null,
+            channel: 'email',
+            send_mode: 'api',
+            provider: 'resend',
+            status: 'sent',
+            sent_at: sentAt,
+            metadata: { channel: 'email' },
+          });
+
+          await supabase.from('message_conversion_events').insert({
+            event_type: 'sent',
+            presentation_id: pres.id,
+            user_id: pres.user_id,
+            campaign_id,
+            campaign_presentation_id: cpRow.id,
+            template_id: campaign.template_id || null,
+            variant_id: campaign.template_id || null,
+            channel: 'email',
+            pipeline_stage_id: pres.pipeline_stage_id || null,
+            niche: pres.business_category || null,
+            score_bucket: scoreBucket(pres.analysis_data),
+            source: 'send_campaign_emails',
+            metadata: { provider: 'resend' },
+          });
           sentCount++;
         } else {
           const errData = await resendResponse.json();
           console.error(`Failed to send to ${businessEmail}:`, errData);
-          const cpRow = cpRows.find(r => r.presentation_id === pres.id);
-          if (cpRow) {
-            await supabase
-              .from('campaign_presentations')
-              .update({ send_status: 'failed' })
-              .eq('id', cpRow.id);
-          }
+          await supabase
+            .from('campaign_presentations')
+            .update({ send_status: 'failed' })
+            .eq('id', cpRow.id);
         }
       } catch (emailErr) {
         console.error(`Error sending email to ${businessEmail}:`, emailErr);

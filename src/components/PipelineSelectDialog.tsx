@@ -26,7 +26,7 @@ const DEFAULT_STAGES = [
   { name: 'Propostas Criadas', color: '#6366f1', position: 0, is_default: true, default_status: 'ready' },
   { name: 'Enviadas', color: '#f59e0b', position: 1, is_default: true, default_status: 'sent' },
   { name: 'Pendente', color: '#8b5cf6', position: 2, is_default: true, default_status: 'pending' },
-  { name: 'Aceitas', color: '#22c55e', position: 3, is_default: true, default_status: 'responded' },
+  { name: 'Aceitas', color: '#EF3333', position: 3, is_default: true, default_status: 'responded' },
 ];
 
 export const PipelineSelectDialog = ({ open, onConfirm, onCancel }: PipelineSelectDialogProps) => {

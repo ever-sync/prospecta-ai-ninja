@@ -82,13 +82,13 @@ export const BusinessAnalysisPanel = ({ business, onClose }: BusinessAnalysisPan
   };
 
   const priorityColor = (p: string) => {
-    if (p === 'alta') return 'bg-green-500/20 text-green-400 border-green-500/30';
+    if (p === 'alta') return 'bg-[#EF3333]/20 text-[#EF3333] border-[#EF3333]/30';
     if (p === 'média') return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
     return 'bg-red-500/20 text-red-400 border-red-500/30';
   };
 
   const scoreColor = (score: number) => {
-    if (score > 70) return 'text-green-400';
+    if (score > 70) return 'text-[#EF3333]';
     if (score > 40) return 'text-yellow-400';
     return 'text-red-400';
   };
@@ -159,7 +159,7 @@ export const BusinessAnalysisPanel = ({ business, onClose }: BusinessAnalysisPan
                 {cache.competitors.competitors.map((c, i) => (
                   <div key={i} className="bg-secondary/50 rounded-lg p-3 border border-border">
                     <p className="font-medium text-sm text-foreground">{c.name}</p>
-                    <p className="text-xs text-green-400 mt-1">✓ {c.strength}</p>
+                    <p className="text-xs text-[#EF3333] mt-1">✓ {c.strength}</p>
                     <p className="text-xs text-red-400">✗ {c.weakness}</p>
                   </div>
                 ))}
@@ -276,7 +276,7 @@ export const BusinessAnalysisPanel = ({ business, onClose }: BusinessAnalysisPan
                 <div>
                   <h5 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Forças</h5>
                   {cache.profile.strengths.map((s, i) => (
-                    <p key={i} className="text-sm text-green-400">✓ {s}</p>
+                    <p key={i} className="text-sm text-[#EF3333]">✓ {s}</p>
                   ))}
                 </div>
                 <div>

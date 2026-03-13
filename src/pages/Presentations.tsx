@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Presentation, Eye, Send, Trash2, Loader2, RefreshCw, Megaphone } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Presentation, Eye, Send, Trash2, Loader2, RefreshCw, Megaphone, Sparkles, CheckCircle2, Clock3, AlertTriangle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { AddToCampaignDialog } from '@/components/AddToCampaignDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 type PresentationRow = {
   id: string;
@@ -35,23 +36,23 @@ const Presentations = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [campaignDialog, setCampaignDialog] = useState(false);
   const [sendDialog, setSendDialog] = useState<{ open: boolean; publicUrl: string; name: string; phone: string }>({
-    open: false, publicUrl: '', name: '', phone: '',
+    open: false,
+    publicUrl: '',
+    name: '',
+    phone: '',
   });
   const [regenDialog, setRegenDialog] = useState<{ open: boolean; presentation: PresentationRow | null }>({
-    open: false, presentation: null,
+    open: false,
+    presentation: null,
   });
 
   const fetchPresentations = async () => {
     if (!user) return;
-    const { data, error } = await supabase
-      .from('presentations')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('presentations').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
 
     if (error) {
       console.error(error);
-      toast({ title: 'Erro', description: 'Falha ao carregar apresentações', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Falha ao carregar apresentacoes', variant: 'destructive' });
     } else {
       setPresentations((data as any) || []);
     }
@@ -67,22 +68,30 @@ const Presentations = () => {
     if (error) {
       toast({ title: 'Erro', description: 'Falha ao excluir', variant: 'destructive' });
     } else {
-      setPresentations(prev => prev.filter(p => p.id !== id));
-      setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
-      toast({ title: 'Excluída', description: 'Apresentação removida' });
+      setPresentations((prev) => prev.filter((p) => p.id !== id));
+      setSelectedIds((prev) => {
+        const n = new Set(prev);
+        n.delete(id);
+        return n;
+      });
+      toast({ title: 'Excluida', description: 'Apresentacao removida' });
     }
   };
 
   const publishedOrigin = 'https://prospecta-ai-ninja.lovable.app';
-  const getPublicUrl = (publicId: string) =>
-    `${publishedOrigin}/presentation/${publicId}`;
+  const getPublicUrl = (publicId: string) => `${publishedOrigin}/presentation/${publicId}`;
 
-  const handleRegenerate = async (template: string, tone: string, customInstructions: string, customColors?: { textColor: string; buttonColor: string; bgColor: string }) => {
+  const handleRegenerate = async (
+    template: string,
+    tone: string,
+    customInstructions: string,
+    customColors?: { textColor: string; buttonColor: string; bgColor: string }
+  ) => {
     const p = regenDialog.presentation;
     if (!p || !user) return;
 
     await supabase.from('presentations').update({ status: 'analyzing' } as any).eq('id', p.id);
-    setPresentations(prev => prev.map(x => x.id === p.id ? { ...x, status: 'analyzing' } : x));
+    setPresentations((prev) => prev.map((x) => (x.id === p.id ? { ...x, status: 'analyzing' } : x)));
 
     try {
       const [dnaRes, profileRes, testimonialsRes, clientLogosRes] = await Promise.all([
@@ -96,100 +105,167 @@ const Presentations = () => {
         body: {
           analysis: p.analysis_data,
           business: {
-            name: p.business_name, address: p.business_address, phone: p.business_phone,
-            website: p.business_website, category: p.business_category, rating: p.business_rating,
+            name: p.business_name,
+            address: p.business_address,
+            phone: p.business_phone,
+            website: p.business_website,
+            category: p.business_category,
+            rating: p.business_rating,
           },
           dna: {
             ...dnaRes.data,
-            ...(customColors ? {
-              custom_text_color: customColors.textColor,
-              custom_button_color: customColors.buttonColor,
-              custom_bg_color: customColors.bgColor,
-            } : {}),
+            ...(customColors
+              ? {
+                  custom_text_color: customColors.textColor,
+                  custom_button_color: customColors.buttonColor,
+                  custom_bg_color: customColors.bgColor,
+                }
+              : {}),
           },
-          profile: profileRes.data, testimonials: testimonialsRes.data,
-          clientLogos: clientLogosRes.data, template, tone, customInstructions, publicId: p.public_id,
+          profile: profileRes.data,
+          testimonials: testimonialsRes.data,
+          clientLogos: clientLogosRes.data,
+          template,
+          tone,
+          customInstructions,
+          publicId: p.public_id,
         },
       });
 
       if (genError) throw genError;
 
-      await supabase.from('presentations')
-        .update({ presentation_html: genData.html, status: 'ready' } as any)
-        .eq('id', p.id);
+      await supabase.from('presentations').update({ presentation_html: genData.html, status: 'ready' } as any).eq('id', p.id);
 
-      setPresentations(prev => prev.map(x => x.id === p.id ? { ...x, status: 'ready' } : x));
-      toast({ title: 'Regenerada!', description: 'Apresentação atualizada com sucesso' });
+      setPresentations((prev) => prev.map((x) => (x.id === p.id ? { ...x, status: 'ready' } : x)));
+      toast({ title: 'Regenerada!', description: 'Apresentacao atualizada com sucesso' });
     } catch (err) {
       console.error(err);
       await supabase.from('presentations').update({ status: 'error' } as any).eq('id', p.id);
-      setPresentations(prev => prev.map(x => x.id === p.id ? { ...x, status: 'error' } : x));
-      toast({ title: 'Erro', description: 'Falha ao regenerar apresentação', variant: 'destructive' });
+      setPresentations((prev) => prev.map((x) => (x.id === p.id ? { ...x, status: 'error' } : x)));
+      toast({ title: 'Erro', description: 'Falha ao regenerar apresentacao', variant: 'destructive' });
     }
   };
 
   const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const n = new Set(prev);
-      if (n.has(id)) n.delete(id); else n.add(id);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
       return n;
     });
   };
 
-  const readyPresentations = presentations.filter(p => p.status === 'ready');
-  const allReadySelected = readyPresentations.length > 0 && readyPresentations.every(p => selectedIds.has(p.id));
+  const readyPresentations = presentations.filter((p) => p.status === 'ready');
+  const allReadySelected = readyPresentations.length > 0 && readyPresentations.every((p) => selectedIds.has(p.id));
 
   const toggleSelectAll = () => {
     if (allReadySelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(readyPresentations.map(p => p.id)));
+    else setSelectedIds(new Set(readyPresentations.map((p) => p.id)));
   };
+
+  const stats = useMemo(() => {
+    const ready = presentations.filter((p) => p.status === 'ready').length;
+    const processing = presentations.filter((p) => p.status === 'analyzing' || p.status === 'pending').length;
+    const accepted = presentations.filter((p) => p.lead_response === 'accepted').length;
+    return {
+      total: presentations.length,
+      ready,
+      processing,
+      accepted,
+    };
+  }, [presentations]);
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case 'ready': return <Badge className="bg-primary/10 text-primary border-primary/20">Pronta</Badge>;
-      case 'analyzing': return <Badge variant="secondary">Analisando</Badge>;
-      case 'error': return <Badge variant="destructive">Erro</Badge>;
-      default: return <Badge variant="secondary">Pendente</Badge>;
+      case 'ready':
+        return <Badge className="rounded-full border border-[#f2d4d8] bg-[#fff3f5] text-[#9b2a3d]">Pronta</Badge>;
+      case 'analyzing':
+        return <Badge className="rounded-full border border-[#e7e7ec] bg-[#f7f7fa] text-[#5f5f68]">Analisando</Badge>;
+      case 'error':
+        return <Badge className="rounded-full border border-[#f5c8ce] bg-[#fff0f2] text-[#c23a4f]">Erro</Badge>;
+      default:
+        return <Badge className="rounded-full border border-[#e7e7ec] bg-[#f7f7fa] text-[#5f5f68]">Pendente</Badge>;
     }
   };
 
   const responseBadge = (response: string) => {
     switch (response) {
-      case 'accepted': return <Badge className="bg-primary/10 text-primary border-primary/20">Aceita</Badge>;
-      case 'rejected': return <Badge className="bg-destructive/10 text-destructive border-destructive/20">Recusada</Badge>;
-      default: return <Badge variant="secondary" className="bg-warning/10 text-warning border-warning/20">Aguardando</Badge>;
+      case 'accepted':
+        return <Badge className="rounded-full border border-[#f2d4d8] bg-[#fff3f5] text-[#9b2a3d]">Aceita</Badge>;
+      case 'rejected':
+        return <Badge className="rounded-full border border-[#f5c8ce] bg-[#fff0f2] text-[#c23a4f]">Recusada</Badge>;
+      default:
+        return <Badge className="rounded-full border border-[#efe7d2] bg-[#fffbf2] text-[#9a7a2b]">Aguardando</Badge>;
     }
   };
 
-  const overallScore = (data: any) => data?.scores?.overall ?? '—';
+  const overallScore = (data: any) => data?.scores?.overall ?? '-';
+  const formatDate = (iso: string) => {
+    if (!iso) return '-';
+    return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
 
   if (loading) {
     return (
-      <div className="p-4 lg:p-8 flex justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex justify-center p-4 lg:p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-[#EF3333]" />
       </div>
     );
   }
 
   return (
-    <div className="p-4 lg:p-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
-          <Presentation className="w-6 h-6 text-primary" />
-          <span className="truncate">Apresentações ({presentations.length})</span>
-        </h1>
+    <div className="space-y-4 p-2 lg:space-y-5 lg:p-4">
+      <div className="rounded-[28px] border border-[#ececf0] bg-white px-5 py-6 shadow-[0_14px_36px_rgba(20,20,24,0.06)] lg:px-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-[#75757d]">Conteudo Comercial</p>
+            <h1 className="mt-1 flex items-center gap-2 text-3xl font-semibold tracking-tight text-[#1A1A1A] lg:text-4xl">
+              <Presentation className="h-7 w-7 text-[#EF3333]" />
+              Apresentacoes
+            </h1>
+            <p className="mt-2 text-sm text-[#66666d] lg:text-base">Gerencie propostas geradas, respostas de leads e envios para campanhas.</p>
+          </div>
 
-        {selectedIds.size > 0 && (
-          <Button onClick={() => setCampaignDialog(true)} className="gap-2 shrink-0 w-full sm:w-auto">
-            <Megaphone className="w-4 h-4" />
-            Enviar para Campanha ({selectedIds.size})
-          </Button>
-        )}
+          {selectedIds.size > 0 && (
+            <Button onClick={() => setCampaignDialog(true)} className="h-10 rounded-xl gap-2 gradient-primary text-primary-foreground glow-primary">
+              <Megaphone className="h-4 w-4" />
+              Enviar para Campanha ({selectedIds.size})
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+          <p className="text-sm text-[#6f6f76]">Total</p>
+          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{stats.total}</p>
+        </Card>
+        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-[#EF3333]" />
+            <p className="text-sm text-[#6f6f76]">Prontas</p>
+          </div>
+          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{stats.ready}</p>
+        </Card>
+        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+          <div className="flex items-center gap-2">
+            <Clock3 className="h-4 w-4 text-[#7c7c83]" />
+            <p className="text-sm text-[#6f6f76]">Em processamento</p>
+          </div>
+          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{stats.processing}</p>
+        </Card>
+        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-[#EF3333]" />
+            <p className="text-sm text-[#6f6f76]">Aceitas</p>
+          </div>
+          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{stats.accepted}</p>
+        </Card>
       </div>
 
       <SendPresentationDialog
         open={sendDialog.open}
-        onOpenChange={(open) => setSendDialog(prev => ({ ...prev, open }))}
+        onOpenChange={(open) => setSendDialog((prev) => ({ ...prev, open }))}
         publicUrl={sendDialog.publicUrl}
         businessName={sendDialog.name}
         businessPhone={sendDialog.phone}
@@ -197,65 +273,72 @@ const Presentations = () => {
 
       <RegeneratePresentationDialog
         open={regenDialog.open}
-        onOpenChange={(open) => setRegenDialog(prev => ({ ...prev, open }))}
+        onOpenChange={(open) => setRegenDialog((prev) => ({ ...prev, open }))}
         onRegenerate={handleRegenerate}
         businessName={regenDialog.presentation?.business_name || ''}
       />
 
-      <AddToCampaignDialog
-        open={campaignDialog}
-        onOpenChange={setCampaignDialog}
-        presentationIds={Array.from(selectedIds)}
-        onSuccess={() => setSelectedIds(new Set())}
-      />
+      <AddToCampaignDialog open={campaignDialog} onOpenChange={setCampaignDialog} presentationIds={Array.from(selectedIds)} onSuccess={() => setSelectedIds(new Set())} />
 
       {presentations.length === 0 ? (
-        <Card className="p-12">
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-secondary mx-auto flex items-center justify-center">
-              <Presentation className="w-8 h-8 text-muted-foreground" />
+        <Card className="rounded-[24px] border border-[#ececf0] bg-white p-12 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+          <div className="space-y-4 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#fff1f3]">
+              <Presentation className="h-8 w-8 text-[#EF3333]" />
             </div>
             <div>
-              <h3 className="text-lg font-medium text-foreground">Nenhuma apresentação ainda</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Selecione empresas na aba Busca e clique em "Analisar Selecionadas" para gerar apresentações.
-              </p>
+              <h3 className="text-lg font-medium text-[#1A1A1A]">Nenhuma apresentacao ainda</h3>
+              <p className="mt-1 text-sm text-[#6e6e76]">Selecione empresas na aba Busca e clique em "Analisar Selecionadas" para gerar apresentacoes.</p>
             </div>
           </div>
         </Card>
       ) : (
-        <Card className="overflow-x-auto">
-          <Table className="min-w-[750px]">
+        <Card className="overflow-x-auto rounded-[24px] border border-[#ececf0] bg-white shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+          <Table className="min-w-[840px]">
             <TableHeader>
-              <TableRow className="bg-secondary/50 hover:bg-secondary/50">
+              <TableRow className="border-b border-[#ececf0] bg-[#f9f9fb] hover:bg-[#f9f9fb]">
                 <TableHead className="w-10">
                   <Checkbox checked={allReadySelected} onCheckedChange={toggleSelectAll} aria-label="Selecionar todas" />
                 </TableHead>
-                <TableHead className="text-foreground font-semibold">Empresa</TableHead>
-                <TableHead className="text-foreground font-semibold">Categoria</TableHead>
-                <TableHead className="text-foreground font-semibold text-center">Score</TableHead>
-                <TableHead className="text-foreground font-semibold text-center">Status</TableHead>
-                <TableHead className="text-foreground font-semibold text-center">Resposta</TableHead>
-                <TableHead className="text-foreground font-semibold text-right">Ações</TableHead>
+                <TableHead className="font-semibold text-[#1A1A1A]">Empresa</TableHead>
+                <TableHead className="font-semibold text-[#1A1A1A]">Categoria</TableHead>
+                <TableHead className="text-center font-semibold text-[#1A1A1A]">Score</TableHead>
+                <TableHead className="text-center font-semibold text-[#1A1A1A]">Status</TableHead>
+                <TableHead className="text-center font-semibold text-[#1A1A1A]">Resposta</TableHead>
+                <TableHead className="text-right font-semibold text-[#1A1A1A]">Acoes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {presentations.map(p => (
-                <TableRow key={p.id} className={`hover:bg-accent/50 ${selectedIds.has(p.id) ? 'bg-primary/5' : ''}`}>
+              {presentations.map((p) => (
+                <TableRow
+                  key={p.id}
+                  className={cn(
+                    'border-b border-[#f0f0f3] transition-colors hover:bg-[#fafafd]',
+                    selectedIds.has(p.id) ? 'bg-[#fff7f8]' : ''
+                  )}
+                >
                   <TableCell>
-                    <Checkbox checked={selectedIds.has(p.id)} onCheckedChange={() => toggleSelect(p.id)} disabled={p.status !== 'ready'} aria-label={`Selecionar ${p.business_name}`} />
+                    <Checkbox
+                      checked={selectedIds.has(p.id)}
+                      onCheckedChange={() => toggleSelect(p.id)}
+                      disabled={p.status !== 'ready'}
+                      aria-label={`Selecionar ${p.business_name}`}
+                    />
                   </TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium text-foreground">{p.business_name}</div>
-                      <div className="text-xs text-muted-foreground">{p.business_address}</div>
+                      <div className="font-medium text-[#1A1A1A]">{p.business_name}</div>
+                      <div className="text-xs text-[#6e6e76]">{p.business_address}</div>
+                      <div className="mt-1 text-xs text-[#9a9aa1]">Criada em {formatDate(p.created_at)}</div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="text-xs">{p.business_category}</Badge>
+                    <Badge variant="outline" className="rounded-full border-[#ececf0] bg-[#f8f8fa] text-xs text-[#5f5f67]">
+                      {p.business_category}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-center">
-                    <span className="text-lg font-bold text-primary">{overallScore(p.analysis_data)}</span>
+                    <span className="text-lg font-semibold text-[#EF3333]">{overallScore(p.analysis_data)}</span>
                   </TableCell>
                   <TableCell className="text-center">{statusBadge(p.status)}</TableCell>
                   <TableCell className="text-center">{responseBadge(p.lead_response)}</TableCell>
@@ -263,21 +346,49 @@ const Presentations = () => {
                     <div className="flex items-center justify-end gap-1">
                       {p.status === 'ready' && (
                         <>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Visualizar" onClick={() => window.open(getPublicUrl(p.public_id), '_blank')}>
-                            <Eye className="w-4 h-4" />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-xl text-[#707078] hover:bg-[#f5f5f7] hover:text-[#1A1A1A]"
+                            title="Visualizar"
+                            onClick={() => window.open(getPublicUrl(p.public_id), '_blank')}
+                          >
+                            <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Regenerar" onClick={() => setRegenDialog({ open: true, presentation: p })}>
-                            <RefreshCw className="w-4 h-4" />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-xl text-[#707078] hover:bg-[#f5f5f7] hover:text-[#1A1A1A]"
+                            title="Regenerar"
+                            onClick={() => setRegenDialog({ open: true, presentation: p })}
+                          >
+                            <RefreshCw className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Enviar" onClick={() => setSendDialog({
-                            open: true, publicUrl: getPublicUrl(p.public_id), name: p.business_name, phone: p.business_phone || '',
-                          })}>
-                            <Send className="w-4 h-4" />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-xl text-[#707078] hover:bg-[#fff1f3] hover:text-[#EF3333]"
+                            title="Enviar"
+                            onClick={() =>
+                              setSendDialog({
+                                open: true,
+                                publicUrl: getPublicUrl(p.public_id),
+                                name: p.business_name,
+                                phone: p.business_phone || '',
+                              })
+                            }
+                          >
+                            <Send className="h-4 w-4" />
                           </Button>
                         </>
                       )}
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(p.id)}>
-                        <Trash2 className="w-4 h-4" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-xl text-[#8a8a92] hover:bg-[#fff1f3] hover:text-[#bc374e]"
+                        onClick={() => handleDelete(p.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </TableCell>
@@ -285,6 +396,21 @@ const Presentations = () => {
               ))}
             </TableBody>
           </Table>
+        </Card>
+      )}
+
+      {selectedIds.size > 0 && (
+        <Card className="rounded-[20px] border border-[#f2d4d8] bg-[#fff5f6] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-[#8f2a3a]">
+              <AlertTriangle className="h-4 w-4" />
+              <span>{selectedIds.size} apresentacao(oes) pronta(s) selecionada(s) para campanha.</span>
+            </div>
+            <Button onClick={() => setCampaignDialog(true)} className="h-9 rounded-xl gap-2 gradient-primary text-primary-foreground">
+              <Megaphone className="h-4 w-4" />
+              Continuar
+            </Button>
+          </div>
         </Card>
       )}
     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, X, Save, Upload, Trash2, Quote } from 'lucide-react';
+import { Plus, X, Save, Upload, Trash2, Quote, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +27,6 @@ const TestimonialsTab = () => {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Form fields
   const [name, setName] = useState('');
   const [company, setCompany] = useState('');
   const [testimonialText, setTestimonialText] = useState('');
@@ -65,7 +64,7 @@ const TestimonialsTab = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      toast({ title: 'Imagem muito grande', description: 'Máximo 2MB', variant: 'destructive' });
+      toast({ title: 'Imagem muito grande', description: 'Maximo 2MB', variant: 'destructive' });
       return;
     }
     setImageFile(file);
@@ -88,7 +87,7 @@ const TestimonialsTab = () => {
   const handleSave = async () => {
     if (!user) return;
     if (!name.trim() || !testimonialText.trim()) {
-      toast({ title: 'Preencha os campos obrigatórios', description: 'Nome e testemunho são obrigatórios.', variant: 'destructive' });
+      toast({ title: 'Preencha os campos obrigatorios', description: 'Nome e testemunho sao obrigatorios.', variant: 'destructive' });
       return;
     }
 
@@ -140,49 +139,44 @@ const TestimonialsTab = () => {
     if (error) {
       toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Testemunho excluído' });
+      toast({ title: 'Testemunho excluido' });
       fetchTestimonials();
     }
   };
 
   if (loading) {
-    return <div className="text-center py-12 text-muted-foreground">Carregando...</div>;
+    return <div className="py-12 text-center text-muted-foreground">Carregando...</div>;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Adicione depoimentos de clientes para usar nas apresentações.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-[#66666d]">Adicione depoimentos de clientes para usar nas apresentacoes.</p>
         {!showForm && (
-          <Button onClick={() => setShowForm(true)} className="gap-2 gradient-primary text-primary-foreground glow-primary">
-            <Plus className="w-4 h-4" />
+          <Button onClick={() => setShowForm(true)} className="h-11 rounded-xl gap-2 gradient-primary text-primary-foreground glow-primary">
+            <Plus className="h-4 w-4" />
             Novo Testemunho
           </Button>
         )}
       </div>
 
       {showForm && (
-        <Card className="p-6 bg-card border-border space-y-4">
+        <Card className="space-y-4 rounded-[22px] border border-[#ececf0] bg-white p-6 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-foreground">
-              {editingId ? 'Editar Testemunho' : 'Novo Testemunho'}
-            </h3>
-            <Button variant="ghost" size="icon" onClick={resetForm}>
-              <X className="w-4 h-4" />
+            <h3 className="text-base font-semibold text-[#1A1A1A]">{editingId ? 'Editar Testemunho' : 'Novo Testemunho'}</h3>
+            <Button variant="ghost" size="icon" onClick={resetForm} className="rounded-xl hover:bg-[#f5f5f7]">
+              <X className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* Image upload */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">Foto (opcional)</Label>
             <div className="flex items-center gap-4">
-              <Avatar className="w-16 h-16 border-2 border-border">
+              <Avatar className="h-16 w-16 border-2 border-[#ececf0]">
                 {imagePreview ? (
                   <AvatarImage src={imagePreview} alt="Preview" />
                 ) : (
-                  <AvatarFallback className="bg-secondary text-muted-foreground text-lg">
+                  <AvatarFallback className="bg-[#f5f5f7] text-[#71717a] text-lg">
                     {name ? name[0].toUpperCase() : '?'}
                   </AvatarFallback>
                 )}
@@ -192,122 +186,105 @@ const TestimonialsTab = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => fileInputRef.current?.click()}
-                  className="gap-2"
+                  className="h-10 rounded-xl border-[#e6e6eb] bg-white gap-2 hover:bg-[#fff1f3] hover:text-[#EF3333]"
                 >
-                  <Upload className="w-3.5 h-3.5" />
+                  <Upload className="h-3.5 w-3.5" />
                   {imagePreview ? 'Trocar' : 'Upload'}
                 </Button>
                 {imagePreview && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => { setImageFile(null); setImagePreview(null); }}
-                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setImageFile(null);
+                      setImagePreview(null);
+                    }}
+                    className="h-10 rounded-xl border-[#f2d2d8] text-[#bc374e] hover:bg-[#fff1f3]"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="h-3.5 w-3.5" />
                   </Button>
                 )}
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageChange}
-              />
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
             </div>
           </div>
 
-          {/* Name */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">Nome *</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: João Silva"
-              className="bg-secondary border-border"
+              placeholder="Ex: Joao Silva"
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
             />
           </div>
 
-          {/* Company */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">Empresa</Label>
             <Input
               value={company}
               onChange={(e) => setCompany(e.target.value)}
-              placeholder="Ex: Tech Solutions Ltda"
-              className="bg-secondary border-border"
+              placeholder="Ex: Tech Solutions"
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
             />
           </div>
 
-          {/* Testimonial text */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">Testemunho *</Label>
             <Textarea
               value={testimonialText}
               onChange={(e) => setTestimonialText(e.target.value)}
-              placeholder="O que o cliente disse sobre seu serviço..."
-              className="bg-secondary border-border min-h-[100px]"
+              placeholder="O que o cliente disse sobre seu servico..."
+              className="min-h-[110px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
             />
           </div>
 
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full gradient-primary text-primary-foreground font-semibold py-5 glow-primary gap-2"
-          >
-            <Save className="w-4 h-4" />
+          <Button onClick={handleSave} disabled={saving} className="h-12 w-full rounded-xl gradient-primary text-primary-foreground font-semibold gap-2">
+            <Save className="h-4 w-4" />
             {saving ? 'Salvando...' : editingId ? 'Atualizar' : 'Adicionar'}
           </Button>
         </Card>
       )}
 
-      {/* Testimonials list */}
       {testimonials.length === 0 && !showForm ? (
-        <Card className="p-12 bg-card border-border text-center">
-          <Quote className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-muted-foreground">Nenhum testemunho adicionado ainda.</p>
-          <p className="text-sm text-muted-foreground/70 mt-1">
-            Adicione depoimentos dos seus clientes para enriquecer as apresentações.
-          </p>
+        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-12 text-center shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+          <Quote className="mx-auto mb-3 h-10 w-10 text-[#d0d0d5]" />
+          <p className="text-[#55555d]">Nenhum testemunho adicionado ainda.</p>
+          <p className="mt-1 text-sm text-[#818189]">Adicione depoimentos dos seus clientes para enriquecer as apresentacoes.</p>
         </Card>
       ) : (
         <div className="grid gap-4">
           {testimonials.map((t) => (
-            <Card key={t.id} className="p-5 bg-card border-border">
+            <Card key={t.id} className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
               <div className="flex items-start gap-4">
-                <Avatar className="w-12 h-12 border border-border shrink-0">
+                <Avatar className="h-12 w-12 shrink-0 border border-[#ececf0]">
                   {t.image_url ? (
                     <AvatarImage src={t.image_url} alt={t.name} />
                   ) : (
-                    <AvatarFallback className="bg-secondary text-muted-foreground">
-                      {t.name[0]?.toUpperCase() || '?'}
-                    </AvatarFallback>
+                    <AvatarFallback className="bg-[#f5f5f7] text-[#71717a]">{t.name[0]?.toUpperCase() || '?'}</AvatarFallback>
                   )}
                 </Avatar>
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <p className="font-medium text-foreground">{t.name}</p>
-                      {t.company && (
-                        <p className="text-sm text-muted-foreground">{t.company}</p>
-                      )}
+                      <p className="font-medium text-[#1A1A1A]">{t.name}</p>
+                      {t.company && <p className="text-sm text-[#6c6c74]">{t.company}</p>}
                     </div>
-                    <div className="flex gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(t)}>
-                        <Save className="w-3.5 h-3.5" />
+                    <div className="flex shrink-0 gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl hover:bg-[#f5f5f7]" onClick={() => handleEdit(t)}>
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        className="h-8 w-8 rounded-xl text-muted-foreground hover:bg-[#fff1f3] hover:text-[#bc374e]"
                         onClick={() => handleDelete(t.id)}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-2 italic">"{t.testimonial}"</p>
+                  <p className="mt-2 text-sm italic text-[#5f5f68]">"{t.testimonial}"</p>
                 </div>
               </div>
             </Card>

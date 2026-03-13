@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
-import { BarChart3, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { lovable } from '@/integrations/lovable/index';
+import loginLogo from '@/logos/ligth.svg';
+import loginSideImage from '@/logos/imglogin.jpg';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -19,7 +21,7 @@ const Auth = () => {
   if (loading) return null;
   if (user) return <Navigate to="/" replace />;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
@@ -54,7 +56,7 @@ const Auth = () => {
     if (error) {
       toast({
         title: 'Erro',
-        description: 'Não foi possível fazer login com Google.',
+        description: 'Nao foi possivel fazer login com Google.',
         variant: 'destructive',
       });
     }
@@ -62,18 +64,12 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left side - Form */}
-      <div className="flex-1 flex flex-col justify-center px-6 sm:px-12 lg:px-20 py-12">
-        <div className="w-full max-w-[420px] mx-auto lg:mx-0">
-          {/* Logo */}
-          <div className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-primary-foreground" strokeWidth={2} />
-            </div>
-            <span className="text-xl font-bold text-foreground">Prospecta IA</span>
+      <div className="flex-1 flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-12">
+        <div className="w-full max-w-[420px] mx-auto">
+          <div className="mb-12">
+            <img src={loginLogo} alt="Prospecta IA" className="h-12 w-auto" />
           </div>
 
-          {/* Heading */}
           <div className="mb-8">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
               Conta
@@ -84,15 +80,14 @@ const Auth = () => {
             <p className="text-muted-foreground text-sm">
               {isLogin
                 ? 'Insira suas credenciais para acessar o painel'
-                : 'Preencha os dados para começar a prospectar'}
+                : 'Preencha os dados para comecar a prospectar'}
             </p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-sm font-medium text-foreground">
-                Endereço de email
+                Endereco de email
               </Label>
               <Input
                 id="email"
@@ -137,7 +132,6 @@ const Auth = () => {
             </Button>
           </form>
 
-          {/* Divider */}
           <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-border" />
@@ -147,7 +141,6 @@ const Auth = () => {
             </div>
           </div>
 
-          {/* Google */}
           <Button
             type="button"
             variant="outline"
@@ -175,56 +168,23 @@ const Auth = () => {
             Entrar com Google
           </Button>
 
-          {/* Toggle */}
           <div className="mt-6 text-center">
             <button
               onClick={() => setIsLogin(!isLogin)}
               className="text-sm text-muted-foreground hover:text-primary transition-colors"
             >
-              {isLogin ? 'Não tem conta? Criar uma agora' : 'Já tem conta? Fazer login'}
+              {isLogin ? 'Nao tem conta? Criar uma agora' : 'Ja tem conta? Fazer login'}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Right side - Visual panel (hidden on mobile) */}
-      <div className="hidden lg:flex w-[50%] relative overflow-hidden rounded-l-[2rem] bg-foreground items-center justify-center">
-        {/* Decorative gradient waves */}
-        <div className="absolute inset-0">
-          <div className="absolute bottom-0 left-0 right-0 h-[60%]" style={{
-            background: 'linear-gradient(180deg, transparent 0%, hsl(var(--primary) / 0.15) 40%, hsl(var(--primary) / 0.3) 100%)',
-          }} />
-          <div className="absolute bottom-0 left-0 right-0 h-[40%]" style={{
-            background: 'repeating-linear-gradient(170deg, transparent, transparent 2px, hsl(var(--primary) / 0.08) 2px, hsl(var(--primary) / 0.08) 3px)',
-          }} />
-        </div>
-
-        {/* Floating card mockup */}
-        <div className="relative z-10 space-y-4 px-8">
-          <div className="bg-card/10 backdrop-blur-md border border-card/20 rounded-2xl p-6 max-w-[280px] shadow-2xl">
-            <p className="text-card text-sm font-medium mb-1">Empresas analisadas</p>
-            <p className="text-card text-3xl font-bold">1.247</p>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}>↑ 12%</span>
-              <span className="text-card/60 text-xs">este mês</span>
-            </div>
-          </div>
-
-          <div className="bg-card/10 backdrop-blur-md border border-card/20 rounded-2xl p-4 max-w-[240px] ml-8 shadow-2xl">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-primary/40 flex items-center justify-center">
-                <span className="text-xs font-bold text-card">JM</span>
-              </div>
-              <div>
-                <p className="text-card text-sm font-medium">João Martins</p>
-                <p className="text-card/50 text-xs flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
-                  Proposta aceita
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="hidden lg:flex w-[50%] relative overflow-hidden rounded-l-[2rem] bg-foreground">
+        <img
+          src={loginSideImage}
+          alt="Visual de login"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
       </div>
     </div>
   );

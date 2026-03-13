@@ -87,7 +87,7 @@ const ProposalPreview = ({ modelKey, customColors }: { modelKey: string; customC
             <div className="h-1 w-2/3 rounded bg-slate-600/30" />
           </div>
           <div className="flex-1 rounded bg-indigo-500/20 p-2">
-            <div className="h-1.5 w-full rounded bg-emerald-500/60 mb-1" />
+            <div className="h-1.5 w-full rounded bg-[#EF3333]/60 mb-1" />
             <div className="h-1 w-2/3 rounded bg-slate-600/30" />
           </div>
           <div className="flex-1 rounded bg-indigo-500/20 p-2">
@@ -96,7 +96,7 @@ const ProposalPreview = ({ modelKey, customColors }: { modelKey: string; customC
           </div>
         </div>
         <div className="flex gap-2 mt-auto">
-          <div className="h-4 flex-1 rounded bg-emerald-500/40" />
+          <div className="h-4 flex-1 rounded bg-[#EF3333]/40" />
           <div className="h-4 flex-1 rounded bg-slate-600/30" />
         </div>
       </div>
@@ -115,7 +115,7 @@ const ProposalPreview = ({ modelKey, customColors }: { modelKey: string; customC
             <div className="h-1 w-2/3 rounded bg-gray-200" />
           </div>
           <div className="flex-1 rounded border border-gray-200 p-2">
-            <div className="h-1.5 w-full rounded bg-green-400/50 mb-1" />
+            <div className="h-1.5 w-full rounded bg-[#EF3333]/50 mb-1" />
             <div className="h-1 w-2/3 rounded bg-gray-200" />
           </div>
           <div className="flex-1 rounded border border-gray-200 p-2">

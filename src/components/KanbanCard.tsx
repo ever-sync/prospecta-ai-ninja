@@ -130,7 +130,7 @@ export const KanbanCard = ({ lead, onDragStart }: KanbanCardProps) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#EF3333]/10 text-[#EF3333] hover:bg-[#EF3333]/20 transition-colors"
                 title="Abrir WhatsApp"
               >
                 <MessageCircle className="w-3 h-3" />

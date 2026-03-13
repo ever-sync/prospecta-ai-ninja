@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Sparkles, Building2, BarChart3, Filter } from 'lucide-react';
+import { Download, Sparkles, Building2, BarChart3, Filter, Search, WandSparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SearchFilters } from '@/components/SearchFilters';
@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 const Index = () => {
   const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -46,7 +47,7 @@ const Index = () => {
 
       const results = data.businesses || [];
       setBusinesses(results);
-      toast({ title: 'Busca concluída', description: `${results.length} empresa(s) encontrada(s) em ${filters.location}` });
+      toast({ title: 'Busca concluida', description: `${results.length} empresa(s) encontrada(s) em ${filters.location}` });
     } catch (error) {
       console.error('Error searching businesses:', error);
       toast({ title: 'Erro na busca', description: error instanceof Error ? error.message : 'Erro ao buscar empresas', variant: 'destructive' });
@@ -59,11 +60,11 @@ const Index = () => {
   const handleExport = () => {
     if (businesses.length === 0) return;
     exportToCSV(businesses);
-    toast({ title: 'Exportação concluída', description: 'O arquivo CSV foi baixado com sucesso.' });
+    toast({ title: 'Exportacao concluida', description: 'O arquivo CSV foi baixado com sucesso.' });
   };
 
   const toggleSelected = (id: string) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -75,20 +76,20 @@ const Index = () => {
     if (selectedIds.size === businesses.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(businesses.map(b => b.id)));
+      setSelectedIds(new Set(businesses.map((b) => b.id)));
     }
   };
 
   const handleAnalyzeSelected = () => {
     if (!user) return;
 
-    const selected = businesses.filter(b => selectedIds.has(b.id));
+    const selected = businesses.filter((b) => selectedIds.has(b.id));
     if (selected.length === 0) return;
 
     if (!canUse('presentations')) {
       toast({
         title: 'Limite atingido',
-        description: 'Você atingiu o limite de apresentações do seu plano. Faça upgrade em Configurações → Faturamento.',
+        description: 'Voce atingiu o limite de apresentacoes do seu plano. Faca upgrade em Configuracoes > Faturamento.',
         variant: 'destructive',
       });
       return;
@@ -98,21 +99,20 @@ const Index = () => {
     if (remaining !== null && remaining !== Infinity && selected.length > remaining) {
       toast({
         title: 'Limite insuficiente',
-        description: `Você pode gerar mais ${remaining} apresentação(ões). Selecione menos ou faça upgrade do plano.`,
+        description: `Voce pode gerar mais ${remaining} apresentacao(oes). Selecione menos ou faca upgrade do plano.`,
         variant: 'destructive',
       });
       return;
     }
 
-    // Show pipeline dialog before starting analysis
     setShowPipelineDialog(true);
   };
 
   const startAnalysis = async (pipelineStageId?: string) => {
     if (!user) return;
-    const selected = businesses.filter(b => selectedIds.has(b.id));
+    const selected = businesses.filter((b) => selectedIds.has(b.id));
 
-    const items: AnalysisItem[] = selected.map(b => ({
+    const items: AnalysisItem[] = selected.map((b) => ({
       id: b.id,
       name: b.name,
       status: 'pending' as const,
@@ -130,9 +130,7 @@ const Index = () => {
     for (let i = 0; i < selected.length; i++) {
       const business = selected[i];
 
-      setAnalysisItems(prev => prev.map(item =>
-        item.id === business.id ? { ...item, status: 'analyzing' as const } : item
-      ));
+      setAnalysisItems((prev) => prev.map((item) => (item.id === business.id ? { ...item, status: 'analyzing' as const } : item)));
 
       try {
         const { data: analyzeResult, error: analyzeError } = await supabase.functions.invoke('deep-analyze', {
@@ -144,9 +142,7 @@ const Index = () => {
 
         const analysis = analyzeResult.analysis;
 
-        setAnalysisItems(prev => prev.map(item =>
-          item.id === business.id ? { ...item, status: 'generating' as const } : item
-        ));
+        setAnalysisItems((prev) => prev.map((item) => (item.id === business.id ? { ...item, status: 'generating' as const } : item)));
 
         const insertData: Record<string, unknown> = {
           user_id: user.id,
@@ -165,13 +161,22 @@ const Index = () => {
           insertData.pipeline_stage_id = pipelineStageId;
         }
 
-        const { data: insertedRow, error: insertError } = await supabase.from('presentations').insert(insertData as any).select('id, public_id').single();
+        const { data: insertedRow, error: insertError } = await supabase
+          .from('presentations')
+          .insert(insertData as any)
+          .select('id, public_id')
+          .single();
 
         if (insertError || !insertedRow) throw new Error(insertError?.message || 'Insert failed');
 
         const { data: genResult, error: genError } = await supabase.functions.invoke('generate-presentation', {
           body: {
-            analysis, business, dna, profile, testimonials, clientLogos,
+            analysis,
+            business,
+            dna,
+            profile,
+            testimonials,
+            clientLogos,
             publicId: insertedRow.public_id,
             template: (dna as any)?.presentation_template || 'modern-dark',
             tone: (dna as any)?.presentation_tone || 'professional',
@@ -182,31 +187,41 @@ const Index = () => {
         if (genError) throw new Error(genError.message);
         if (genResult.error) throw new Error(genResult.error);
 
-        const { error: updateError } = await supabase.from('presentations')
-          .update({ presentation_html: genResult.html, status: 'ready' })
-          .eq('id', insertedRow.id);
+        const { error: updateError } = await supabase.from('presentations').update({ presentation_html: genResult.html, status: 'ready' }).eq('id', insertedRow.id);
 
         if (updateError) throw new Error(updateError.message);
 
-        setAnalysisItems(prev => prev.map(item =>
-          item.id === business.id ? { ...item, status: 'done' as const } : item
-        ));
+        setAnalysisItems((prev) => prev.map((item) => (item.id === business.id ? { ...item, status: 'done' as const } : item)));
       } catch (err) {
         console.error(`Error analyzing ${business.name}:`, err);
-        setAnalysisItems(prev => prev.map(item =>
-          item.id === business.id ? { ...item, status: 'error' as const, error: err instanceof Error ? err.message : 'Erro' } : item
-        ));
+        setAnalysisItems((prev) =>
+          prev.map((item) =>
+            item.id === business.id ? { ...item, status: 'error' as const, error: err instanceof Error ? err.message : 'Erro' } : item
+          )
+        );
       }
     }
   };
 
+  const filteredBusinesses = useMemo(() => {
+    return businesses.filter((b) => {
+      if (contactFilter === 'email') return !!b.email;
+      if (contactFilter === 'phone') return !!b.phone;
+      if (contactFilter === 'any') return !!b.email || !!b.phone;
+      return true;
+    });
+  }, [businesses, contactFilter]);
+
   return (
-    <div className="p-4 lg:p-8">
+    <div className="space-y-4 p-2 lg:space-y-5 lg:p-4">
       <AnalysisProgressModal
         open={showProgress}
         items={analysisItems}
         onClose={() => setShowProgress(false)}
-        onFinish={() => { setShowProgress(false); navigate('/presentations'); }}
+        onFinish={() => {
+          setShowProgress(false);
+          navigate('/presentations');
+        }}
       />
 
       <PipelineSelectDialog
@@ -218,116 +233,138 @@ const Index = () => {
         onCancel={() => setShowPipelineDialog(false)}
       />
 
-      <div className="grid lg:grid-cols-[380px_1fr] gap-6">
-        <aside className="space-y-6">
-          <Card className="p-6 sticky top-20">
-            <h2 className="text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-primary" />
+      <section className="rounded-[28px] border border-[#ececf0] bg-white px-5 py-6 shadow-[0_14px_36px_rgba(20,20,24,0.06)] lg:px-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-[#75757d]">Prospeccao</p>
+            <h1 className="mt-1 flex items-center gap-2 text-3xl font-semibold tracking-tight text-[#1A1A1A] lg:text-4xl">
+              <Search className="h-7 w-7 text-[#EF3333]" />
+              Busca Inteligente
+            </h1>
+            <p className="mt-2 text-sm text-[#66666d] lg:text-base">Encontre empresas com fit e gere abordagens prontas com IA.</p>
+          </div>
+          <div className="rounded-2xl border border-[#f2d4d8] bg-[#fff5f6] px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#b94456]">Status da Sessao</p>
+            <p className="mt-1 text-sm font-semibold text-[#7f2432]">{hasSearched ? `${businesses.length} resultado(s)` : 'Aguardando busca'}</p>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
+        <aside className="space-y-5">
+          <Card className="sticky top-20 rounded-[24px] border border-[#ececf0] bg-white p-6 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+            <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-[#1A1A1A]">
+              <Building2 className="h-5 w-5 text-[#EF3333]" />
               Filtros de Busca
             </h2>
             <SearchFilters onSearch={handleSearch} isLoading={isLoading} />
           </Card>
         </aside>
 
-        <section className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Resultados</h2>
-              {hasSearched && (
-                <p className="text-sm text-muted-foreground">
-                  {businesses.length} empresa(s) encontrada(s)
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {hasSearched && businesses.length > 0 && (
-                <div className="flex items-center gap-1 border border-border rounded-lg p-0.5">
-                  {([
-                    { value: 'all', label: 'Todos' },
-                    { value: 'any', label: 'Com contato' },
-                    { value: 'email', label: 'Com email' },
-                    { value: 'phone', label: 'Com telefone' },
-                  ] as const).map(opt => (
-                    <Button
-                      key={opt.value}
-                      variant={contactFilter === opt.value ? 'default' : 'ghost'}
-                      size="sm"
-                      className="h-7 text-xs px-2.5"
-                      onClick={() => setContactFilter(opt.value)}
-                    >
-                      {opt.value === 'all' && <Filter className="w-3 h-3 mr-1" />}
-                      {opt.label}
-                    </Button>
-                  ))}
-                </div>
-              )}
-              {selectedIds.size > 0 && (
-                <Button
-                  onClick={handleAnalyzeSelected}
-                  size="sm"
-                  className="gap-2 gradient-primary text-primary-foreground glow-primary"
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Analisar Selecionadas</span>
-                  <span className="sm:hidden">Analisar</span>
-                  ({selectedIds.size})
-                </Button>
-              )}
-              {businesses.length > 0 && (
-                <Button onClick={handleExport} variant="outline" size="sm" className="gap-2">
-                  <Download className="w-4 h-4" />
-                  <span className="hidden sm:inline">Exportar CSV</span>
-                  <span className="sm:hidden">CSV</span>
-                </Button>
-              )}
-            </div>
-          </div>
+        <section className="space-y-5">
+          <Card className="rounded-[24px] border border-[#ececf0] bg-white p-4 shadow-[0_10px_24px_rgba(18,18,22,0.05)] lg:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-[#1A1A1A]">Resultados</h2>
+                {hasSearched && <p className="text-sm text-[#6e6e76]">{filteredBusinesses.length} empresa(s) na visualizacao atual</p>}
+              </div>
 
-          {selectedBusiness && (
-            <BusinessAnalysisPanel business={selectedBusiness} onClose={() => setSelectedBusiness(null)} />
-          )}
+              <div className="flex flex-wrap items-center gap-2">
+                {hasSearched && businesses.length > 0 && (
+                  <div className="flex items-center gap-1 rounded-xl border border-[#e7e7eb] bg-[#f9f9fa] p-1">
+                    {([
+                      { value: 'all', label: 'Todos' },
+                      { value: 'any', label: 'Com contato' },
+                      { value: 'email', label: 'Com email' },
+                      { value: 'phone', label: 'Com telefone' },
+                    ] as const).map((opt) => (
+                      <Button
+                        key={opt.value}
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          'h-8 rounded-lg px-2.5 text-xs',
+                          contactFilter === opt.value
+                            ? 'bg-white text-[#1A1A1A] shadow-[inset_0_0_0_1px_rgba(239,51,51,0.22)]'
+                            : 'text-[#6f6f76] hover:bg-white'
+                        )}
+                        onClick={() => setContactFilter(opt.value)}
+                      >
+                        {opt.value === 'all' && <Filter className="mr-1 h-3 w-3" />}
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
+                {selectedIds.size > 0 && (
+                  <Button onClick={handleAnalyzeSelected} size="sm" className="h-9 rounded-xl gap-2 gradient-primary text-primary-foreground glow-primary">
+                    <BarChart3 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Analisar Selecionadas</span>
+                    <span className="sm:hidden">Analisar</span>
+                    ({selectedIds.size})
+                  </Button>
+                )}
+
+                {businesses.length > 0 && (
+                  <Button onClick={handleExport} variant="outline" size="sm" className="h-9 rounded-xl gap-2 border-[#e6e6eb] bg-white hover:bg-[#f8f8fa]">
+                    <Download className="h-4 w-4" />
+                    <span className="hidden sm:inline">Exportar CSV</span>
+                    <span className="sm:hidden">CSV</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {selectedBusiness && <BusinessAnalysisPanel business={selectedBusiness} onClose={() => setSelectedBusiness(null)} />}
 
           {!hasSearched ? (
-            <Card className="p-12">
-              <div className="text-center space-y-4">
-                <div className="w-16 h-16 rounded-full bg-secondary mx-auto flex items-center justify-center">
-                  <Building2 className="w-8 h-8 text-muted-foreground" />
+            <Card className="rounded-[24px] border border-[#ececf0] bg-white p-12 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+              <div className="space-y-4 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#fff1f3]">
+                  <Building2 className="h-8 w-8 text-[#EF3333]" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-medium text-foreground">Comece sua prospecção</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Selecione os filtros ao lado e clique em buscar para encontrar potenciais clientes.
-                  </p>
+                  <h3 className="text-lg font-medium text-[#1A1A1A]">Comece sua prospeccao</h3>
+                  <p className="mt-1 text-sm text-[#6e6e76]">Selecione os filtros ao lado e clique em buscar para encontrar potenciais clientes.</p>
                 </div>
-                <div className="pt-4 border-t border-border mt-6">
-                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                    <Sparkles className="w-4 h-4 text-primary" />
-                    <span>IA disponível para sugestões de abordagem personalizadas</span>
+                <div className="mt-6 border-t border-[#ececf0] pt-4">
+                  <div className="flex items-center justify-center gap-2 text-sm text-[#6e6e76]">
+                    <Sparkles className="h-4 w-4 text-[#EF3333]" />
+                    <span>IA disponivel para sugestoes de abordagem personalizadas</span>
                   </div>
                 </div>
               </div>
             </Card>
           ) : isLoading ? (
-            <Card className="p-12">
-              <div className="text-center space-y-4">
-                <div className="w-16 h-16 rounded-full bg-primary/10 mx-auto flex items-center justify-center">
-                  <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <Card className="rounded-[24px] border border-[#ececf0] bg-white p-12 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+              <div className="space-y-4 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#fff1f3]">
+                  <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#ef3333]/25 border-t-[#ef3333]" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-medium text-foreground">Buscando empresas...</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Consultando bases de dados e APIs</p>
+                  <h3 className="text-lg font-medium text-[#1A1A1A]">Buscando empresas...</h3>
+                  <p className="mt-1 text-sm text-[#6e6e76]">Consultando bases de dados e APIs</p>
+                </div>
+              </div>
+            </Card>
+          ) : filteredBusinesses.length === 0 ? (
+            <Card className="rounded-[24px] border border-[#ececf0] bg-white p-12 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+              <div className="space-y-4 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f5f5f7]">
+                  <WandSparkles className="h-8 w-8 text-[#7c7c83]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-[#1A1A1A]">Nenhum resultado com este filtro</h3>
+                  <p className="mt-1 text-sm text-[#6e6e76]">Troque o filtro de contato para visualizar mais empresas encontradas.</p>
                 </div>
               </div>
             </Card>
           ) : (
-            <Card className="overflow-hidden">
+            <Card className="overflow-hidden rounded-[24px] border border-[#ececf0] bg-white shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
               <ResultsTable
-                businesses={businesses.filter(b => {
-                  if (contactFilter === 'email') return !!b.email;
-                  if (contactFilter === 'phone') return !!b.phone;
-                  if (contactFilter === 'any') return !!b.email || !!b.phone;
-                  return true;
-                })}
+                businesses={filteredBusinesses}
                 onSelectBusiness={setSelectedBusiness}
                 selectedIds={selectedIds}
                 onToggleSelected={toggleSelected}

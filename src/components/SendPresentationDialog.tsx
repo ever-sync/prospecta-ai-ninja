@@ -108,7 +108,7 @@ export const SendPresentationDialog = ({ open, onOpenChange, publicUrl, business
             </p>
           </div>
 
-          <Button onClick={sendWhatsApp} className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white">
+          <Button onClick={sendWhatsApp} className="w-full gap-2 bg-[#EF3333] hover:bg-[#d92f2f] text-white">
             <MessageCircle className="w-4 h-4" />
             Enviar via WhatsApp
           </Button>

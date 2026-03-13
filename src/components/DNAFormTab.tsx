@@ -114,7 +114,7 @@ const DNAFormTab = () => {
     if (error) {
       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'DNA salvo!', description: 'As informações da sua empresa foram atualizadas.' });
+      toast({ title: 'DNA salvo!', description: 'As informacoes da sua empresa foram atualizadas.' });
     }
     setSaving(false);
   };
@@ -123,49 +123,55 @@ const DNAFormTab = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-[#66666d]">
+          Quanto mais completo o DNA, mais assertivas ficam as propostas e campanhas.
+        </p>
         <Badge
           variant={percent === 100 ? 'default' : 'secondary'}
-          className="gap-1.5 py-1 px-3"
+          className="gap-1.5 rounded-full border border-[#f3c9d0] bg-[#fff2f4] px-3 py-1 text-[#9d2b3d]"
         >
-          {percent === 100 ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+          {percent === 100 ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
           {filled}/{total} completo
         </Badge>
       </div>
 
-      <Card className="p-6 space-y-6">
-        <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
-          <div className="h-full gradient-primary transition-all duration-500" style={{ width: `${percent}%` }} />
+      <Card className="space-y-6 rounded-[24px] border border-[#ececf0] bg-white p-6 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-[#f1f1f4]">
+          <div className="h-full bg-[#EF3333] transition-all duration-500" style={{ width: `${percent}%` }} />
         </div>
 
-        {/* Services */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium text-foreground">Serviços Oferecidos</Label>
+          <Label className="text-sm font-medium text-foreground">Servicos Oferecidos</Label>
           <div className="flex gap-2">
             <Input
               value={newService}
               onChange={(e) => setNewService(e.target.value)}
-              placeholder="Ex: Criação de sites"
-              className=""
+              placeholder="Ex: Criacao de sites"
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(services, setServices, newService, setNewService))}
             />
-            <Button variant="outline" size="icon" onClick={() => addTag(services, setServices, newService, setNewService)}>
-              <Plus className="w-4 h-4" />
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-11 w-11 rounded-xl border-[#e6e6eb] bg-white hover:bg-[#fff1f3] hover:text-[#EF3333]"
+              onClick={() => addTag(services, setServices, newService, setNewService)}
+            >
+              <Plus className="h-4 w-4" />
             </Button>
           </div>
           <div className="flex flex-wrap gap-2">
             {services.map((s, i) => (
-              <Badge key={i} variant="secondary" className="gap-1 pr-1">
+              <Badge key={i} variant="secondary" className="gap-1 rounded-full border border-[#f0d9dd] bg-[#fff5f6] pr-1 text-[#702530]">
                 {s}
-                <button onClick={() => removeTag(services, setServices, i)} className="hover:text-destructive ml-1">
-                  <X className="w-3 h-3" />
+                <button onClick={() => removeTag(services, setServices, i)} className="ml-1 hover:text-destructive">
+                  <X className="h-3 w-3" />
                 </button>
               </Badge>
             ))}
           </div>
         </div>
 
-        {/* Differentials */}
         <div className="space-y-3">
           <Label className="text-sm font-medium text-foreground">Diferenciais</Label>
           <div className="flex gap-2">
@@ -173,82 +179,127 @@ const DNAFormTab = () => {
               value={newDifferential}
               onChange={(e) => setNewDifferential(e.target.value)}
               placeholder="Ex: Atendimento 24h"
-              className=""
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(differentials, setDifferentials, newDifferential, setNewDifferential))}
             />
-            <Button variant="outline" size="icon" onClick={() => addTag(differentials, setDifferentials, newDifferential, setNewDifferential)}>
-              <Plus className="w-4 h-4" />
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-11 w-11 rounded-xl border-[#e6e6eb] bg-white hover:bg-[#fff1f3] hover:text-[#EF3333]"
+              onClick={() => addTag(differentials, setDifferentials, newDifferential, setNewDifferential)}
+            >
+              <Plus className="h-4 w-4" />
             </Button>
           </div>
           <div className="flex flex-wrap gap-2">
             {differentials.map((d, i) => (
-              <Badge key={i} variant="secondary" className="gap-1 pr-1">
+              <Badge key={i} variant="secondary" className="gap-1 rounded-full border border-[#f0d9dd] bg-[#fff5f6] pr-1 text-[#702530]">
                 {d}
-                <button onClick={() => removeTag(differentials, setDifferentials, i)} className="hover:text-destructive ml-1">
-                  <X className="w-3 h-3" />
+                <button onClick={() => removeTag(differentials, setDifferentials, i)} className="ml-1 hover:text-destructive">
+                  <X className="h-3 w-3" />
                 </button>
               </Badge>
             ))}
           </div>
         </div>
 
-        {/* Target Audience */}
         <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Público-Alvo</Label>
-          <Textarea value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="Descreva seu público-alvo ideal..." className="min-h-[80px]" />
+          <Label className="text-sm font-medium text-foreground">Publico-Alvo</Label>
+          <Textarea
+            value={targetAudience}
+            onChange={(e) => setTargetAudience(e.target.value)}
+            placeholder="Descreva seu publico-alvo ideal..."
+            className="min-h-[90px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+          />
         </div>
 
-        {/* Value Proposition */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Proposta de Valor</Label>
-          <Textarea value={valueProposition} onChange={(e) => setValueProposition(e.target.value)} placeholder="O que torna sua empresa única?" className="min-h-[80px]" />
+          <Textarea
+            value={valueProposition}
+            onChange={(e) => setValueProposition(e.target.value)}
+            placeholder="O que torna sua empresa unica?"
+            className="min-h-[90px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+          />
         </div>
 
-        {/* Tone */}
         <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Tom de Comunicação</Label>
-          <Input value={tone} onChange={(e) => setTone(e.target.value)} placeholder="Ex: Profissional, amigável, técnico..." />
+          <Label className="text-sm font-medium text-foreground">Tom de Comunicacao</Label>
+          <Input
+            value={tone}
+            onChange={(e) => setTone(e.target.value)}
+            placeholder="Ex: Profissional, amigavel, tecnico..."
+            className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+          />
         </div>
 
-        {/* Additional Info */}
         <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Informações Adicionais</Label>
-          <Textarea value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} placeholder="Outras informações relevantes sobre sua empresa..." className="min-h-[80px]" />
+          <Label className="text-sm font-medium text-foreground">Informacoes Adicionais</Label>
+          <Textarea
+            value={additionalInfo}
+            onChange={(e) => setAdditionalInfo(e.target.value)}
+            placeholder="Outras informacoes relevantes sobre sua empresa..."
+            className="min-h-[90px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+          />
         </div>
 
-        {/* Portfolio URL */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Link do Portfólio</Label>
-          <Input value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://seusite.com/portfolio" />
-          <p className="text-xs text-muted-foreground">O botão "Acessar Portfólio" será exibido na apresentação gerada.</p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2 md:col-span-2">
+            <Label className="text-sm font-medium text-foreground">Link do Portfolio</Label>
+            <Input
+              value={portfolioUrl}
+              onChange={(e) => setPortfolioUrl(e.target.value)}
+              placeholder="https://seusite.com/portfolio"
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+            />
+            <p className="text-xs text-muted-foreground">
+              O botao "Acessar Portfolio" sera exibido na apresentacao gerada.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">Instagram</Label>
+            <Input
+              value={instagramUrl}
+              onChange={(e) => setInstagramUrl(e.target.value)}
+              placeholder="https://instagram.com/suaempresa"
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">LinkedIn</Label>
+            <Input
+              value={linkedinUrl}
+              onChange={(e) => setLinkedinUrl(e.target.value)}
+              placeholder="https://linkedin.com/company/suaempresa"
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">Facebook</Label>
+            <Input
+              value={facebookUrl}
+              onChange={(e) => setFacebookUrl(e.target.value)}
+              placeholder="https://facebook.com/suaempresa"
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">YouTube</Label>
+            <Input
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              placeholder="https://youtube.com/@suaempresa"
+              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
+            />
+          </div>
         </div>
 
-        {/* Instagram */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Instagram</Label>
-          <Input value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)} placeholder="https://instagram.com/suaempresa" />
-        </div>
-
-        {/* LinkedIn */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">LinkedIn</Label>
-          <Input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/company/suaempresa" />
-        </div>
-
-        {/* Facebook */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Facebook</Label>
-          <Input value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} placeholder="https://facebook.com/suaempresa" />
-        </div>
-
-        {/* YouTube */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">YouTube</Label>
-          <Input value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/@suaempresa" />
-        </div>
-
-        <Button onClick={handleSave} disabled={saving} className="w-full gradient-primary text-primary-foreground font-semibold py-5 glow-primary gap-2">
-          <Save className="w-4 h-4" />
+        <Button onClick={handleSave} disabled={saving} className="h-12 w-full rounded-xl gradient-primary text-primary-foreground font-semibold glow-primary gap-2">
+          <Save className="h-4 w-4" />
           {saving ? 'Salvando...' : 'Salvar DNA'}
         </Button>
       </Card>

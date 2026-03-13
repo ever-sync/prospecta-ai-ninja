@@ -95,7 +95,7 @@ export const ApproachSuggestion = ({ business, onClose, embedded }: ApproachSugg
             </div>
             <div className="flex gap-2">
               <Button onClick={copyToClipboard} variant="outline" className="flex-1">
-                {copied ? <><Check className="w-4 h-4 mr-2 text-green-400" />Copiado</> : <><Copy className="w-4 h-4 mr-2" />Copiar Texto</>}
+                {copied ? <><Check className="w-4 h-4 mr-2 text-[#EF3333]" />Copiado</> : <><Copy className="w-4 h-4 mr-2" />Copiar Texto</>}
               </Button>
               <Button onClick={generateSuggestion} variant="secondary">
                 <Sparkles className="w-4 h-4 mr-2" />Nova Sugestão

@@ -24,6 +24,12 @@ interface Template {
   image_url: string;
   include_proposal_link: boolean;
   send_as_audio: boolean;
+  variant_key: string;
+  experiment_group: string | null;
+  target_persona: string | null;
+  campaign_objective: string | null;
+  cta_trigger: string | null;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -57,8 +63,15 @@ const TemplatesManager = () => {
   const [formImageUrl, setFormImageUrl] = useState('');
   const [formIncludeLink, setFormIncludeLink] = useState(true);
   const [formSendAsAudio, setFormSendAsAudio] = useState(false);
+  const [formVariantKey, setFormVariantKey] = useState('A');
+  const [formExperimentGroup, setFormExperimentGroup] = useState('');
+  const [formTargetPersona, setFormTargetPersona] = useState('');
+  const [formCampaignObjective, setFormCampaignObjective] = useState('');
+  const [formCtaTrigger, setFormCtaTrigger] = useState('');
+  const [formIsActive, setFormIsActive] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [generatingAudio, setGeneratingAudio] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [audioRef] = useState<{ current: HTMLAudioElement | null }>({ current: null });
@@ -89,6 +102,12 @@ const TemplatesManager = () => {
     setFormImageUrl('');
     setFormIncludeLink(true);
     setFormSendAsAudio(false);
+    setFormVariantKey('A');
+    setFormExperimentGroup('');
+    setFormTargetPersona('');
+    setFormCampaignObjective('');
+    setFormCtaTrigger('');
+    setFormIsActive(true);
     setShowEditor(true);
   };
 
@@ -101,6 +120,12 @@ const TemplatesManager = () => {
     setFormImageUrl(t.image_url);
     setFormIncludeLink(t.include_proposal_link);
     setFormSendAsAudio(t.send_as_audio || false);
+    setFormVariantKey(t.variant_key || 'A');
+    setFormExperimentGroup(t.experiment_group || '');
+    setFormTargetPersona(t.target_persona || '');
+    setFormCampaignObjective(t.campaign_objective || '');
+    setFormCtaTrigger(t.cta_trigger || '');
+    setFormIsActive(t.is_active ?? true);
     setShowEditor(true);
   };
 
@@ -117,6 +142,12 @@ const TemplatesManager = () => {
       image_url: formImageUrl,
       include_proposal_link: formIncludeLink,
       send_as_audio: formChannel === 'whatsapp' ? formSendAsAudio : false,
+      variant_key: formVariantKey || 'A',
+      experiment_group: formExperimentGroup.trim() || null,
+      target_persona: formTargetPersona.trim() || null,
+      campaign_objective: formCampaignObjective.trim() || null,
+      cta_trigger: formCtaTrigger.trim() || null,
+      is_active: formIsActive,
       updated_at: new Date().toISOString(),
     };
 
@@ -145,6 +176,23 @@ const TemplatesManager = () => {
       setTemplates(prev => prev.filter(t => t.id !== id));
       toast({ title: 'Template excluído' });
     }
+  };
+
+  const handleOptimizeVariants = async () => {
+    setOptimizing(true);
+    const { data, error } = await supabase.functions.invoke('whatsapp-optimize-variants', {
+      body: { mode: 'manual' },
+    });
+    if (error) {
+      toast({ title: 'Erro na otimização', description: error.message, variant: 'destructive' });
+    } else {
+      toast({
+        title: 'Otimização concluída',
+        description: `${data?.groups_promoted || 0} grupo(s) atualizados.`,
+      });
+      fetchTemplates();
+    }
+    setOptimizing(false);
   };
 
   const insertVariable = (variable: string) => {
@@ -257,6 +305,12 @@ const TemplatesManager = () => {
 
   const renderTemplateList = (list: Template[], channel: string) => (
     <div className="space-y-4">
+      {channel === 'whatsapp' && (
+        <Button onClick={handleOptimizeVariants} variant="secondary" className="gap-2 w-full" disabled={optimizing}>
+          {optimizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
+          {optimizing ? 'Otimizando variantes...' : 'Rodar otimização A/B agora'}
+        </Button>
+      )}
       <Button onClick={() => openCreate(channel)} variant="outline" className="gap-2 w-full border-dashed">
         <Plus className="w-4 h-4" />
         Novo Template de {channel === 'whatsapp' ? 'WhatsApp' : 'Email'}
@@ -273,6 +327,19 @@ const TemplatesManager = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <h4 className="font-medium text-foreground truncate">{t.name}</h4>
+                  <Badge variant="outline" className="text-xs shrink-0">
+                    Variante {t.variant_key || 'A'}
+                  </Badge>
+                  {t.experiment_group && (
+                    <Badge variant="secondary" className="text-xs shrink-0">
+                      A/B: {t.experiment_group}
+                    </Badge>
+                  )}
+                  {t.is_active === false && (
+                    <Badge variant="outline" className="text-xs shrink-0 border-warning/40 text-warning">
+                      Inativo
+                    </Badge>
+                  )}
                   {t.include_proposal_link && (
                     <Badge variant="secondary" className="text-xs shrink-0">
                       <Link2 className="w-3 h-3 mr-1" /> Link
@@ -290,6 +357,13 @@ const TemplatesManager = () => {
                   )}
                 </div>
                 {t.subject && <p className="text-xs text-muted-foreground mb-1">Assunto: {t.subject}</p>}
+                {(t.target_persona || t.campaign_objective) && (
+                  <p className="text-xs text-muted-foreground mb-1">
+                    {t.target_persona ? `Persona: ${t.target_persona}` : ''}
+                    {t.target_persona && t.campaign_objective ? ' • ' : ''}
+                    {t.campaign_objective ? `Objetivo: ${t.campaign_objective}` : ''}
+                  </p>
+                )}
                 <p className="text-sm text-muted-foreground line-clamp-2">{t.body}</p>
               </div>
               <div className="flex gap-1 shrink-0">
@@ -344,6 +418,41 @@ const TemplatesManager = () => {
             <div className="space-y-2">
               <Label>Nome do Template *</Label>
               <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Proposta Restaurantes" />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Chave da Variante</Label>
+                <Input value={formVariantKey} onChange={e => setFormVariantKey(e.target.value.toUpperCase())} placeholder="A" maxLength={8} />
+              </div>
+              <div className="space-y-2">
+                <Label>Grupo de Experimento (A/B)</Label>
+                <Input value={formExperimentGroup} onChange={e => setFormExperimentGroup(e.target.value)} placeholder="ex: whatsapp-oferta-marco" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Persona alvo (opcional)</Label>
+                <Input value={formTargetPersona} onChange={e => setFormTargetPersona(e.target.value)} placeholder="ex: Dono de restaurante" />
+              </div>
+              <div className="space-y-2">
+                <Label>Objetivo da campanha (opcional)</Label>
+                <Input value={formCampaignObjective} onChange={e => setFormCampaignObjective(e.target.value)} placeholder="ex: Agendar chamada" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Gatilho de CTA (opcional)</Label>
+              <Input value={formCtaTrigger} onChange={e => setFormCtaTrigger(e.target.value)} placeholder="ex: urgencia e prova social" />
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+              <div>
+                <Label className="text-sm font-medium">Template ativo</Label>
+                <p className="text-xs text-muted-foreground">Somente templates ativos entram na distribuicao A/B</p>
+              </div>
+              <Switch checked={formIsActive} onCheckedChange={setFormIsActive} />
             </div>
 
             {formChannel === 'email' && (

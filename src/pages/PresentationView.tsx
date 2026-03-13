@@ -3,6 +3,14 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
+const getScoreBucket = (analysisData: any): 'low' | 'medium' | 'high' | 'unknown' => {
+  const score = analysisData?.scores?.overall;
+  if (typeof score !== 'number') return 'unknown';
+  if (score < 40) return 'low';
+  if (score < 70) return 'medium';
+  return 'high';
+};
+
 const PresentationView = () => {
   const { publicId } = useParams<{ publicId: string }>();
   const [html, setHtml] = useState<string | null>(null);
@@ -15,7 +23,7 @@ const PresentationView = () => {
 
       const { data, error: dbError } = await supabase
         .from('presentations')
-        .select('id, presentation_html, status')
+        .select('id, user_id, business_category, analysis_data, pipeline_stage_id, presentation_html, status')
         .eq('public_id', publicId)
         .single();
 
@@ -29,6 +37,35 @@ const PresentationView = () => {
         supabase
           .from('presentation_views')
           .insert({ presentation_id: data.id } as any)
+          .then(() => {});
+
+        const params = new URLSearchParams(window.location.search);
+        const campaignId = params.get('cid');
+        const campaignPresentationId = params.get('cpid');
+        const templateId = params.get('tid');
+        const variantId = params.get('vid');
+        const channel = params.get('ch') || 'unknown';
+        const source = params.get('src') || 'presentation_view';
+
+        supabase
+          .from('message_conversion_events')
+          .insert({
+            event_type: 'opened',
+            presentation_id: data.id,
+            user_id: data.user_id,
+            campaign_id: campaignId || null,
+            campaign_presentation_id: campaignPresentationId || null,
+            template_id: templateId || null,
+            variant_id: variantId || null,
+            channel,
+            pipeline_stage_id: data.pipeline_stage_id || null,
+            niche: data.business_category || null,
+            score_bucket: getScoreBucket(data.analysis_data),
+            source,
+            metadata: {
+              public_id: publicId,
+            },
+          } as any)
           .then(() => {});
       }
       setLoading(false);

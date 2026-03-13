@@ -1,4 +1,4 @@
-project_id = "egicuzzcrhpzpfxfvjhc"
+project_id = "cccakxnoptrtdzdlwyju"
 
 [functions.firecrawl-scrape]
 verify_jwt = false
@@ -16,4 +16,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.elevenlabs-tts]
+verify_jwt = false
+
+[functions.whatsapp-send-batch]
+verify_jwt = true
+
+[functions.whatsapp-optimize-variants]
+verify_jwt = true
+
+[functions.whatsapp-status-webhook]
 verify_jwt = false

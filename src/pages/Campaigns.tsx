@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Megaphone, Plus, Trash2, Send, Clock, Eye, CheckCircle2, XCircle, Loader2, Calendar } from 'lucide-react';
+import { Megaphone, Plus, Trash2, Send, Clock, Loader2, Calendar } from 'lucide-react';
 import CampaignPreviewDialog from '@/components/CampaignPreviewDialog';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,111 @@ interface PresentationOption {
   lead_response: string;
 }
 
+interface TemplateRow {
+  id: string;
+  name: string;
+  channel: string;
+  body?: string;
+  subject?: string;
+  image_url?: string;
+  include_proposal_link?: boolean;
+  send_as_audio?: boolean;
+  experiment_group?: string | null;
+  variant_key?: string;
+  target_persona?: string | null;
+  campaign_objective?: string | null;
+  cta_trigger?: string | null;
+  is_active?: boolean;
+}
+
+interface PreviewLead {
+  id: string;
+  campaignPresentationId: string;
+  business_name: string;
+  business_phone: string;
+  business_category?: string | null;
+  pipeline_stage_id?: string | null;
+  analysis_data?: any;
+  public_id: string;
+  publicUrl: string;
+  message: string;
+  subject?: string;
+  templateId?: string | null;
+  variantId?: string | null;
+}
+
+const HYBRID_API_THRESHOLD = 15;
+
+const scoreBucket = (analysisData: any): 'low' | 'medium' | 'high' | 'unknown' => {
+  const score = analysisData?.scores?.overall;
+  if (typeof score !== 'number') return 'unknown';
+  if (score < 40) return 'low';
+  if (score < 70) return 'medium';
+  return 'high';
+};
+
+const normalizeText = (value?: string | null) =>
+  (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+const variantPriorityScore = (
+  variant: TemplateRow,
+  lead: Pick<PreviewLead, 'business_category' | 'analysis_data'>
+) => {
+  const persona = normalizeText(variant.target_persona);
+  const objective = normalizeText(variant.campaign_objective);
+  const trigger = normalizeText(variant.cta_trigger);
+  const leadCategory = normalizeText(lead.business_category);
+  const bucket = scoreBucket(lead.analysis_data);
+
+  let score = 0;
+  if (persona) {
+    if (leadCategory && persona.includes(leadCategory)) score += 4;
+    if (persona.includes(bucket) || persona.includes(`score:${bucket}`)) score += 4;
+  }
+  if (objective.includes('recuperar') && bucket === 'low') score += 1;
+  if (objective.includes('escala') && bucket === 'high') score += 1;
+  if (trigger.includes('urgencia') && bucket !== 'high') score += 1;
+  if (trigger.includes('prova social') && bucket === 'medium') score += 1;
+  return score;
+};
+
+const pickVariantForLead = (
+  lead: Pick<PreviewLead, 'id' | 'business_category' | 'analysis_data'>,
+  variants: TemplateRow[],
+  fallback: TemplateRow | null
+) => {
+  if (variants.length === 0) return fallback;
+  if (variants.length === 1) return variants[0];
+
+  const scored = variants.map((variant) => ({
+    variant,
+    score: variantPriorityScore(variant, lead),
+  }));
+
+  const topScore = Math.max(...scored.map(row => row.score));
+  const top = scored.filter(row => row.score === topScore).map(row => row.variant);
+  return top[hashToIndex(lead.id, top.length)] || fallback;
+};
+
+const hashToIndex = (value: string, max: number) => {
+  if (max <= 1) return 0;
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash) % max;
+};
+
+const plusDaysIso = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+};
+
 const Campaigns = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -49,10 +154,10 @@ const Campaigns = () => {
   const [showAddPresentations, setShowAddPresentations] = useState<string | null>(null);
   const [availablePresentations, setAvailablePresentations] = useState<PresentationOption[]>([]);
   const [selectedPresentationIds, setSelectedPresentationIds] = useState<Set<string>>(new Set());
-  const [templates, setTemplates] = useState<{ id: string; name: string; channel: string }[]>([]);
+  const [templates, setTemplates] = useState<TemplateRow[]>([]);
 
   // Preview state
-  const [previewLeads, setPreviewLeads] = useState<{ id: string; business_name: string; business_phone: string; message: string; subject?: string }[]>([]);
+  const [previewLeads, setPreviewLeads] = useState<PreviewLead[]>([]);
   const [previewCampaign, setPreviewCampaign] = useState<Campaign | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [sending, setSending] = useState(false);
@@ -78,10 +183,10 @@ const Campaigns = () => {
     if (!user) return;
     const { data } = await supabase
       .from('message_templates')
-      .select('id, name, channel')
+      .select('id, name, channel, experiment_group, variant_key, target_persona, campaign_objective, cta_trigger, is_active')
       .eq('user_id', user.id)
       .order('name');
-    setTemplates((data as any) || []);
+    setTemplates((data as TemplateRow[]) || []);
   };
 
   const fetchCampaigns = async () => {
@@ -253,7 +358,7 @@ const Campaigns = () => {
     const presIds = cpRows.map(r => r.presentation_id);
     const { data: presentations } = await supabase
       .from('presentations')
-      .select('id, public_id, business_name, business_phone, business_website, business_address, business_category, business_rating, analysis_data')
+      .select('id, public_id, business_name, business_phone, business_website, business_address, business_category, business_rating, analysis_data, pipeline_stage_id')
       .in('id', presIds);
 
     if (!presentations) return;
@@ -264,17 +369,31 @@ const Campaigns = () => {
       .eq('user_id', user.id)
       .single();
 
-    let template: { body: string; subject: string; image_url: string; include_proposal_link: boolean; send_as_audio: boolean } | null = null;
+    let template: TemplateRow | null = null;
     if ((campaign as any).template_id) {
       const { data: tpl } = await supabase
         .from('message_templates')
-        .select('body, subject, image_url, include_proposal_link, send_as_audio')
+        .select('id, name, channel, body, subject, image_url, include_proposal_link, send_as_audio, experiment_group, variant_key, target_persona, campaign_objective, cta_trigger, is_active')
         .eq('id', (campaign as any).template_id)
         .single();
-      template = tpl as any;
+      template = tpl as TemplateRow;
     }
 
-    setSendAsAudio(template?.send_as_audio || false);
+    let variants: TemplateRow[] = [];
+    if (template?.experiment_group) {
+      const { data: variantRows } = await supabase
+        .from('message_templates')
+        .select('id, name, channel, body, subject, image_url, include_proposal_link, send_as_audio, experiment_group, variant_key, target_persona, campaign_objective, cta_trigger, is_active')
+        .eq('user_id', user.id)
+        .eq('channel', campaign.channel)
+        .eq('experiment_group', template.experiment_group)
+        .eq('is_active', true)
+        .order('variant_key');
+      variants = (variantRows as TemplateRow[]) || [];
+    }
+    if (variants.length === 0 && template) variants = [template];
+
+    setSendAsAudio((template?.send_as_audio || false) && campaign.channel === 'whatsapp');
     setVoiceId(profile?.elevenlabs_voice_id || null);
 
     const replaceVars = (text: string, pres: any, publicUrl: string) => {
@@ -285,7 +404,7 @@ const Campaigns = () => {
         .replace(/\{\{telefone\}\}/g, pres.business_phone || '')
         .replace(/\{\{website\}\}/g, pres.business_website || '')
         .replace(/\{\{rating\}\}/g, pres.business_rating?.toString() || '')
-        .replace(/\{\{score\}\}/g, (pres.analysis_data as any)?.overallScore?.toString() || '')
+        .replace(/\{\{score\}\}/g, (pres.analysis_data as any)?.scores?.overall?.toString() || '')
         .replace(/\{\{link_proposta\}\}/g, publicUrl)
         .replace(/\{\{sua_empresa\}\}/g, profile?.company_name || 'Nossa Empresa');
     };
@@ -293,22 +412,52 @@ const Campaigns = () => {
     // Use published URL if available, fallback to current origin
     const publishedOrigin = 'https://prospecta-ai-ninja.lovable.app';
     
-    const previews = presentations.map(pres => {
-      const publicUrl = `${publishedOrigin}/presentation/${pres.public_id}`;
+    const cpIdByPresentation = new Map(cpRows.map((row) => [row.presentation_id, row.id]));
+
+    const previews = presentations.map((pres: any) => {
+      const cpId = cpIdByPresentation.get(pres.id) || '';
+      const chosenVariant = pickVariantForLead(
+        {
+          id: pres.id,
+          business_category: pres.business_category || null,
+          analysis_data: pres.analysis_data,
+        },
+        variants,
+        template
+      );
+      const tracking = new URLSearchParams({
+        cid: campaign.id,
+        cpid: cpId,
+        ch: campaign.channel,
+        src: campaign.channel === 'whatsapp' ? 'campaign_whatsapp' : 'campaign_email',
+      });
+      if ((campaign as any).template_id) tracking.set('tid', (campaign as any).template_id);
+      if (chosenVariant?.id) tracking.set('vid', chosenVariant.id);
+      const publicUrl = `${publishedOrigin}/presentation/${pres.public_id}?${tracking.toString()}`;
       let message: string;
       let subject: string | undefined;
-      if (template) {
-        message = replaceVars(template.body, pres, publicUrl);
-        subject = template.subject ? replaceVars(template.subject, pres, publicUrl) : undefined;
+      if (chosenVariant?.body || template?.body) {
+        const body = chosenVariant?.body || template?.body || '';
+        message = replaceVars(body, pres, publicUrl);
+        const subjectTemplate = chosenVariant?.subject || template?.subject;
+        subject = subjectTemplate ? replaceVars(subjectTemplate, pres, publicUrl) : undefined;
       } else {
-        message = `Olá! Tudo bem? 👋\n\nSou da *${profile?.company_name || 'nossa empresa'}* e preparei uma *análise personalizada* para a *${pres.business_name}*.\n\nNela você vai encontrar:\n✅ Diagnóstico completo da sua presença digital\n✅ Pontos de melhoria em SEO e performance\n✅ Oportunidades de crescimento para seu negócio\n\n📊 Acesse aqui: ${publicUrl}\n\nFique à vontade para responder se tiver alguma dúvida!`;
+        message = `Ola! Tudo bem?\n\nSou da ${profile?.company_name || 'nossa empresa'} e preparei uma analise personalizada para ${pres.business_name}.\n\nAcesse aqui: ${publicUrl}`;
       }
       return {
         id: pres.id,
+        campaignPresentationId: cpId,
         business_name: pres.business_name || 'Sem nome',
         business_phone: pres.business_phone || '',
+        business_category: pres.business_category || null,
+        pipeline_stage_id: pres.pipeline_stage_id || null,
+        analysis_data: pres.analysis_data,
+        public_id: pres.public_id,
+        publicUrl,
         message,
         subject,
+        templateId: (campaign as any).template_id || null,
+        variantId: chosenVariant?.id || null,
       };
     });
 
@@ -334,6 +483,36 @@ const Campaigns = () => {
       }
       toast({ title: 'Emails enviados!', description: `${data?.sent || 0} email(s) enviado(s)` });
     } else if (campaign.channel === 'whatsapp') {
+      const { data: optimizeData, error: optimizeError } = await supabase.functions.invoke('whatsapp-optimize-variants', {
+        body: { mode: 'auto' },
+      });
+      if (optimizeError) {
+        console.warn('Falha ao executar otimização semanal de variantes:', optimizeError);
+      } else if (optimizeData?.groups_promoted > 0) {
+        toast({
+          title: 'Otimização A/B aplicada',
+          description: `${optimizeData.groups_promoted} grupo(s) de variante atualizados antes do envio.`,
+        });
+      }
+
+      let handledByApi = false;
+      if (previewLeads.length > HYBRID_API_THRESHOLD) {
+        const { data: apiData, error: apiError } = await supabase.functions.invoke('whatsapp-send-batch', {
+          body: { campaign_id: campaign.id, threshold: HYBRID_API_THRESHOLD },
+        });
+
+        if (!apiError && apiData?.mode === 'api') {
+          handledByApi = true;
+          toast({
+            title: 'Envio API concluido',
+            description: `${apiData?.sent || 0} enviados, ${apiData?.failed || 0} falhas.`,
+          });
+        } else if (apiError) {
+          console.error('whatsapp-send-batch error, fallback manual:', apiError);
+        }
+      }
+
+      if (!handledByApi) {
       const { data: cpRows } = await supabase
         .from('campaign_presentations')
         .select('id, presentation_id')
@@ -394,17 +573,68 @@ const Campaigns = () => {
         // Add country code 55 only if not already present
         const fullPhone = phone.startsWith('55') ? phone : `55${phone}`;
         const whatsappUrl = `https://web.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(finalMessage)}`;
-        try { await navigator.clipboard.writeText(finalMessage); } catch {}
+        try {
+          await navigator.clipboard.writeText(finalMessage);
+        } catch (clipboardError) {
+          console.warn('Falha ao copiar mensagem para clipboard:', clipboardError);
+        }
         window.open(whatsappUrl, '_blank');
 
         const cpRow = (cpRows || []).find(r => r.presentation_id === lead.id);
         if (cpRow) {
+          const sentAt = new Date().toISOString();
           await supabase
             .from('campaign_presentations')
-            .update({ send_status: 'sent', sent_at: new Date().toISOString() })
+            .update({
+              send_status: 'sent',
+              sent_at: sentAt,
+              delivery_status: 'sent',
+              last_status_at: sentAt,
+              variant_id: lead.variantId || null,
+              followup_step: 0,
+              next_followup_at: plusDaysIso(1),
+            } as any)
             .eq('id', cpRow.id);
+
+          await supabase.from('campaign_message_attempts').insert({
+            user_id: user.id,
+            campaign_presentation_id: cpRow.id,
+            campaign_id: campaign.id,
+            presentation_id: lead.id,
+            template_id: lead.templateId || null,
+            variant_id: lead.variantId || null,
+            channel: 'whatsapp',
+            send_mode: 'manual',
+            provider: 'manual',
+            status: 'sent',
+            sent_at: sentAt,
+            next_followup_at: plusDaysIso(1),
+            metadata: {
+              manual_window_open: true,
+              public_url: lead.publicUrl,
+            },
+          } as any);
+
+          await supabase.from('message_conversion_events').insert({
+            event_type: 'sent',
+            presentation_id: lead.id,
+            user_id: user.id,
+            campaign_id: campaign.id,
+            campaign_presentation_id: cpRow.id,
+            template_id: lead.templateId || null,
+            variant_id: lead.variantId || null,
+            channel: 'whatsapp',
+            pipeline_stage_id: lead.pipeline_stage_id || null,
+            niche: lead.business_category || null,
+            score_bucket: scoreBucket(lead.analysis_data),
+            source: 'manual_whatsapp',
+            metadata: {
+              public_url: lead.publicUrl,
+            },
+          } as any);
         }
       }
+    }
     }
 
     await supabase
@@ -419,12 +649,24 @@ const Campaigns = () => {
     fetchCampaigns();
   };
 
+  const handleRunFollowup = async (campaignId: string) => {
+    const { data, error } = await supabase.functions.invoke('whatsapp-send-batch', {
+      body: { campaign_id: campaignId, send_followups: true },
+    });
+    if (error) {
+      toast({ title: 'Erro no follow-up', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Follow-up executado', description: `${data?.sent || 0} mensagem(ns) enviada(s).` });
+    fetchCampaigns();
+  };
+
   const statusBadge = (status: string) => {
     switch (status) {
       case 'draft': return <Badge variant="secondary">Rascunho</Badge>;
       case 'scheduled': return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Agendada</Badge>;
       case 'sending': return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Enviando</Badge>;
-      case 'sent': return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Enviada</Badge>;
+      case 'sent': return <Badge className="bg-[#EF3333]/20 text-[#EF3333] border-[#EF3333]/30">Enviada</Badge>;
       case 'cancelled': return <Badge variant="destructive">Cancelada</Badge>;
       default: return <Badge variant="secondary">{status}</Badge>;
     }
@@ -540,7 +782,11 @@ const Campaigns = () => {
                     checked={selectedPresentationIds.has(p.id)}
                     onCheckedChange={(checked) => {
                       const next = new Set(selectedPresentationIds);
-                      checked ? next.add(p.id) : next.delete(p.id);
+                      if (checked) {
+                        next.add(p.id);
+                      } else {
+                        next.delete(p.id);
+                      }
                       setSelectedPresentationIds(next);
                     }}
                   />
@@ -605,8 +851,8 @@ const Campaigns = () => {
                       <p className="text-xl font-bold text-foreground">{c.sent_count}</p>
                       <p className="text-xs text-muted-foreground">Enviadas</p>
                     </div>
-                    <div className="text-center p-2 rounded-lg bg-green-500/10">
-                      <p className="text-xl font-bold text-green-400">{c.accepted}</p>
+                    <div className="text-center p-2 rounded-lg bg-[#EF3333]/10">
+                      <p className="text-xl font-bold text-[#EF3333]">{c.accepted}</p>
                       <p className="text-xs text-muted-foreground">Aceitas</p>
                     </div>
                     <div className="text-center p-2 rounded-lg bg-red-500/10">
@@ -638,6 +884,12 @@ const Campaigns = () => {
                     <Button size="sm" className="gap-1.5 gradient-primary text-primary-foreground glow-primary" onClick={() => handleSendCampaign(c)}>
                       <Send className="w-3.5 h-3.5" />
                       Enviar
+                    </Button>
+                  )}
+                  {c.channel === 'whatsapp' && c.status === 'sent' && (
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleRunFollowup(c.id)}>
+                      <Clock className="w-3.5 h-3.5" />
+                      Follow-up
                     </Button>
                   )}
                   <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(c.id)}>

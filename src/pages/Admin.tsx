@@ -32,6 +32,37 @@ interface AdminStats {
     views: number;
     emails: number;
   }>;
+  weeklyCohorts: Array<{
+    week_start: string;
+    sent: number;
+    opened: number;
+    accepted: number;
+    rejected: number;
+    openRate: number;
+    acceptanceRate: number;
+  }>;
+  templatePerformance: Array<{
+    template_id: string | null;
+    variant_id: string | null;
+    channel: string;
+    name: string;
+    variant_key: string | null;
+    experiment_group: string | null;
+    sent: number;
+    opened: number;
+    accepted: number;
+    rejected: number;
+    openRate: number;
+    acceptanceRate: number;
+  }>;
+  operationalAlerts: Array<{
+    type: 'delivery_drop' | 'failure_spike' | 'acceptance_drop';
+    severity: 'warning' | 'critical';
+    title: string;
+    description: string;
+    metricValue: number;
+    baselineValue: number;
+  }>;
   topUsers: Array<{
     userId: string;
     email: string;
@@ -154,6 +185,104 @@ const Admin = () => {
           </div>
 
           <AdminCharts data={stats.dailyStats} period={period} onPeriodChange={handlePeriodChange} loading={chartLoading} />
+
+          {stats.operationalAlerts.length > 0 && (
+            <Card className="border-warning/40">
+              <CardHeader>
+                <CardTitle className="text-lg">Alertas Operacionais</CardTitle>
+                <CardDescription>Monitoramento automático de entrega, bloqueios e aceite</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {stats.operationalAlerts.map((alert) => (
+                  <div key={alert.type} className="rounded-lg border border-border p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium">{alert.title}</p>
+                      <Badge variant={alert.severity === 'critical' ? 'destructive' : 'secondary'}>
+                        {alert.severity === 'critical' ? 'Crítico' : 'Atenção'}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{alert.description}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Atual: {alert.metricValue}% • Baseline: {alert.baselineValue}%
+                    </p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Baseline Semanal de Conversao</CardTitle>
+                <CardDescription>Sent, opened e aceite por coorte semanal</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Semana</TableHead>
+                      <TableHead className="text-right">Sent</TableHead>
+                      <TableHead className="text-right">Open</TableHead>
+                      <TableHead className="text-right">Accept</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stats.weeklyCohorts.slice(-8).map((row) => (
+                      <TableRow key={row.week_start}>
+                        <TableCell className="text-sm">{new Date(row.week_start).toLocaleDateString('pt-BR')}</TableCell>
+                        <TableCell className="text-right">{row.sent}</TableCell>
+                        <TableCell className="text-right">{row.openRate}%</TableCell>
+                        <TableCell className="text-right font-medium">{row.acceptanceRate}%</TableCell>
+                      </TableRow>
+                    ))}
+                    {stats.weeklyCohorts.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">Nenhum dado</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Ranking de Variantes</CardTitle>
+                <CardDescription>Melhores templates por taxa de aceite</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Template</TableHead>
+                      <TableHead>Canal</TableHead>
+                      <TableHead className="text-right">Sent</TableHead>
+                      <TableHead className="text-right">Aceite</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stats.templatePerformance.slice(0, 8).map((row) => (
+                      <TableRow key={`${row.template_id || 'none'}-${row.variant_id || 'none'}-${row.channel}`}>
+                        <TableCell className="text-sm">
+                          {row.name}
+                          {row.variant_key ? ` (${row.variant_key})` : ''}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{row.channel}</TableCell>
+                        <TableCell className="text-right">{row.sent}</TableCell>
+                        <TableCell className="text-right font-medium">{row.acceptanceRate}%</TableCell>
+                      </TableRow>
+                    ))}
+                    {stats.templatePerformance.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">Nenhum dado</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>

@@ -123,11 +123,11 @@ ${youtubeUrl ? `   - YouTube: link "${youtubeUrl}" com ícone do YouTube (usar S
 ${clientLogosBlock ? `${testimonialsBlock ? '9' : '9'}. **Nossos Clientes** — Seção "Empresas que confiam em nós" com os logos dos clientes dispostos em faixa horizontal centralizada` : ''}
 ${testimonialsBlock ? `${clientLogosBlock ? '10' : '9'}. **Depoimentos de Clientes** — Seção com os depoimentos reais (com foto se disponível), mostrando resultados de outros clientes` : ''}
 ${(() => { const next = 9 + (clientLogosBlock ? 1 : 0) + (testimonialsBlock ? 1 : 0); return `${next}`; })()}. **Seção de Resposta com DOIS botões lado a lado**:
-   - Botão "✅ Aceito Receber Contato" — verde (#25D366), grande, que ao clicar executa um fetch POST para "${respondFnUrl}" com body JSON {"public_id":"PUBLIC_ID_PLACEHOLDER","response":"accepted"} e depois redireciona para a URL do WhatsApp: ${whatsappUrl || '[sem telefone]'}
-   - Botão "❌ Recusar Proposta" — vermelho/cinza escuro, mesmo tamanho, que ao clicar executa um fetch POST para "${respondFnUrl}" com body JSON {"public_id":"PUBLIC_ID_PLACEHOLDER","response":"rejected"} e mostra mensagem "Obrigado pelo retorno. Se mudar de ideia, entre em contato!"
+   - Botão "✅ Quero receber contato" — vermelho (#EF3333), grande, com microcopy de baixo atrito ("1 clique, sem compromisso"), que ao clicar executa um fetch POST para "${respondFnUrl}" com body JSON {"public_id":"PUBLIC_ID_PLACEHOLDER","response":"accepted"} e depois redireciona para a URL do WhatsApp: ${whatsappUrl || '[sem telefone]'}
+   - Botão "❌ Agora não" — vermelho/cinza escuro, mesmo tamanho, que ao clicar executa um fetch POST para "${respondFnUrl}" com body JSON {"public_id":"PUBLIC_ID_PLACEHOLDER","response":"rejected"} e mostra mensagem "Obrigado pelo retorno. Se mudar de ideia, entre em contato!"
    
    IMPORTANTE: Use JavaScript inline nos onclick dos botões. Após o fetch, desabilite ambos os botões e mostre feedback visual. Use o texto PUBLIC_ID_PLACEHOLDER como placeholder — ele será substituído pelo ID real.
-   Abaixo dos botões colocar texto "Seu feedback é importante para nós".
+   Abaixo dos botões colocar texto "Resposta em menos de 10 segundos" e "Sem compromisso".
 
 Use CSS inline e HTML puro (sem frameworks). Garanta que fique bonito e profissional em qualquer navegador.
 Retorne APENAS o HTML completo, começando com <!DOCTYPE html>.`;

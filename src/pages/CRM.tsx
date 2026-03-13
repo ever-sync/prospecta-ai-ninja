@@ -40,11 +40,11 @@ const DEFAULT_STAGES = [
   { name: 'Propostas Criadas', color: '#6366f1', position: 0, is_default: true, default_status: 'ready' },
   { name: 'Enviadas', color: '#f59e0b', position: 1, is_default: true, default_status: 'sent' },
   { name: 'Pendente', color: '#8b5cf6', position: 2, is_default: true, default_status: 'pending' },
-  { name: 'Aceitas', color: '#22c55e', position: 3, is_default: true, default_status: 'responded' },
+  { name: 'Aceitas', color: '#EF3333', position: 3, is_default: true, default_status: 'responded' },
 ];
 
 const COLOR_PALETTE = [
-  '#ef4444', '#f59e0b', '#22c55e', '#06b6d4', '#3b82f6', '#6366f1',
+  '#ef4444', '#f59e0b', '#EF3333', '#06b6d4', '#3b82f6', '#6366f1',
   '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#64748b', '#a855f7',
 ];
 

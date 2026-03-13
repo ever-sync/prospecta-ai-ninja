@@ -22,7 +22,7 @@ const statusIcon = (status: AnalysisItem['status']) => {
     case 'pending': return <Clock className="w-4 h-4 text-muted-foreground" />;
     case 'analyzing': return <Loader2 className="w-4 h-4 text-primary animate-spin" />;
     case 'generating': return <Loader2 className="w-4 h-4 text-accent animate-spin" />;
-    case 'done': return <CheckCircle2 className="w-4 h-4 text-green-500" />;
+    case 'done': return <CheckCircle2 className="w-4 h-4 text-[#EF3333]" />;
     case 'error': return <XCircle className="w-4 h-4 text-destructive" />;
   }
 };

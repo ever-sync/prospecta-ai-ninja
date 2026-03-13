@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MessageCircle, Mail, Globe, Copy, Check } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 interface SendPresentationDialogProps {
@@ -16,6 +16,13 @@ interface SendPresentationDialogProps {
 export const SendPresentationDialog = ({ open, onOpenChange, publicUrl, businessName, businessPhone }: SendPresentationDialogProps) => {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [phoneInput, setPhoneInput] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setPhoneInput(businessPhone || '');
+    }
+  }, [open, businessPhone]);
 
   const copyLink = async () => {
     await navigator.clipboard.writeText(publicUrl);
@@ -24,16 +31,46 @@ export const SendPresentationDialog = ({ open, onOpenChange, publicUrl, business
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const normalizeWhatsAppPhone = (rawPhone: string) => {
+    const digits = rawPhone.replace(/\D/g, '');
+    if (!digits) return '';
+
+    if (digits.startsWith('55')) {
+      const nationalNumber = digits.slice(2);
+      return nationalNumber.length >= 10 && nationalNumber.length <= 11 ? digits : '';
+    }
+
+    if (digits.length === 10 || digits.length === 11) {
+      return `55${digits}`;
+    }
+
+    if (digits.length >= 12 && digits.length <= 15) {
+      return digits;
+    }
+
+    return '';
+  };
+
   const sendWhatsApp = () => {
-    const phone = businessPhone?.replace(/\D/g, '') || '';
-    const fullPhone = phone && (phone.startsWith('55') ? phone : `55${phone}`);
+    const normalizedPhone = normalizeWhatsAppPhone(phoneInput);
+
+    if (phoneInput.trim() && !normalizedPhone) {
+      toast({
+        title: 'Telefone inválido',
+        description: 'Edite o telefone para um número válido antes de enviar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const message = encodeURIComponent(
       `Olá! Preparamos uma análise completa do site da ${businessName}. Confira: ${publicUrl}`
     );
-    const url = fullPhone
-      ? `https://wa.me/${fullPhone}?text=${message}`
+    const url = normalizedPhone
+      ? `https://wa.me/${normalizedPhone}?text=${message}`
       : `https://wa.me/?text=${message}`;
-    window.open(url, '_blank');
+
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -50,6 +87,19 @@ export const SendPresentationDialog = ({ open, onOpenChange, publicUrl, business
             <Button variant="outline" size="icon" onClick={copyLink}>
               {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             </Button>
+          </div>
+
+          <div className="space-y-1">
+            <Input
+              type="tel"
+              value={phoneInput}
+              onChange={(e) => setPhoneInput(e.target.value)}
+              placeholder="Telefone WhatsApp (com DDD)"
+              maxLength={20}
+            />
+            <p className="text-xs text-muted-foreground">
+              Se o telefone vindo do Google/site estiver errado, edite antes de enviar.
+            </p>
           </div>
 
           <Button onClick={sendWhatsApp} className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white">

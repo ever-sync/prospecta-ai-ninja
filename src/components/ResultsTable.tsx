@@ -80,15 +80,21 @@ export const ResultsTable = ({ businesses, onSelectBusiness, selectedIds, onTogg
               </TableCell>
               <TableCell>
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1 text-sm text-foreground">
-                    <Phone className="w-3 h-3 text-muted-foreground" />
-                    {business.phone}
-                  </div>
-                  {business.website && (
+                  {business.phone ? (
+                    <div className="flex items-center gap-1 text-sm text-foreground">
+                      <Phone className="w-3 h-3 text-muted-foreground" />
+                      {business.phone}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">Sem telefone</span>
+                  )}
+                  {business.website ? (
                     <a href={`https://${business.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
                       <ExternalLink className="w-3 h-3" />
                       {business.website}
                     </a>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">Sem site</span>
                   )}
                 </div>
               </TableCell>

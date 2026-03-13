@@ -21,6 +21,7 @@ const Index = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [contactFilter, setContactFilter] = useState<'all' | 'email' | 'phone' | 'any'>('all');
   const [analysisItems, setAnalysisItems] = useState<AnalysisItem[]>([]);
   const [showProgress, setShowProgress] = useState(false);
   const [showPipelineDialog, setShowPipelineDialog] = useState(false);

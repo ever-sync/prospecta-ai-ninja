@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Sparkles, Building2, BarChart3 } from 'lucide-react';
+import { Download, Sparkles, Building2, BarChart3, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SearchFilters } from '@/components/SearchFilters';

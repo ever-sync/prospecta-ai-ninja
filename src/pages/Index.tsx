@@ -322,7 +322,12 @@ const Index = () => {
           ) : (
             <Card className="overflow-hidden">
               <ResultsTable
-                businesses={businesses}
+                businesses={businesses.filter(b => {
+                  if (contactFilter === 'email') return !!b.email;
+                  if (contactFilter === 'phone') return !!b.phone;
+                  if (contactFilter === 'any') return !!b.email || !!b.phone;
+                  return true;
+                })}
                 onSelectBusiness={setSelectedBusiness}
                 selectedIds={selectedIds}
                 onToggleSelected={toggleSelected}

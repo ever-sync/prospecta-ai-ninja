@@ -51,7 +51,7 @@ export const SendPresentationDialog = ({ open, onOpenChange, publicUrl, business
     return '';
   };
 
-  const sendWhatsApp = () => {
+  const sendWhatsApp = async () => {
     const normalizedPhone = normalizeWhatsAppPhone(phoneInput);
 
     if (phoneInput.trim() && !normalizedPhone) {
@@ -63,14 +63,20 @@ export const SendPresentationDialog = ({ open, onOpenChange, publicUrl, business
       return;
     }
 
-    const message = encodeURIComponent(
-      `Olá! Tudo bem? 👋\n\nSou especialista em presença digital e preparei uma *análise personalizada* para a *${businessName}*.\n\nNela você vai encontrar:\n✅ Diagnóstico completo do seu site\n✅ Pontos de melhoria em SEO e performance\n✅ Oportunidades de crescimento\n\n📊 Acesse aqui: ${publicUrl}\n\nFique à vontade para me chamar se tiver alguma dúvida!`
-    );
+    const rawMessage = `Olá! Tudo bem? 👋\n\nSou especialista em presença digital e preparei uma *análise personalizada* para a *${businessName}*.\n\nNela você vai encontrar:\n✅ Diagnóstico completo do seu site\n✅ Pontos de melhoria em SEO e performance\n✅ Oportunidades de crescimento\n\n📊 Acesse aqui: ${publicUrl}\n\nFique à vontade para me chamar se tiver alguma dúvida!`;
+
+    const message = encodeURIComponent(rawMessage);
     const url = normalizedPhone
-      ? `https://wa.me/${normalizedPhone}?text=${message}`
-      : `https://wa.me/?text=${message}`;
+      ? `https://web.whatsapp.com/send?phone=${normalizedPhone}&text=${message}`
+      : `https://web.whatsapp.com/send?text=${message}`;
+
+    // Copy message as fallback
+    try {
+      await navigator.clipboard.writeText(rawMessage);
+    } catch {}
 
     window.open(url, '_blank', 'noopener,noreferrer');
+    toast({ title: '📋 Mensagem copiada!', description: 'Se o WhatsApp não abrir, cole a mensagem manualmente.' });
   };
 
   return (

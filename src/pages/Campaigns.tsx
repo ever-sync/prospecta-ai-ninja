@@ -301,7 +301,7 @@ const Campaigns = () => {
         message = replaceVars(template.body, pres, publicUrl);
         subject = template.subject ? replaceVars(template.subject, pres, publicUrl) : undefined;
       } else {
-        message = `Olá! Sou da ${profile?.company_name || 'nossa empresa'}. Preparamos uma apresentação exclusiva para ${pres.business_name}: ${publicUrl}`;
+        message = `Olá! Tudo bem? 👋\n\nSou da *${profile?.company_name || 'nossa empresa'}* e preparei uma *análise personalizada* para a *${pres.business_name}*.\n\nNela você vai encontrar:\n✅ Diagnóstico completo da sua presença digital\n✅ Pontos de melhoria em SEO e performance\n✅ Oportunidades de crescimento para seu negócio\n\n📊 Acesse aqui: ${publicUrl}\n\nFique à vontade para responder se tiver alguma dúvida!`;
       }
       return {
         id: pres.id,

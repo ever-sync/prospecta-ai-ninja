@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Sparkles, Building2, BarChart3 } from 'lucide-react';
+import { Download, Sparkles, Building2, BarChart3, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SearchFilters } from '@/components/SearchFilters';
@@ -21,6 +21,7 @@ const Index = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [contactFilter, setContactFilter] = useState<'all' | 'email' | 'phone' | 'any'>('all');
   const [analysisItems, setAnalysisItems] = useState<AnalysisItem[]>([]);
   const [showProgress, setShowProgress] = useState(false);
   const [showPipelineDialog, setShowPipelineDialog] = useState(false);
@@ -239,6 +240,27 @@ const Index = () => {
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {hasSearched && businesses.length > 0 && (
+                <div className="flex items-center gap-1 border border-border rounded-lg p-0.5">
+                  {([
+                    { value: 'all', label: 'Todos' },
+                    { value: 'any', label: 'Com contato' },
+                    { value: 'email', label: 'Com email' },
+                    { value: 'phone', label: 'Com telefone' },
+                  ] as const).map(opt => (
+                    <Button
+                      key={opt.value}
+                      variant={contactFilter === opt.value ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-7 text-xs px-2.5"
+                      onClick={() => setContactFilter(opt.value)}
+                    >
+                      {opt.value === 'all' && <Filter className="w-3 h-3 mr-1" />}
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
               {selectedIds.size > 0 && (
                 <Button
                   onClick={handleAnalyzeSelected}
@@ -300,7 +322,12 @@ const Index = () => {
           ) : (
             <Card className="overflow-hidden">
               <ResultsTable
-                businesses={businesses}
+                businesses={businesses.filter(b => {
+                  if (contactFilter === 'email') return !!b.email;
+                  if (contactFilter === 'phone') return !!b.phone;
+                  if (contactFilter === 'any') return !!b.email || !!b.phone;
+                  return true;
+                })}
                 onSelectBusiness={setSelectedBusiness}
                 selectedIds={selectedIds}
                 onToggleSelected={toggleSelected}

@@ -126,7 +126,7 @@ export const KanbanCard = ({ lead, onDragStart }: KanbanCardProps) => {
           <div className="flex items-center gap-1 pt-1">
             {lead.business_phone && (
               <a
-                href={`https://wa.me/${lead.business_phone.replace(/\D/g, '')}`}
+                href={`https://web.whatsapp.com/send?phone=${lead.business_phone.replace(/\D/g, '').startsWith('55') ? lead.business_phone.replace(/\D/g, '') : '55' + lead.business_phone.replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}

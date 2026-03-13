@@ -393,7 +393,8 @@ const Campaigns = () => {
 
         // Add country code 55 only if not already present
         const fullPhone = phone.startsWith('55') ? phone : `55${phone}`;
-        const whatsappUrl = `https://wa.me/${fullPhone}?text=${encodeURIComponent(finalMessage)}`;
+        const whatsappUrl = `https://web.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(finalMessage)}`;
+        try { await navigator.clipboard.writeText(finalMessage); } catch {}
         window.open(whatsappUrl, '_blank');
 
         const cpRow = (cpRows || []).find(r => r.presentation_id === lead.id);

@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST \"https://cccakxnoptrtdzdlwyju.supabase.co/functions/v1/deep-analyze\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNjY2FreG5vcHRydGR6ZGx3eWp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MjE2NTUsImV4cCI6MjA4ODk5NzY1NX0.VLZWxGHK7HmkrDLM-CkL5YX-UXKLXI538mqqVsUAuxg\" -H \"Content-Type: application/json\" -d '{\"\"business\"\":{\"\"name\"\":\"\"test\"\"}}')"
-    ]
-  }
-}

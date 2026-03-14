@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ProposalTemplateTab from '@/components/ProposalTemplateTab';
+import FormBuilder, { defaultFormSchema, type FormSchema } from '@/components/FormBuilder';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -85,16 +86,47 @@ const TemplatesManager = () => {
   const [formCampaignObjective, setFormCampaignObjective] = useState('');
   const [formCtaTrigger, setFormCtaTrigger] = useState('');
   const [formIsActive, setFormIsActive] = useState(true);
+  const [formSchema, setFormSchema] = useState<FormSchema>(defaultFormSchema());
+  const [formSchemaId, setFormSchemaId] = useState<string | null>(null);
+  const [showResponses, setShowResponses] = useState<string | null>(null); // template id
+  const [responses, setResponses] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [generatingAudio, setGeneratingAudio] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
   const [audioRef] = useState<{ current: HTMLAudioElement | null }>({ current: null });
 
   useEffect(() => {
     if (user) fetchTemplates();
   }, [user]);
+
+  const handleSendTest = async () => {
+    if (!user || !user.email) return;
+    setSendingTest(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-marketing-email', {
+        body: {
+          targetEmail: user.email,
+          customSubject: formSubject,
+          customBody: formBody,
+          variables: {
+            nome_empresa: 'Restaurante Exemplo',
+            sua_empresa: 'Prospecta IA',
+            link_proposta: 'https://prospecta.ai/demo'
+          }
+        }
+      });
+
+      if (error) throw error;
+      toast({ title: 'Teste enviado!', description: `Verifique sua caixa de entrada (${user.email})` });
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar teste', description: err.message, variant: 'destructive' });
+    } finally {
+      setSendingTest(false);
+    }
+  };
 
   const fetchTemplates = async () => {
     if (!user) return;
@@ -120,10 +152,12 @@ const TemplatesManager = () => {
     setFormCampaignObjective('');
     setFormCtaTrigger('');
     setFormIsActive(true);
+    setFormSchema(defaultFormSchema());
+    setFormSchemaId(null);
     setShowEditor(true);
   };
 
-  const openEdit = (t: Template) => {
+  const openEdit = async (t: Template) => {
     setEditingTemplate(t);
     setCreationChannel(null);
     setFormName(t.name);
@@ -139,19 +173,50 @@ const TemplatesManager = () => {
     setFormCampaignObjective(t.campaign_objective || '');
     setFormCtaTrigger(t.cta_trigger || '');
     setFormIsActive(t.is_active ?? true);
+    if (t.channel === 'formulario') {
+      const { data } = await supabase.from('form_schemas').select('*').eq('template_id', t.id).maybeSingle();
+      if (data) {
+        setFormSchemaId(data.id);
+        setFormSchema({
+          title: data.title,
+          description: data.description,
+          thank_you_message: data.thank_you_message,
+          slug: data.slug,
+          fields: data.fields as any,
+        });
+      } else {
+        setFormSchemaId(null);
+        setFormSchema(defaultFormSchema());
+      }
+    }
     setShowEditor(true);
   };
 
+  const openResponses = async (templateId: string) => {
+    const { data: schemaData } = await supabase
+      .from('form_schemas').select('id').eq('template_id', templateId).maybeSingle();
+    if (!schemaData) { toast({ title: 'Formulário não configurado ainda.' }); return; }
+    const { data } = await supabase
+      .from('form_responses').select('*').eq('form_schema_id', schemaData.id).order('submitted_at', { ascending: false });
+    setResponses(data || []);
+    setShowResponses(templateId);
+  };
+
   const handleSave = async () => {
-    if (!user || !formName.trim() || !formBody.trim()) return;
+    if (!user || !formName.trim()) return;
+    if (formChannel !== 'formulario' && !formBody.trim()) return;
     setSaving(true);
+
+    const bodyValue = formChannel === 'formulario'
+      ? `Formulário: ${formSchema.title} (${formSchema.fields.length} campos)`
+      : formBody;
 
     const payload = {
       user_id: user.id,
       name: formName.trim(),
       channel: formChannel,
       subject: formSubject.trim(),
-      body: formBody,
+      body: bodyValue,
       image_url: formImageUrl,
       include_proposal_link: formIncludeLink,
       send_as_audio: formChannel === 'whatsapp' ? formSendAsAudio : false,
@@ -165,10 +230,37 @@ const TemplatesManager = () => {
     };
 
     let error;
+    let savedTemplateId: string | undefined = editingTemplate?.id;
     if (editingTemplate) {
       ({ error } = await supabase.from('message_templates').update(payload).eq('id', editingTemplate.id));
     } else {
-      ({ error } = await supabase.from('message_templates').insert(payload));
+      const { data: inserted, error: insertErr } = await supabase.from('message_templates').insert(payload).select('id').single();
+      error = insertErr;
+      savedTemplateId = inserted?.id;
+    }
+
+    // Upsert form_schemas if formulario
+    if (!error && formChannel === 'formulario' && savedTemplateId) {
+      if (!formSchema.slug.trim()) {
+        toast({ title: 'Defina uma URL para o formulário', description: 'Aba Configurações → URL personalizada', variant: 'destructive' });
+        setSaving(false);
+        return;
+      }
+      const schemaPayload = {
+        template_id: savedTemplateId,
+        user_id: user.id,
+        title: formSchema.title,
+        description: formSchema.description,
+        thank_you_message: formSchema.thank_you_message,
+        slug: formSchema.slug,
+        fields: formSchema.fields as any,
+        updated_at: new Date().toISOString(),
+      };
+      if (formSchemaId) {
+        await supabase.from('form_schemas').update(schemaPayload).eq('id', formSchemaId);
+      } else {
+        await supabase.from('form_schemas').insert({ ...schemaPayload });
+      }
     }
 
     if (error) {
@@ -391,6 +483,20 @@ const TemplatesManager = () => {
                 <p className="line-clamp-2 text-sm text-[#5e5e66]">{t.body}</p>
               </div>
               <div className="flex shrink-0 gap-1">
+                {t.channel === 'formulario' && (
+                  <>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-[#707078] hover:bg-[#f5f5f7] hover:text-[#1A1A1A]" onClick={() => openResponses(t.id)} title="Ver Respostas">
+                      <ClipboardList className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-[#707078] hover:bg-[#f5f5f7] hover:text-[#1A1A1A]" onClick={async () => {
+                      const { data } = await supabase.from('form_schemas').select('slug').eq('template_id', t.id).maybeSingle();
+                      if (data?.slug) { navigator.clipboard.writeText(`${window.location.origin}/form/${data.slug}`); toast({ title: 'Link copiado!' }); }
+                      else { toast({ title: 'URL não configurada', description: 'Edite o formulário e defina uma URL.', variant: 'destructive' }); }
+                    }} title="Copiar Link">
+                      <Link2 className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-[#707078] hover:bg-[#f5f5f7] hover:text-[#1A1A1A]" onClick={() => openEdit(t)} title="Editar">
                   <Pencil className="h-4 w-4" />
                 </Button>
@@ -420,7 +526,53 @@ const TemplatesManager = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Button 
+          onClick={() => openCreate('whatsapp')}
+          className="h-auto flex-col gap-2 rounded-2xl border border-[#ececf0] bg-white py-4 text-[#1A1A1A] shadow-[0_4px_12px_rgba(0,0,0,0.03)] hover:bg-[#fafafa]"
+          variant="outline"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#25D366]/10 text-[#25D366]">
+            <MessageSquare className="h-5 w-5" />
+          </div>
+          <span className="text-sm font-semibold whitespace-nowrap">Novo WhatsApp</span>
+        </Button>
+
+        <Button 
+          onClick={() => openCreate('email')}
+          className="h-auto flex-col gap-2 rounded-2xl border border-[#ececf0] bg-white py-4 text-[#1A1A1A] shadow-[0_4px_12px_rgba(0,0,0,0.03)] hover:bg-[#fafafa]"
+          variant="outline"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EF3333]/10 text-[#EF3333]">
+            <Mail className="h-5 w-5" />
+          </div>
+          <span className="text-sm font-semibold whitespace-nowrap">Novo Email</span>
+        </Button>
+
+        <Button 
+          onClick={() => openCreate('formulario')}
+          className="h-auto flex-col gap-2 rounded-2xl border border-[#ececf0] bg-white py-4 text-[#1A1A1A] shadow-[0_4px_12px_rgba(0,0,0,0.03)] hover:bg-[#fafafa]"
+          variant="outline"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 text-amber-500">
+            <ClipboardList className="h-5 w-5" />
+          </div>
+          <span className="text-sm font-semibold whitespace-nowrap">Novo Formulário</span>
+        </Button>
+
+        <Button 
+          onClick={() => setActiveTab('proposta')}
+          className="h-auto flex-col gap-2 rounded-2xl border border-[#ececf0] bg-white py-4 text-[#1A1A1A] shadow-[0_4px_12px_rgba(0,0,0,0.03)] hover:bg-[#fafafa]"
+          variant="outline"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 text-blue-500">
+            <FileText className="h-5 w-5" />
+          </div>
+          <span className="text-sm font-semibold whitespace-nowrap">Design Proposta</span>
+        </Button>
+      </div>
+
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid h-auto w-full grid-cols-4 rounded-[22px] border border-[#ececf0] bg-[#f4f4f6] p-1.5">
           <TabsTrigger
@@ -463,6 +615,42 @@ const TemplatesManager = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Responses dialog */}
+      <Dialog open={!!showResponses} onOpenChange={(o) => { if (!o) setShowResponses(null); }}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto rounded-[22px] border border-[#ececf0] bg-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#1A1A1A]">
+              <ClipboardList className="h-5 w-5 text-[#EF3333]" />
+              Respostas do Formulário
+            </DialogTitle>
+          </DialogHeader>
+          {responses.length === 0 ? (
+            <p className="py-8 text-center text-sm text-[#6d6d75]">Nenhuma resposta recebida ainda.</p>
+          ) : (
+            <div className="space-y-3">
+              {responses.map((r, i) => (
+                <Card key={r.id} className="rounded-[18px] border border-[#ececf0] bg-[#fafafd] p-4">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#8a8a92]">
+                    Resposta #{responses.length - i} · {new Date(r.submitted_at).toLocaleString('pt-BR')}
+                  </p>
+                  <div className="space-y-1.5">
+                    {Object.entries(r.respondent_data as Record<string, string | string[]>).map(([key, val]) => (
+                      <div key={key} className="flex gap-2 text-sm">
+                        <span className="shrink-0 font-medium text-[#5f5f67]">{key}:</span>
+                        <span className="text-[#1A1A1A]">{Array.isArray(val) ? val.join(', ') : val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowResponses(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showEditor} onOpenChange={setShowEditor}>
         <DialogContent key={`${editingTemplate?.id || 'new'}-${formChannel}`} className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-[22px] border border-[#ececf0] bg-white">
@@ -529,114 +717,150 @@ const TemplatesManager = () => {
             </div>
 
             {formChannel === 'email' && (
-              <div className="space-y-2">
-                <Label>Assunto do Email</Label>
-                <Input className={fieldClass} value={formSubject} onChange={(e) => setFormSubject(e.target.value)} placeholder="Ex: Analise exclusiva para {{nome_empresa}}" />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label className="text-sm">Variaveis Disponiveis</Label>
-              <p className="text-xs text-[#6d6d75]">Clique para inserir no corpo da mensagem.</p>
-              <div className="flex flex-wrap gap-1.5">
-                {VARIABLES.map((v) => (
-                  <Badge
-                    key={v.key}
-                    variant="outline"
-                    className="cursor-pointer rounded-full border-[#ececf0] bg-white text-xs text-[#5f5f67] hover:border-[#ef3333]/35 hover:bg-[#fff5f6]"
-                    onClick={() => insertVariable(v.key)}
-                    title={v.desc}
-                  >
-                    {v.label}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Corpo da Mensagem *</Label>
-              <Textarea
-                value={formBody}
-                onChange={(e) => setFormBody(e.target.value)}
-                placeholder={formChannel === 'whatsapp' ? 'Ola! Sou da {{sua_empresa}}...' : '<p>Ola!</p><p>Preparamos uma analise para {{nome_empresa}}...</p>'}
-                className="min-h-[200px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] font-mono text-sm focus-visible:ring-[#ef3333]"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Imagem (opcional)</Label>
-              <div className="flex items-center gap-3">
-                {formImageUrl && <img src={formImageUrl} alt="Preview" className="h-16 w-16 rounded-lg border border-[#e6e6eb] object-cover" />}
-                <label className="cursor-pointer">
-                  <Button variant="outline" size="sm" className="gap-2 rounded-xl border-[#e6e6eb] hover:bg-[#f8f8fa]" asChild>
-                    <span>
-                      <Image className="h-4 w-4" />
-                      {uploading ? 'Enviando...' : 'Upload Imagem'}
-                    </span>
-                  </Button>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
-                </label>
-                {formImageUrl && (
-                  <Button variant="ghost" size="sm" onClick={() => setFormImageUrl('')} className="rounded-xl text-[#6d6d75] hover:bg-[#f5f5f7]">
-                    Remover
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-[#fafafd] p-3">
-              <div>
-                <Label className="text-sm font-medium">Incluir Link da Proposta</Label>
-                <p className="text-xs text-[#6d6d75]">Adiciona automaticamente o link da apresentacao.</p>
-              </div>
-              <Switch checked={formIncludeLink} onCheckedChange={setFormIncludeLink} />
-            </div>
-
-            {formChannel === 'whatsapp' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-[#fafafd] p-3">
-                  <div>
-                    <Label className="text-sm font-medium">Enviar como Audio</Label>
-                    <p className="text-xs text-[#6d6d75]">Converte o texto em audio com sua voz clonada (ElevenLabs).</p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Assunto do Email</Label>
+                    <span className="text-[10px] text-[#6d6d75] uppercase tracking-wider">Abertura: 22% (est.)</span>
                   </div>
-                  <Switch checked={formSendAsAudio} onCheckedChange={setFormSendAsAudio} />
+                  <div className="relative">
+                    <Input 
+                      id="email-subject-input"
+                      className={fieldClass} 
+                      value={formSubject} 
+                      onChange={(e) => setFormSubject(e.target.value)} 
+                      placeholder="Ex: Analise exclusiva para {{nome_empresa}}" 
+                    />
+                  </div>
                 </div>
 
-                {formSendAsAudio && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-10 w-full gap-2 rounded-xl border-[#e6e6eb] hover:bg-[#f8f8fa]"
-                    onClick={handleAudioPreview}
-                    disabled={generatingAudio || !formBody.trim()}
-                  >
-                    {generatingAudio ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : audioPlaying ? (
-                      <Square className="h-4 w-4" />
-                    ) : (
-                      <Volume2 className="h-4 w-4" />
-                    )}
-                    {generatingAudio ? 'Gerando audio...' : audioPlaying ? 'Parar audio' : 'Ouvir preview do audio'}
-                  </Button>
-                )}
+                {/* Inbox Preview Case */}
+                <div className="rounded-xl border border-[#ececf0] bg-[#f8f8fa] p-4">
+                  <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.12em] text-[#8a8a92]">Preview na Caixa de Entrada</p>
+                  <div className="flex items-start gap-3 rounded-lg bg-white p-3 shadow-sm">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EF3333]/10 text-[#EF3333]">
+                      <Mail className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-bold text-[#1A1A1A]">
+                          {user?.email?.split('@')[0] || 'Seu Time'}
+                        </p>
+                        <span className="text-[10px] text-[#8a8a92]">10:42 AM</span>
+                      </div>
+                      <p className="truncate text-sm font-medium text-[#1A1A1A]">
+                        {formSubject.replace(/\{\{nome_empresa\}\}/g, 'Restaurante Exemplo') || '(Sem assunto)'}
+                      </p>
+                      <p className="line-clamp-1 text-xs text-[#6d6d75]">
+                        {getPreviewText()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label className="text-sm">Pre-visualizacao</Label>
-              <Card className="rounded-xl border border-[#ececf0] bg-[#fafafd] p-4">
-                <p className="whitespace-pre-wrap text-sm text-[#1A1A1A]">{getPreviewText()}</p>
-              </Card>
-            </div>
+            {formChannel === 'formulario' ? (
+              <FormBuilder value={formSchema} onChange={setFormSchema} />
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Tags de Personalização</Label>
+                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-[#ececf0] bg-white">Smart Tags</Badge>
+                  </div>
+                  <p className="text-[11px] text-[#6d6d75]">Clique para inserir onde o texto estiver focado.</p>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {VARIABLES.map((v) => (
+                      <Button key={v.key} variant="ghost" size="sm"
+                        className="h-7 rounded-lg border border-[#ececf0] bg-white px-2.5 text-[11px] font-medium text-[#5f5f67] hover:border-[#ef3333]/35 hover:bg-[#fff5f6] hover:text-[#ef3333]"
+                        onClick={() => {
+                          const subjectEl = document.getElementById('email-subject-input') as HTMLInputElement;
+                          const bodyEl = document.querySelector('textarea') as HTMLTextAreaElement;
+                          if (document.activeElement === subjectEl) {
+                            const start = subjectEl.selectionStart || 0; const end = subjectEl.selectionEnd || 0; const text = subjectEl.value;
+                            setFormSubject(text.substring(0, start) + v.key + text.substring(end));
+                          } else {
+                            const start = bodyEl.selectionStart || 0; const end = bodyEl.selectionEnd || 0; const text = bodyEl.value;
+                            setFormBody(text.substring(0, start) + v.key + text.substring(end));
+                          }
+                        }} title={v.desc}>{v.label}</Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Corpo da Mensagem *</Label>
+                  <Textarea value={formBody} onChange={(e) => setFormBody(e.target.value)}
+                    placeholder={formChannel === 'whatsapp' ? 'Ola! Sou da {{sua_empresa}}...' : '<p>Ola!</p><p>Preparamos uma analise para {{nome_empresa}}...</p>'}
+                    className="min-h-[200px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] font-mono text-sm focus-visible:ring-[#ef3333]" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Imagem (opcional)</Label>
+                  <div className="flex items-center gap-3">
+                    {formImageUrl && <img src={formImageUrl} alt="Preview" className="h-16 w-16 rounded-lg border border-[#e6e6eb] object-cover" />}
+                    <label className="cursor-pointer">
+                      <Button variant="outline" size="sm" className="gap-2 rounded-xl border-[#e6e6eb] hover:bg-[#f8f8fa]" asChild>
+                        <span><Image className="h-4 w-4" />{uploading ? 'Enviando...' : 'Upload Imagem'}</span>
+                      </Button>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
+                    </label>
+                    {formImageUrl && <Button variant="ghost" size="sm" onClick={() => setFormImageUrl('')} className="rounded-xl text-[#6d6d75] hover:bg-[#f5f5f7]">Remover</Button>}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-[#fafafd] p-3">
+                  <div>
+                    <Label className="text-sm font-medium">Incluir Link da Proposta</Label>
+                    <p className="text-xs text-[#6d6d75]">Adiciona automaticamente o link da apresentacao.</p>
+                  </div>
+                  <Switch checked={formIncludeLink} onCheckedChange={setFormIncludeLink} />
+                </div>
+                {formChannel === 'whatsapp' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-[#fafafd] p-3">
+                      <div>
+                        <Label className="text-sm font-medium">Enviar como Audio</Label>
+                        <p className="text-xs text-[#6d6d75]">Converte o texto em audio com sua voz clonada (ElevenLabs).</p>
+                      </div>
+                      <Switch checked={formSendAsAudio} onCheckedChange={setFormSendAsAudio} />
+                    </div>
+                    {formSendAsAudio && (
+                      <Button type="button" variant="outline" size="sm" className="h-10 w-full gap-2 rounded-xl border-[#e6e6eb] hover:bg-[#f8f8fa]"
+                        onClick={handleAudioPreview} disabled={generatingAudio || !formBody.trim()}>
+                        {generatingAudio ? <Loader2 className="h-4 w-4 animate-spin" /> : audioPlaying ? <Square className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                        {generatingAudio ? 'Gerando audio...' : audioPlaying ? 'Parar audio' : 'Ouvir preview do audio'}
+                      </Button>
+                    )}
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label className="text-sm">Pre-visualizacao</Label>
+                  <Card className="rounded-xl border border-[#ececf0] bg-[#fafafd] p-4">
+                    <p className="whitespace-pre-wrap text-sm text-[#1A1A1A]">{getPreviewText()}</p>
+                  </Card>
+                </div>
+              </>
+            )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowEditor(false)}>Cancelar</Button>
+            
+            {formChannel === 'email' && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleSendTest}
+                disabled={sendingTest || !formBody.trim()}
+                className="rounded-xl border border-[#ececf0] bg-white text-[#1A1A1A] hover:bg-[#f8f8fa]"
+              >
+                {sendingTest ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4 text-[#EF3333]" />}
+                Enviar Teste
+              </Button>
+            )}
+
             <Button
               onClick={handleSave}
-              disabled={saving || !formName.trim() || !formBody.trim()}
+              disabled={saving || !formName.trim() || (formChannel !== 'formulario' && !formBody.trim())}
               className="rounded-xl gradient-primary text-primary-foreground"
             >
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}

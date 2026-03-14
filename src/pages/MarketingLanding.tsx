@@ -1,11 +1,10 @@
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { Rocket, Search, MessageSquare, Zap, BarChart3, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import loginLogo from '@/logos/ligth.svg';
-import rocketHero from '@/logos/rocket-hero.png';
 
 const MarketingLanding = () => {
   const navigate = useNavigate();
@@ -19,7 +18,7 @@ const MarketingLanding = () => {
     }
   };
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -29,14 +28,14 @@ const MarketingLanding = () => {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { y: 20, opacity: 0 },
     visible: {
       y: 0,
       opacity: 1,
       transition: {
         duration: 0.6,
-        ease: "easeOut",
+        ease: [0.22, 1, 0.36, 1],
       },
     },
   };
@@ -112,14 +111,13 @@ const MarketingLanding = () => {
           >
             <div className="relative z-10 w-full max-w-[500px] mx-auto">
               {/* This is where the generated image would go. Using a stylized illustration for now. */}
-              <div className="aspect-square bg-gradient-to-br from-white to-[#f8f8fa] rounded-[40px] shadow-2xl flex items-center justify-center p-12 border border-white relative overflow-hidden group">
+              <div className="aspect-square bg-gradient-to-br from-white to-[#f8f8fa] rounded-[40px] flex items-center justify-center p-12 border border-white relative overflow-hidden group">
                 <div className="absolute inset-0 bg-[#ef3333]/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <motion.div
                   animate={{ y: [0, -20, 0] }}
                   transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  className="relative z-10"
                 >
-                  <img src={rocketHero} alt="envPRO Rocket" className="w-80 h-auto object-contain" />
+                  <Rocket className="w-64 h-64 text-[#ef3333]" strokeWidth={1} />
                 </motion.div>
                 {/* Visual accents */}
                 <div className="absolute top-10 right-10 w-20 h-20 bg-[#ef3333]/10 blur-3xl rounded-full" />
@@ -159,7 +157,24 @@ const MarketingLanding = () => {
       <section id="features" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col lg:flex-row items-center gap-20">
-            <div className="flex-1 order-2 lg:order-1">
+            <div className="flex-1 order-1">
+              <h2 className="text-4xl lg:text-[42px] xl:text-[48px] font-bold mb-8 leading-[1.1] tracking-tight">
+                <span className="block lg:whitespace-nowrap">Conheça o Scanner de DNA:</span>
+                <span className="block text-[#ef3333] lg:whitespace-nowrap">Sua inteligência de elite.</span>
+              </h2>
+              <p className="text-lg text-[#66666d] mb-8 leading-relaxed">
+                Em 10 minutos, a envPRO faz o que seu time comercial levaria uma semana. Nosso motor rastreia o ecossistema digital do lead e gera uma proposta tão personalizada que ele vai acreditar que você parou tudo só para estudá-lo.
+              </p>
+              <ul className="space-y-4">
+                {["Análise de Google Meu Negócio", "Avaliações de concorrentes", "Auditoria de Site e Anúncios"].map((text, i) => (
+                  <li key={i} className="flex items-center gap-3 font-medium">
+                    <CheckCircle2 className="w-5 h-5 text-[#ef3333]" />
+                    {text}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="flex-1 order-2">
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-6 rounded-3xl bg-[#f8f8fa] border border-[#ececf0] space-y-4">
                   <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-[#ef3333]">
@@ -175,24 +190,21 @@ const MarketingLanding = () => {
                   <h4 className="font-bold">Benchmark</h4>
                   <p className="text-sm text-[#66666d]">Compare o lead com os 3 melhores vizinhos.</p>
                 </div>
+                <div className="p-6 rounded-3xl bg-[#f8f8fa] border border-[#ececf0] space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-[#ef3333]">
+                    <Zap className="w-6 h-6" />
+                  </div>
+                  <h4 className="font-bold">Smart Hooks</h4>
+                  <p className="text-sm text-[#66666d]">Ganchos de abordagem personalizados gerados por IA.</p>
+                </div>
+                <div className="p-6 rounded-3xl bg-[#f8f8fa] border border-[#ececf0] mt-8 space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-[#ef3333]">
+                    <MessageSquare className="w-6 h-6" />
+                  </div>
+                  <h4 className="font-bold">WhatsApp Loop</h4>
+                  <p className="text-sm text-[#66666d]">Transição imediata para o engajamento real.</p>
+                </div>
               </div>
-            </div>
-            <div className="flex-1 order-1 lg:order-2">
-              <h2 className="text-4xl lg:text-5xl font-bold mb-8 leading-[1.2]">
-                Conheça o Scanner de DNA: <br />
-                <span className="text-[#ef3333]">Sua inteligência de elite.</span>
-              </h2>
-              <p className="text-lg text-[#66666d] mb-8 leading-relaxed">
-                Em 10 minutos, a envPRO faz o que seu time comercial levaria uma semana. Nosso motor rastreia o ecossistema digital do lead e gera uma proposta tão personalizada que ele vai acreditar que você parou tudo só para estudá-lo.
-              </p>
-              <ul className="space-y-4">
-                {["Análise de Google Meu Negócio", "Avaliações de concorrentes", "Auditoria de Site e Anúncios"].map((text, i) => (
-                  <li key={i} className="flex items-center gap-3 font-medium">
-                    <CheckCircle2 className="w-5 h-5 text-[#ef3333]" />
-                    {text}
-                  </li>
-                ))}
-              </ul>
             </div>
           </div>
         </div>
@@ -214,8 +226,14 @@ const MarketingLanding = () => {
             </p>
             <div className="flex items-center justify-center gap-4">
               <div className="flex -space-x-4">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="w-12 h-12 rounded-full border-4 border-white bg-[#ececf0]" />
+                {[
+                  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
+                  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
+                  "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop"
+                ].map((url, i) => (
+                  <div key={i} className="w-12 h-12 rounded-full border-4 border-white bg-[#ececf0] overflow-hidden">
+                    <img src={url} alt={`Closer ${i + 1}`} className="w-full h-full object-cover" />
+                  </div>
                 ))}
               </div>
               <p className="text-sm font-bold text-[#ef3333]">Usado por +500 Closers de elite</p>

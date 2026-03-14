@@ -18,6 +18,7 @@ import Templates from "./pages/Templates";
 import Admin from "./pages/Admin";
 import PresentationView from "./pages/PresentationView";
 import NotFound from "./pages/NotFound";
+import FormView from "./pages/FormView";
 
 const queryClient = new QueryClient();
 
@@ -26,11 +27,17 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <Routes>
           <Route path="/" element={<MarketingLanding />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/presentation/:publicId" element={<PresentationView />} />
+          <Route path="/form/:slug" element={<FormView />} />
           <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/crm" element={<CRM />} />

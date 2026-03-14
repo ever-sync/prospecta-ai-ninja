@@ -27,6 +27,11 @@ export const useAuth = () => {
 
   const signUp = async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({ email, password });
+    if (!error) {
+      supabase.functions.invoke('send-system-email', {
+        body: { type: 'onboarding', user_email: email, variables: { email } },
+      }).catch(() => {});
+    }
     return { error };
   };
 

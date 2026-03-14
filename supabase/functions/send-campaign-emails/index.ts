@@ -276,6 +276,25 @@ Deno.serve(async (req) => {
       .update({ status: 'sent', sent_at: new Date().toISOString() })
       .eq('id', campaign_id);
 
+    // Notify campaign owner
+    if (user.email && sentCount > 0) {
+      const svcClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        { auth: { persistSession: false } }
+      );
+      await svcClient.functions.invoke('send-system-email', {
+        body: {
+          type: 'campaign_started',
+          user_email: user.email,
+          variables: {
+            nome_campanha: campaign.name ?? 'Campanha',
+            total_enviados: String(sentCount),
+          },
+        },
+      }).catch(() => {});
+    }
+
     return new Response(JSON.stringify({ success: true, sent: sentCount }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

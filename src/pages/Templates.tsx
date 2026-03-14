@@ -16,12 +16,14 @@ const Templates = () => {
               Organize mensagens, variantes A/B e modelos de proposta no mesmo padrao visual do dashboard.
             </p>
           </div>
-          <div className="rounded-2xl border border-[#f2d4d8] bg-[#fff5f6] px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#b94456]">Recomendado</p>
-            <p className="mt-1 flex items-center gap-1 text-sm font-semibold text-[#7f2432]">
-              <Sparkles className="h-4 w-4" />
-              Mantenha 2 variantes por canal
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="hidden rounded-2xl border border-[#f2d4d8] bg-[#fff5f6] px-4 py-3 sm:block">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#b94456]">Recomendado</p>
+              <p className="mt-1 flex items-center gap-1 text-sm font-semibold text-[#7f2432]">
+                <Sparkles className="h-4 w-4" />
+                Mantenha 2 variantes por canal
+              </p>
+            </div>
           </div>
         </div>
       </section>

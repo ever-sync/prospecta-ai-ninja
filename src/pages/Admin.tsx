@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AdminCharts, type PeriodDays } from '@/components/admin/AdminCharts';
 import PlanManager from '@/components/admin/PlanManager';
 import ApiUsageMonitor from '@/components/admin/ApiUsageMonitor';
+import SystemEmailsManager from '@/components/admin/SystemEmailsManager';
 
 interface AdminStats {
   totals: {
@@ -99,7 +101,7 @@ const StatCard = ({ icon: Icon, label, value, sub, color }: {
 );
 
 const Admin = () => {
-  const { user } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,33 +109,48 @@ const Admin = () => {
   const [period, setPeriod] = useState<PeriodDays>(30);
   const [chartLoading, setChartLoading] = useState(false);
 
+  const isUnauthorizedFunctionsError = (err: unknown) =>
+    err instanceof FunctionsHttpError && err.context?.status === 401;
+
   const fetchStats = useCallback(async (days: PeriodDays, isInitial = false) => {
-    if (!user) return;
+    if (!user || !session) return;
     if (!isInitial) setChartLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('admin-stats', { body: { days } });
       if (error) throw error;
       setStats(data);
     } catch (err) {
+      if (isUnauthorizedFunctionsError(err)) {
+        if (isInitial) setLoading(false);
+        setChartLoading(false);
+        toast({ title: 'Sessao sem permissao para estatisticas', variant: 'destructive' });
+        return;
+      }
+
       console.error('Failed to fetch admin stats:', err);
       toast({ title: 'Erro ao carregar estatísticas', variant: 'destructive' });
     } finally {
       if (isInitial) setLoading(false);
       setChartLoading(false);
     }
-  }, [user, toast]);
+  }, [session, toast, user]);
 
   useEffect(() => {
     const checkAdminAndFetch = async () => {
-      if (!user) return;
-      const { data: roleData } = await supabase
-        .from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle();
-      if (!roleData) { setIsAdmin(false); setLoading(false); return; }
+      if (authLoading) return;
+      if (!user || !session) {
+        setLoading(false);
+        return;
+      }
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles').select('role').eq('user_id', user.id).in('role', ['admin', 'moderator']);
+      console.log('[Admin] role check:', { userId: user.id, roleData, roleError });
+      if (!roleData || roleData.length === 0) { setIsAdmin(false); setLoading(false); return; }
       setIsAdmin(true);
       fetchStats(period, true);
     };
     checkAdminAndFetch();
-  }, [user]);
+  }, [authLoading, fetchStats, period, session, user]);
 
   const handlePeriodChange = (newPeriod: PeriodDays) => {
     setPeriod(newPeriod);
@@ -173,6 +190,7 @@ const Admin = () => {
           <TabsTrigger value="dashboard">📊 Dashboard</TabsTrigger>
           <TabsTrigger value="custos">💰 Custos & APIs</TabsTrigger>
           <TabsTrigger value="planos">👑 Planos</TabsTrigger>
+          <TabsTrigger value="emails">📧 Emails</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-8">
@@ -383,6 +401,10 @@ const Admin = () => {
 
         <TabsContent value="planos">
           <PlanManager />
+        </TabsContent>
+
+        <TabsContent value="emails">
+          <SystemEmailsManager />
         </TabsContent>
       </Tabs>
     </div>

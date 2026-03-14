@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -33,10 +34,13 @@ export interface PlanData {
 }
 
 export const useSubscription = () => {
-  const { user } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [plans, setPlans] = useState<PlanData[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const isUnauthorizedFunctionsError = (err: unknown) =>
+    err instanceof FunctionsHttpError && err.context?.status === 401;
 
   // Fetch plans from DB
   useEffect(() => {
@@ -52,23 +56,40 @@ export const useSubscription = () => {
   }, []);
 
   const checkSubscription = useCallback(async () => {
-    if (!user) return;
+    if (authLoading) return;
+
+    if (!user || !session) {
+      setSubscription(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke('check-subscription');
       if (error) throw error;
       setSubscription(data);
     } catch (err) {
+      if (isUnauthorizedFunctionsError(err)) {
+        setSubscription(null);
+        return;
+      }
+
       console.error('Failed to check subscription:', err);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [authLoading, session, user]);
 
   useEffect(() => {
+    if (authLoading) return;
+
     checkSubscription();
+
+    if (!user || !session) return;
+
     const interval = setInterval(checkSubscription, 60000);
     return () => clearInterval(interval);
-  }, [checkSubscription]);
+  }, [authLoading, checkSubscription, session, user]);
 
   const canUse = useCallback((resource: 'presentations' | 'campaigns' | 'emails') => {
     if (!subscription) return true;

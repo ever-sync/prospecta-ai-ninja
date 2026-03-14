@@ -718,7 +718,7 @@ const Settings = () => {
                     <Bot className="h-5 w-5 text-[#EF3333]" />
                     Chaves de API de IA
                   </h3>
-                  <p className="mt-1 text-sm text-[#6d6d75]">Conecte ate 2 provedores para usar suas proprias chaves (Gemini, Claude Code, Groq, OpenAI ou outro).</p>
+                  <p className="mt-1 text-sm text-[#6d6d75]">Conecte ate 2 provedores de IA para usar suas proprias chaves. O consumo de Firecrawl permanece na infraestrutura da envPRO.</p>
                 </div>
                 <Badge variant="outline" className="rounded-full border-[#f2d4d8] bg-[#fff3f5] text-[#9b2a3d]">
                   {apiKeys.length}/{MAX_AI_KEYS} conectadas
@@ -776,7 +776,7 @@ const Settings = () => {
                     {savingApiKey ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     {providerAlreadyConnected ? 'Atualizar chave' : 'Salvar chave'}
                   </Button>
-                  <p className="text-xs text-[#7b7b83]">As chaves ficam vinculadas apenas ao seu usuario.</p>
+                  <p className="text-xs text-[#7b7b83]">As chaves ficam vinculadas apenas ao seu usuario. Aqui o cliente cadastra somente a chave de IA.</p>
                 </div>
               </div>
 

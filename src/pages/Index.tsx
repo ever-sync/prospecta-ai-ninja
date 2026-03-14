@@ -1,22 +1,40 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Download, Sparkles, Building2, BarChart3, Filter, Search, WandSparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { SearchFilters } from '@/components/SearchFilters';
-import { ResultsTable } from '@/components/ResultsTable';
-import { BusinessAnalysisPanel } from '@/components/BusinessAnalysisPanel';
-import { AnalysisProgressModal, AnalysisItem } from '@/components/AnalysisProgressModal';
-import { PipelineSelectDialog } from '@/components/PipelineSelectDialog';
-import { Business, SearchFilters as Filters } from '@/types/business';
-import { exportToCSV } from '@/utils/exportCSV';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { useSubscription } from '@/hooks/useSubscription';
-import { supabase } from '@/integrations/supabase/client';
-import { cn } from '@/lib/utils';
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  ArrowRight,
+  BarChart3,
+  Download,
+  Filter,
+  Radar,
+  Search,
+  Target,
+  Telescope,
+  WandSparkles,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { SearchFilters } from "@/components/SearchFilters";
+import { ResultsTable } from "@/components/ResultsTable";
+import { BusinessAnalysisPanel } from "@/components/BusinessAnalysisPanel";
+import { AnalysisProgressModal, AnalysisItem } from "@/components/AnalysisProgressModal";
+import { PipelineSelectDialog } from "@/components/PipelineSelectDialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { Business, ScannerSessionState, SearchFilters as Filters } from "@/types/business";
+import { exportToCSV } from "@/utils/exportCSV";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
+import { deriveLeadSignalSummary } from "@/lib/lead-scoring";
 
-type ProposalResponseMode = 'buttons' | 'form';
+type ProposalResponseMode = "buttons" | "form";
 
 type ProposalFormTemplate = {
   id: string;
@@ -24,20 +42,37 @@ type ProposalFormTemplate = {
   body: string;
 };
 
+const contactFilterOptions = [
+  { value: "all", label: "Todos" },
+  { value: "any", label: "Com contato" },
+  { value: "email", label: "Com email" },
+  { value: "phone", label: "Com telefone" },
+] as const;
+
 const Index = () => {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [contactFilter, setContactFilter] = useState<'all' | 'email' | 'phone' | 'any'>('all');
+  const [contactFilter, setContactFilter] = useState<"all" | "email" | "phone" | "any">("all");
   const [analysisItems, setAnalysisItems] = useState<AnalysisItem[]>([]);
   const [showProgress, setShowProgress] = useState(false);
   const [showPipelineDialog, setShowPipelineDialog] = useState(false);
+  const [isDesktopPanel, setIsDesktopPanel] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth >= 1280 : true
+  );
   const { toast } = useToast();
   const { user } = useAuth();
   const { canUse, getRemainingUsage } = useSubscription();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const onResize = () => setIsDesktopPanel(window.innerWidth >= 1280);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const handleSearch = async (filters: Filters) => {
     setIsLoading(true);
@@ -46,19 +81,26 @@ const Index = () => {
     setSelectedIds(new Set());
 
     try {
-      const { data, error } = await supabase.functions.invoke('search-businesses', {
+      const { data, error } = await supabase.functions.invoke("search-businesses", {
         body: { niches: filters.niches, location: filters.location, radius: filters.radius },
       });
 
       if (error) throw new Error(error.message);
       if (data.error) throw new Error(data.error);
 
-      const results = data.businesses || [];
+      const results = (data.businesses || []) as Business[];
       setBusinesses(results);
-      toast({ title: 'Busca concluida', description: `${results.length} empresa(s) encontrada(s) em ${filters.location}` });
+      toast({
+        title: "Varredura concluida",
+        description: `${results.length} empresa(s) encontrada(s) para leitura em ${filters.location}.`,
+      });
     } catch (error) {
-      console.error('Error searching businesses:', error);
-      toast({ title: 'Erro na busca', description: error instanceof Error ? error.message : 'Erro ao buscar empresas', variant: 'destructive' });
+      console.error("Error searching businesses:", error);
+      toast({
+        title: "Erro na busca",
+        description: error instanceof Error ? error.message : "Erro ao buscar empresas",
+        variant: "destructive",
+      });
       setBusinesses([]);
     } finally {
       setIsLoading(false);
@@ -68,7 +110,7 @@ const Index = () => {
   const handleExport = () => {
     if (businesses.length === 0) return;
     exportToCSV(businesses);
-    toast({ title: 'Exportacao concluida', description: 'O arquivo CSV foi baixado com sucesso.' });
+    toast({ title: "Exportacao concluida", description: "O arquivo CSV foi baixado com sucesso." });
   };
 
   const toggleSelected = (id: string) => {
@@ -80,35 +122,27 @@ const Index = () => {
     });
   };
 
-  const toggleAll = () => {
-    if (selectedIds.size === businesses.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(businesses.map((b) => b.id)));
-    }
-  };
-
   const handleAnalyzeSelected = () => {
     if (!user) return;
 
-    const selected = businesses.filter((b) => selectedIds.has(b.id));
+    const selected = businesses.filter((item) => selectedIds.has(item.id));
     if (selected.length === 0) return;
 
-    if (!canUse('presentations')) {
+    if (!canUse("presentations")) {
       toast({
-        title: 'Limite atingido',
-        description: 'Voce atingiu o limite de apresentacoes do seu plano. Faca upgrade em Configuracoes > Faturamento.',
-        variant: 'destructive',
+        title: "Limite atingido",
+        description: "Voce atingiu o limite de apresentacoes do seu plano. Faca upgrade em Configuracoes > Faturamento.",
+        variant: "destructive",
       });
       return;
     }
 
-    const remaining = getRemainingUsage('presentations');
+    const remaining = getRemainingUsage("presentations");
     if (remaining !== null && remaining !== Infinity && selected.length > remaining) {
       toast({
-        title: 'Limite insuficiente',
+        title: "Limite insuficiente",
         description: `Voce pode gerar mais ${remaining} apresentacao(oes). Selecione menos ou faca upgrade do plano.`,
-        variant: 'destructive',
+        variant: "destructive",
       });
       return;
     }
@@ -118,43 +152,52 @@ const Index = () => {
 
   const startAnalysis = async (
     pipelineStageId?: string,
-    responseMode: ProposalResponseMode = 'buttons',
+    responseMode: ProposalResponseMode = "buttons",
     formTemplate?: ProposalFormTemplate
   ) => {
     if (!user) return;
-    const selected = businesses.filter((b) => selectedIds.has(b.id));
+    const selected = businesses.filter((item) => selectedIds.has(item.id));
 
-    const items: AnalysisItem[] = selected.map((b) => ({
-      id: b.id,
-      name: b.name,
-      status: 'pending' as const,
+    const items: AnalysisItem[] = selected.map((item) => ({
+      id: item.id,
+      name: item.name,
+      status: "pending",
     }));
+
     setAnalysisItems(items);
     setShowProgress(true);
 
-    const [{ data: dna }, { data: profile }, { data: testimonials }, { data: clientLogos }] = await Promise.all([
-      supabase.from('company_dna').select('*').eq('user_id', user.id).maybeSingle(),
-      supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
-      supabase.from('testimonials').select('name, company, testimonial, image_url').eq('user_id', user.id),
-      supabase.from('client_logos').select('company_name, logo_url').eq('user_id', user.id),
-    ]);
+    const [{ data: dna }, { data: profile }, { data: testimonials }, { data: clientLogos }] =
+      await Promise.all([
+        supabase.from("company_dna").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("testimonials").select("name, company, testimonial, image_url").eq("user_id", user.id),
+        supabase.from("client_logos").select("company_name, logo_url").eq("user_id", user.id),
+      ]);
 
-    for (let i = 0; i < selected.length; i++) {
+    for (let i = 0; i < selected.length; i += 1) {
       const business = selected[i];
 
-      setAnalysisItems((prev) => prev.map((item) => (item.id === business.id ? { ...item, status: 'analyzing' as const } : item)));
+      setAnalysisItems((prev) =>
+        prev.map((item) => (item.id === business.id ? { ...item, status: "analyzing" } : item))
+      );
 
       try {
-        const { data: analyzeResult, error: analyzeError } = await supabase.functions.invoke('deep-analyze', {
-          body: { business, dna, profile },
-        });
+        const { data: analyzeResult, error: analyzeError } = await supabase.functions.invoke(
+          "deep-analyze",
+          {
+            body: { business, dna, profile },
+          }
+        );
 
         if (analyzeError) throw new Error(analyzeError.message);
         if (analyzeResult.error) throw new Error(analyzeResult.error);
 
         const analysis = analyzeResult.analysis;
 
-        setAnalysisItems((prev) => prev.map((item) => (item.id === business.id ? { ...item, status: 'generating' as const } : item)));
+        setAnalysisItems((prev) =>
+          prev.map((item) => (item.id === business.id ? { ...item, status: "generating" } : item))
+        );
 
         const insertData: Record<string, unknown> = {
           user_id: user.id,
@@ -166,53 +209,66 @@ const Index = () => {
           business_category: business.category,
           business_rating: business.rating,
           analysis_data: analysis,
-          status: 'generating',
+          status: "generating",
         };
 
-        if (pipelineStageId) {
-          insertData.pipeline_stage_id = pipelineStageId;
-        }
+        if (pipelineStageId) insertData.pipeline_stage_id = pipelineStageId;
 
         const { data: insertedRow, error: insertError } = await supabase
-          .from('presentations')
-          .insert(insertData as any)
-          .select('id, public_id')
+          .from("presentations")
+          .insert(insertData as never)
+          .select("id, public_id")
           .single();
 
-        if (insertError || !insertedRow) throw new Error(insertError?.message || 'Insert failed');
+        if (insertError || !insertedRow) throw new Error(insertError?.message || "Insert failed");
 
-        const { data: genResult, error: genError } = await supabase.functions.invoke('generate-presentation', {
-          body: {
-            analysis,
-            business,
-            dna,
-            profile,
-            testimonials,
-            clientLogos,
-            publicId: insertedRow.public_id,
-            template: (dna as any)?.presentation_template || 'modern-dark',
-            tone: (dna as any)?.presentation_tone || 'professional',
-            customInstructions: (dna as any)?.presentation_instructions || '',
-            responseMode,
-            formTemplateId: responseMode === 'form' ? formTemplate?.id || null : null,
-            formTemplateName: responseMode === 'form' ? formTemplate?.name || null : null,
-            formTemplateBody: responseMode === 'form' ? formTemplate?.body || null : null,
-          },
-        });
+        const { data: genResult, error: genError } = await supabase.functions.invoke(
+          "generate-presentation",
+          {
+            body: {
+              analysis,
+              business,
+              dna,
+              profile,
+              testimonials,
+              clientLogos,
+              publicId: insertedRow.public_id,
+              template: (dna as { presentation_template?: string } | null)?.presentation_template || "modern-dark",
+              tone: (dna as { presentation_tone?: string } | null)?.presentation_tone || "professional",
+              customInstructions:
+                (dna as { presentation_instructions?: string } | null)?.presentation_instructions || "",
+              responseMode,
+              formTemplateId: responseMode === "form" ? formTemplate?.id || null : null,
+              formTemplateName: responseMode === "form" ? formTemplate?.name || null : null,
+              formTemplateBody: responseMode === "form" ? formTemplate?.body || null : null,
+            },
+          }
+        );
 
         if (genError) throw new Error(genError.message);
         if (genResult.error) throw new Error(genResult.error);
 
-        const { error: updateError } = await supabase.from('presentations').update({ presentation_html: genResult.html, status: 'ready' }).eq('id', insertedRow.id);
+        const { error: updateError } = await supabase
+          .from("presentations")
+          .update({ presentation_html: genResult.html, status: "ready" } as never)
+          .eq("id", insertedRow.id);
 
         if (updateError) throw new Error(updateError.message);
 
-        setAnalysisItems((prev) => prev.map((item) => (item.id === business.id ? { ...item, status: 'done' as const } : item)));
+        setAnalysisItems((prev) =>
+          prev.map((item) => (item.id === business.id ? { ...item, status: "done" } : item))
+        );
       } catch (err) {
         console.error(`Error analyzing ${business.name}:`, err);
         setAnalysisItems((prev) =>
           prev.map((item) =>
-            item.id === business.id ? { ...item, status: 'error' as const, error: err instanceof Error ? err.message : 'Erro' } : item
+            item.id === business.id
+              ? {
+                  ...item,
+                  status: "error",
+                  error: err instanceof Error ? err.message : "Erro",
+                }
+              : item
           )
         );
       }
@@ -220,23 +276,69 @@ const Index = () => {
   };
 
   const filteredBusinesses = useMemo(() => {
-    return businesses.filter((b) => {
-      if (contactFilter === 'email') return !!b.email;
-      if (contactFilter === 'phone') return !!b.phone;
-      if (contactFilter === 'any') return !!b.email || !!b.phone;
+    const visible = businesses.filter((business) => {
+      if (contactFilter === "email") return !!business.email;
+      if (contactFilter === "phone") return !!business.phone;
+      if (contactFilter === "any") return !!business.email || !!business.phone;
       return true;
     });
+
+    return visible
+      .map((business) => {
+        const signalSummary = deriveLeadSignalSummary(business);
+        return {
+          ...business,
+          signalSummary,
+          priorityLabel: signalSummary.priorityLabel,
+          signalFlags: signalSummary.signalFlags,
+          contactCompleteness: signalSummary.contactCompleteness,
+        };
+      })
+      .sort((a, b) => (b.signalSummary?.score || 0) - (a.signalSummary?.score || 0));
   }, [businesses, contactFilter]);
 
+  const selectedBusinesses = useMemo(
+    () => filteredBusinesses.filter((business) => selectedIds.has(business.id)),
+    [filteredBusinesses, selectedIds]
+  );
+
+  const topLead = filteredBusinesses[0] || null;
+  const hotLeadCount = filteredBusinesses.filter((business) => business.signalSummary?.priorityTone === "high").length;
+  const weakPresenceCount = filteredBusinesses.filter(
+    (business) => business.signalSummary?.onlinePresenceTone === "critical"
+  ).length;
+  const focusedSignal = selectedBusiness ? deriveLeadSignalSummary(selectedBusiness) : topLead?.signalSummary;
+  const sessionState: ScannerSessionState = {
+    hasSearched,
+    totalResults: businesses.length,
+    filteredResults: filteredBusinesses.length,
+    selectedCount: selectedIds.size,
+    contactFilter,
+  };
+
+  const toggleAll = () => {
+    if (selectedBusinesses.length === filteredBusinesses.length && filteredBusinesses.length > 0) {
+      setSelectedIds(new Set());
+      return;
+    }
+
+    setSelectedIds(new Set(filteredBusinesses.map((business) => business.id)));
+  };
+
+  const mainPanelClass = cn(
+    "grid gap-5",
+    selectedBusiness ? "xl:grid-cols-[minmax(0,1.1fr)_380px]" : "xl:grid-cols-1"
+  );
+
   return (
-    <div className="space-y-4 p-2 lg:space-y-5 lg:p-4">
+    <div className="space-y-4 p-2 pb-28 lg:space-y-5 lg:p-4 lg:pb-6">
       <AnalysisProgressModal
         open={showProgress}
         items={analysisItems}
         onClose={() => setShowProgress(false)}
         onFinish={() => {
           setShowProgress(false);
-          navigate('/presentations');
+          navigate("/presentations");
         }}
       />
 
@@ -247,11 +349,11 @@ const Index = () => {
           startAnalysis(
             result.attach ? result.stageId : undefined,
             result.responseMode,
-            result.responseMode === 'form' && result.formTemplateId
+            result.responseMode === "form" && result.formTemplateId
               ? {
                   id: result.formTemplateId,
-                  name: result.formTemplateName || 'Formulario',
-                  body: result.formTemplateBody || '',
+                  name: result.formTemplateName || "Formulario",
+                  body: result.formTemplateBody || "",
                 }
               : undefined
           );
@@ -259,147 +361,271 @@ const Index = () => {
         onCancel={() => setShowPipelineDialog(false)}
       />
 
-      <section className="rounded-[28px] border border-[#ececf0] bg-white px-5 py-6 shadow-[0_14px_36px_rgba(20,20,24,0.06)] lg:px-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-[#75757d]">Prospeccao</p>
-            <h1 className="mt-1 flex items-center gap-2 text-3xl font-semibold tracking-tight text-[#1A1A1A] lg:text-4xl">
-              <Search className="h-7 w-7 text-[#EF3333]" />
-              Busca Inteligente
-            </h1>
-            <p className="mt-2 text-sm text-[#66666d] lg:text-base">Encontre empresas com fit e gere abordagens prontas com IA.</p>
-          </div>
-          <div className="rounded-2xl border border-[#f2d4d8] bg-[#fff5f6] px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#b94456]">Status da Sessao</p>
-            <p className="mt-1 text-sm font-semibold text-[#7f2432]">{hasSearched ? `${businesses.length} resultado(s)` : 'Aguardando busca'}</p>
+      <section className="overflow-hidden rounded-[32px] border border-[#1c1c22] bg-[#111115] text-white shadow-[0_24px_60px_rgba(12,12,18,0.22)]">
+        <div className="relative overflow-hidden px-5 py-6 lg:px-8 lg:py-8">
+          <div className="absolute inset-y-0 right-0 w-[320px] bg-[radial-gradient(circle_at_top_right,_rgba(239,51,51,0.22),_transparent_60%)]" />
+          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#ffb6bf]">
+                <Radar className="h-3.5 w-3.5" />
+                Scanner consultivo
+              </div>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight lg:text-5xl">
+                Encontre sinais, leia contexto e ataque os leads certos.
+              </h1>
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/68 lg:text-base">
+                A envPRO deixa de ser apenas uma lista de empresas e passa a operar como um workspace
+                de leitura comercial. Primeiro voce varre o mercado. Depois entende por que agir agora.
+                Entao transforma isso em proposta consultiva.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Sinais fortes</p>
+                <p className="mt-2 text-3xl font-semibold">{hotLeadCount}</p>
+              </div>
+              <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Lead em foco</p>
+                <p className="mt-2 text-sm font-semibold text-white/90">
+                  {selectedBusiness?.name || topLead?.name || "Aguardando varredura"}
+                </p>
+              </div>
+              <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Presenca critica</p>
+                <p className="mt-2 text-sm font-semibold text-white/90">
+                  {hasSearched ? `${weakPresenceCount} lead(s) com dor digital explicita` : "Aguardando varredura"}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
-        <aside className="space-y-5">
-          <Card className="sticky top-20 rounded-[24px] border border-[#ececf0] bg-white p-6 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-            <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-[#1A1A1A]">
-              <Building2 className="h-5 w-5 text-[#EF3333]" />
-              Filtros de Busca
-            </h2>
-            <SearchFilters onSearch={handleSearch} isLoading={isLoading} />
+      <div className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <aside className="sticky top-[94px] self-start space-y-5">
+          <Card className="rounded-[28px] border border-[#ececf0] bg-white p-5 shadow-[0_14px_36px_rgba(20,20,24,0.06)] lg:p-6">
+            <SearchFilters
+              onSearch={handleSearch}
+              isLoading={isLoading}
+              hasSearched={hasSearched}
+              totalResults={businesses.length}
+            />
+          </Card>
+
+          <Card className="rounded-[28px] border border-[#ececf0] bg-white p-5 shadow-[0_12px_28px_rgba(20,20,24,0.05)]">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-[#EF3333]" />
+              <h2 className="text-base font-semibold text-[#1A1A1A]">Resumo da sessao</h2>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <div className="rounded-[22px] border border-[#ececf0] bg-[#fafafc] p-4">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Resultados</p>
+                <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{sessionState.filteredResults}</p>
+                <p className="mt-1 text-sm text-[#66666d]">
+                  {hasSearched ? "Leads prontos para triagem" : "Aguardando sua primeira busca"}
+                </p>
+              </div>
+              <div className="rounded-[22px] border border-[#ececf0] bg-[#fafafc] p-4">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Selecionados</p>
+                <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{sessionState.selectedCount}</p>
+                <p className="mt-1 text-sm text-[#66666d]">Fila pronta para analise profunda</p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-[22px] border border-[#f2d4d8] bg-[#fff5f6] p-4">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-[#b04a58]">Leitura recomendada</p>
+              <p className="mt-2 text-sm leading-relaxed text-[#6e2b37]">
+                {topLead
+                  ? `${topLead.name} aparece como lead mais promissor neste recorte. ${focusedSignal?.onlinePresenceWeaknesses[0] || "Abra a inteligencia dele antes de decidir o lote final."}`
+                  : "Defina o recorte de busca para a envPRO montar a leitura priorizada do mercado."}
+              </p>
+            </div>
           </Card>
         </aside>
 
         <section className="space-y-5">
-          <Card className="rounded-[24px] border border-[#ececf0] bg-white p-4 shadow-[0_10px_24px_rgba(18,18,22,0.05)] lg:p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Card className="rounded-[28px] border border-[#ececf0] bg-white p-4 shadow-[0_12px_28px_rgba(20,20,24,0.05)] lg:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-[#1A1A1A]">Resultados</h2>
-                {hasSearched && <p className="text-sm text-[#6e6e76]">{filteredBusinesses.length} empresa(s) na visualizacao atual</p>}
+                <p className="text-sm font-medium text-[#75757d]">Scanner Workspace</p>
+                <h2 className="mt-1 text-2xl font-semibold tracking-tight text-[#1A1A1A] lg:text-3xl">
+                  Leads priorizados por contexto
+                </h2>
+                <p className="mt-2 text-sm text-[#66666d] lg:text-base">
+                  Veja quem merece leitura imediata, quem tem sinais fracos e onde a proposta consultiva tende a funcionar melhor.
+                </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {hasSearched && businesses.length > 0 && (
-                  <div className="flex items-center gap-1 rounded-xl border border-[#e7e7eb] bg-[#f9f9fa] p-1">
-                    {([
-                      { value: 'all', label: 'Todos' },
-                      { value: 'any', label: 'Com contato' },
-                      { value: 'email', label: 'Com email' },
-                      { value: 'phone', label: 'Com telefone' },
-                    ] as const).map((opt) => (
-                      <Button
-                        key={opt.value}
-                        variant="ghost"
-                        size="sm"
-                        className={cn(
-                          'h-8 rounded-lg px-2.5 text-xs',
-                          contactFilter === opt.value
-                            ? 'bg-white text-[#1A1A1A] shadow-[inset_0_0_0_1px_rgba(239,51,51,0.22)]'
-                            : 'text-[#6f6f76] hover:bg-white'
-                        )}
-                        onClick={() => setContactFilter(opt.value)}
-                      >
-                        {opt.value === 'all' && <Filter className="mr-1 h-3 w-3" />}
-                        {opt.label}
-                      </Button>
-                    ))}
-                  </div>
-                )}
+                <div className="flex items-center gap-1 rounded-xl border border-[#e7e7eb] bg-[#f9f9fa] p-1">
+                  {contactFilterOptions.map((option) => (
+                    <Button
+                      key={option.value}
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "h-8 rounded-lg px-2.5 text-xs",
+                        contactFilter === option.value
+                          ? "bg-white text-[#1A1A1A] shadow-[inset_0_0_0_1px_rgba(239,51,51,0.22)]"
+                          : "text-[#6f6f76] hover:bg-white"
+                      )}
+                      onClick={() => setContactFilter(option.value)}
+                    >
+                      {option.value === "all" ? <Filter className="mr-1 h-3 w-3" /> : null}
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
 
-                {selectedIds.size > 0 && (
-                  <Button onClick={handleAnalyzeSelected} size="sm" className="h-9 rounded-xl gap-2 gradient-primary text-primary-foreground glow-primary">
-                    <BarChart3 className="h-4 w-4" />
-                    <span className="hidden sm:inline">Analisar Selecionadas</span>
-                    <span className="sm:hidden">Analisar</span>
-                    ({selectedIds.size})
-                  </Button>
-                )}
-
-                {businesses.length > 0 && (
-                  <Button onClick={handleExport} variant="outline" size="sm" className="h-9 rounded-xl gap-2 border-[#e6e6eb] bg-white hover:bg-[#f8f8fa]">
+                {businesses.length > 0 ? (
+                  <Button
+                    onClick={handleExport}
+                    variant="outline"
+                    size="sm"
+                    className="h-9 rounded-xl gap-2 border-[#e6e6eb] bg-white hover:bg-[#f8f8fa]"
+                  >
                     <Download className="h-4 w-4" />
-                    <span className="hidden sm:inline">Exportar CSV</span>
-                    <span className="sm:hidden">CSV</span>
+                    Exportar CSV
                   </Button>
-                )}
+                ) : null}
               </div>
             </div>
           </Card>
 
-          {selectedBusiness && <BusinessAnalysisPanel business={selectedBusiness} onClose={() => setSelectedBusiness(null)} />}
-
           {!hasSearched ? (
-            <Card className="rounded-[24px] border border-[#ececf0] bg-white p-12 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-              <div className="space-y-4 text-center">
+            <Card className="rounded-[28px] border border-[#ececf0] bg-white p-10 shadow-[0_12px_28px_rgba(20,20,24,0.05)] lg:p-14">
+              <div className="mx-auto max-w-2xl text-center">
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#fff1f3]">
-                  <Building2 className="h-8 w-8 text-[#EF3333]" />
+                  <Telescope className="h-8 w-8 text-[#EF3333]" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-medium text-[#1A1A1A]">Comece sua prospeccao</h3>
-                  <p className="mt-1 text-sm text-[#6e6e76]">Selecione os filtros ao lado e clique em buscar para encontrar potenciais clientes.</p>
-                </div>
-                <div className="mt-6 border-t border-[#ececf0] pt-4">
-                  <div className="flex items-center justify-center gap-2 text-sm text-[#6e6e76]">
-                    <Sparkles className="h-4 w-4 text-[#EF3333]" />
-                    <span>IA disponivel para sugestoes de abordagem personalizadas</span>
-                  </div>
-                </div>
+                <h3 className="mt-5 text-2xl font-semibold text-[#1A1A1A]">Comece pela leitura do mercado</h3>
+                <p className="mt-3 text-sm leading-relaxed text-[#66666d] lg:text-base">
+                  Escolha nicho, localizacao e raio. A envPRO vai retornar os leads mais relevantes para voce
+                  decidir quem merece analise consultiva completa.
+                </p>
               </div>
             </Card>
           ) : isLoading ? (
-            <Card className="rounded-[24px] border border-[#ececf0] bg-white p-12 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-              <div className="space-y-4 text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#fff1f3]">
-                  <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#ef3333]/25 border-t-[#ef3333]" />
+            <Card className="rounded-[28px] border border-[#ececf0] bg-white p-10 shadow-[0_12px_28px_rgba(20,20,24,0.05)] lg:p-14">
+              <div className="mx-auto max-w-2xl text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#111115] text-[#EF3333]">
+                  <Radar className="h-8 w-8 animate-pulse" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-medium text-[#1A1A1A]">Buscando empresas...</h3>
-                  <p className="mt-1 text-sm text-[#6e6e76]">Consultando bases de dados e APIs</p>
-                </div>
+                <h3 className="mt-5 text-2xl font-semibold text-[#1A1A1A]">Executando scanner consultivo</h3>
+                <p className="mt-3 text-sm leading-relaxed text-[#66666d] lg:text-base">
+                  Consultando fontes, montando o recorte e devolvendo sinais que ajudam a decidir o proximo ataque.
+                </p>
               </div>
             </Card>
           ) : filteredBusinesses.length === 0 ? (
-            <Card className="rounded-[24px] border border-[#ececf0] bg-white p-12 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-              <div className="space-y-4 text-center">
+            <Card className="rounded-[28px] border border-[#ececf0] bg-white p-10 shadow-[0_12px_28px_rgba(20,20,24,0.05)] lg:p-14">
+              <div className="mx-auto max-w-2xl text-center">
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f5f5f7]">
                   <WandSparkles className="h-8 w-8 text-[#7c7c83]" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-medium text-[#1A1A1A]">Nenhum resultado com este filtro</h3>
-                  <p className="mt-1 text-sm text-[#6e6e76]">Troque o filtro de contato para visualizar mais empresas encontradas.</p>
-                </div>
+                <h3 className="mt-5 text-2xl font-semibold text-[#1A1A1A]">Nenhum lead com este recorte</h3>
+                <p className="mt-3 text-sm leading-relaxed text-[#66666d] lg:text-base">
+                  Ajuste o filtro de contato ou rode uma nova varredura para aumentar a densidade do seu recorte.
+                </p>
               </div>
             </Card>
           ) : (
-            <Card className="overflow-hidden rounded-[24px] border border-[#ececf0] bg-white shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-              <ResultsTable
-                businesses={filteredBusinesses}
-                onSelectBusiness={setSelectedBusiness}
-                selectedIds={selectedIds}
-                onToggleSelected={toggleSelected}
-                onToggleAll={toggleAll}
-              />
-            </Card>
+            <div className={mainPanelClass}>
+              <div className="space-y-5">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <Card className="rounded-[24px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Radar quente</p>
+                    <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{hotLeadCount}</p>
+                    <p className="mt-1 text-sm text-[#66666d]">Leads com janela clara para entrar na fila premium.</p>
+                  </Card>
+                  <Card className="rounded-[24px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Filtro ativo</p>
+                    <p className="mt-2 text-3xl font-semibold capitalize text-[#1A1A1A]">{contactFilter}</p>
+                    <p className="mt-1 text-sm text-[#66666d]">Vista atual de contatos para triagem.</p>
+                  </Card>
+                  <Card className="rounded-[24px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Melhor lead</p>
+                    <p className="mt-2 line-clamp-1 text-lg font-semibold text-[#1A1A1A]">
+                      {topLead?.name || "Nenhum"}
+                    </p>
+                    <p className="mt-1 text-sm text-[#66666d]">
+                      {topLead?.signalSummary?.priorityLabel || "Sem prioridade calculada"}
+                    </p>
+                  </Card>
+                </div>
+
+                <Card className="overflow-hidden rounded-[28px] border border-[#ececf0] bg-white p-4 shadow-[0_12px_28px_rgba(20,20,24,0.05)] lg:p-5">
+                  <ResultsTable
+                    businesses={filteredBusinesses}
+                    onSelectBusiness={setSelectedBusiness}
+                    selectedIds={selectedIds}
+                    onToggleSelected={toggleSelected}
+                    onToggleAll={toggleAll}
+                    activeBusinessId={selectedBusiness?.id}
+                  />
+                </Card>
+              </div>
+
+              {selectedBusiness ? (
+                <div className="hidden xl:block">
+                  <div className="sticky top-20">
+                    <BusinessAnalysisPanel business={selectedBusiness} onClose={() => setSelectedBusiness(null)} />
+                  </div>
+                </div>
+              ) : null}
+            </div>
           )}
         </section>
       </div>
+
+      <Drawer open={!isDesktopPanel && !!selectedBusiness} onOpenChange={(open) => !open && setSelectedBusiness(null)}>
+        <DrawerContent className="max-h-[88vh] rounded-t-[28px] border-[#ececf0] bg-[#f8f8fa] xl:hidden">
+          <DrawerHeader className="px-4 pb-1 pt-3 text-left">
+            <DrawerTitle>Lead intelligence</DrawerTitle>
+            <DrawerDescription>Leia o contexto do lead antes de enviar para a fila de analise.</DrawerDescription>
+          </DrawerHeader>
+          <div className="overflow-y-auto px-4 pb-5">
+            {selectedBusiness ? (
+              <BusinessAnalysisPanel business={selectedBusiness} onClose={() => setSelectedBusiness(null)} />
+            ) : null}
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      {selectedIds.size > 0 ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#ececf0] bg-white/95 px-3 py-3 backdrop-blur sm:px-4 lg:bottom-4 lg:left-[max(1rem,calc((100vw-1600px)/2+1rem))] lg:right-4 lg:rounded-[24px] lg:border lg:shadow-[0_24px_50px_rgba(12,12,18,0.12)] xl:left-[calc((100vw-1600px)/2+392px)]">
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[#1A1A1A]">
+                {selectedIds.size} lead(s) pronto(s) para leitura profunda
+              </p>
+              <p className="text-sm text-[#66666d]">
+                Proximo passo: gerar analise completa e transformar os sinais em propostas consultivas.
+              </p>
+            </div>
+
+            <div className="flex shrink-0 gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setSelectedIds(new Set())}
+                className="rounded-xl border-[#e6e6eb] bg-white"
+              >
+                Limpar selecao
+              </Button>
+              <Button
+                onClick={handleAnalyzeSelected}
+                className="rounded-xl bg-[#111115] text-white hover:bg-[#1d1d24]"
+              >
+                <BarChart3 className="mr-2 h-4 w-4 text-[#EF3333]" />
+                Analisar selecionadas
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

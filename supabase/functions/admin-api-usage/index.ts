@@ -41,10 +41,9 @@ serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", userData.user.id)
-      .eq("role", "admin")
-      .maybeSingle();
+      .in("role", ["admin", "moderator"]);
 
-    if (!roleData) {
+    if (!roleData || roleData.length === 0) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 403,

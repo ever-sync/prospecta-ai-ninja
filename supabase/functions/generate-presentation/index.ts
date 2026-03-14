@@ -1,3 +1,7 @@
+import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
+import { callGeminiText } from "../_shared/gemini.ts";
+import { requireUserProviderKey } from "../_shared/user-provider-keys.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -29,8 +33,13 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
     const respondFnUrl = `${SUPABASE_URL}/functions/v1/respond-presentation`;
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
+    const { user, svc } = await getAuthenticatedUserContext(req);
+    const geminiApiKey = await requireUserProviderKey(
+      svc,
+      user.id,
+      'gemini',
+      'Configure sua chave Gemini em Configuracoes > APIs.',
+    );
 
     const companyName = profile?.company_name || 'Nossa Empresa';
     const logoUrl = profile?.company_logo_url || '';
@@ -253,37 +262,13 @@ REQUISITO DE COBERTURA DE DNA:
 DNA COMPLETO (JSON) PARA ANALISE OBRIGATORIA:
 ${dnaFullJson}`;
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          { role: 'system', content: systemPromptWithDna },
-          { role: 'user', content: userPromptWithDna },
-        ],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
-          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: 'AI credits exhausted' }), {
-          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      throw new Error(`AI error: ${aiResponse.status}`);
-    }
-
-    const aiData = await aiResponse.json();
-    let html = aiData.choices?.[0]?.message?.content || '';
+    let html = await callGeminiText(
+      geminiApiKey,
+      'gemini-2.5-flash',
+      systemPromptWithDna,
+      userPromptWithDna,
+      { temperature: 0.4, maxOutputTokens: 8192 },
+    );
 
     // Clean up markdown code fences if present
     html = html.replace(/^```html\n?/i, '').replace(/\n?```$/i, '').trim();
@@ -304,8 +289,9 @@ ${dnaFullJson}`;
     });
   } catch (error) {
     console.error('Generate presentation error:', error);
+    const status = error instanceof HttpError ? error.status : 500;
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Generation failed' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });

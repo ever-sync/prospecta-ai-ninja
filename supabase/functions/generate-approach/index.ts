@@ -1,4 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
+import { callGeminiText } from "../_shared/gemini.ts";
+import { requireUserProviderKey } from "../_shared/user-provider-keys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,99 +15,69 @@ serve(async (req) => {
 
   try {
     const { business } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
+    const { user, svc } = await getAuthenticatedUserContext(req);
+    const geminiApiKey = await requireUserProviderKey(
+      svc,
+      user.id,
+      "gemini",
+      "Configure sua chave Gemini em Configuracoes > APIs.",
+    );
 
     const categoryLabels: Record<string, string> = {
-      restaurant: 'Restaurante',
-      clinic: 'Clínica',
-      store: 'Loja',
-      gym: 'Academia',
-      salon: 'Salão de Beleza',
-      dentist: 'Dentista',
-      lawyer: 'Advogado',
-      accounting: 'Contabilidade',
-      pharmacy: 'Farmácia',
-      hotel: 'Hotel',
-      school: 'Escola',
-      real_estate: 'Imobiliária',
+      restaurant: "Restaurante",
+      clinic: "Clinica",
+      store: "Loja",
+      gym: "Academia",
+      salon: "Salao de Beleza",
+      dentist: "Dentista",
+      lawyer: "Advogado",
+      accounting: "Contabilidade",
+      pharmacy: "Farmacia",
+      hotel: "Hotel",
+      school: "Escola",
+      real_estate: "Imobiliaria",
     };
 
     const categoryName = categoryLabels[business.category] || business.category;
 
-    const systemPrompt = `Você é um especialista em vendas B2B e prospecção comercial no Brasil. 
-Sua tarefa é gerar uma sugestão de abordagem comercial personalizada e eficaz para uma empresa específica.
+    const systemPrompt = `Voce e um especialista em vendas B2B e prospeccao comercial no Brasil.
+Sua tarefa e gerar uma sugestao de abordagem comercial personalizada e eficaz.
 
 Regras:
 - Seja direto e objetivo
-- Use linguagem profissional mas acessível
-- Foque em valor e benefícios
+- Use linguagem profissional e acessivel
+- Foque em valor e beneficios
 - Sugira um gancho inicial relevante para o segmento
-- Mantenha a sugestão em até 3 parágrafos curtos
-- Inclua uma sugestão de primeira mensagem/script`;
+- Mantenha a sugestao em ate 3 paragrafos curtos
+- Inclua uma sugestao de primeira mensagem/script`;
 
-    const userPrompt = `Gere uma sugestão de abordagem comercial para esta empresa:
+    const userPrompt = `Gere uma sugestao de abordagem comercial para esta empresa:
 
 Nome: ${business.name}
 Categoria: ${categoryName}
-Endereço: ${business.address}
-${business.rating ? `Avaliação: ${business.rating}/5` : ''}
+Endereco: ${business.address}
+${business.rating ? `Avaliacao: ${business.rating}/5` : ""}
+${business.onlinePresence ? `Presenca online: ${business.onlinePresence.label} (${business.onlinePresence.score}/100)` : ""}
+${business.onlinePresence?.weaknesses?.length ? `Fraquezas percebidas: ${business.onlinePresence.weaknesses.join(", ")}` : ""}
 
-Considere o segmento de atuação e crie uma abordagem personalizada que destaque como podemos ajudar este tipo de negócio.`;
+Considere o segmento e crie uma abordagem personalizada destacando como podemos ajudar este negocio.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 500,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns minutos." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos insuficientes. Adicione créditos à sua conta." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      return new Response(JSON.stringify({ error: "Erro ao gerar sugestão" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const data = await response.json();
-    const suggestion = data.choices?.[0]?.message?.content || "Não foi possível gerar uma sugestão.";
+    const suggestion = await callGeminiText(
+      geminiApiKey,
+      "gemini-2.5-flash",
+      systemPrompt,
+      userPrompt,
+      { temperature: 0.7, maxOutputTokens: 600 },
+    );
 
     return new Response(JSON.stringify({ suggestion }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Error in generate-approach function:", error);
+    const status = error instanceof HttpError ? error.status : 500;
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Erro desconhecido" }), {
-      status: 500,
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

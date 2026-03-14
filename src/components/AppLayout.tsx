@@ -11,8 +11,8 @@ import {
   LogOut,
   ShieldCheck,
   Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChevronLeft,
+  ChevronRight,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,9 +30,9 @@ import sidebarCollapsedLogo from '@/logos/favicon.svg';
 const SIDEBAR_STORAGE_KEY = 'prospecta.sidebar.collapsed';
 
 const menuItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
+  { path: '/dashboard', label: 'Mission Control', icon: LayoutGrid },
   { path: '/crm', label: 'CRM', icon: Users },
-  { path: '/search', label: 'Busca', icon: SearchIcon },
+  { path: '/search', label: 'Scanner', icon: SearchIcon },
   { path: '/dna', label: 'DNA', icon: Fingerprint },
   { path: '/presentations', label: 'Apresentacoes', icon: FileBarChart },
   { path: '/campaigns', label: 'Campanhas', icon: Send },
@@ -56,6 +56,54 @@ type NavItemProps = {
   collapsed: boolean;
   onNavigate: (path: string) => void;
   currentPath: string;
+};
+
+const routeMeta: Record<string, { eyebrow: string; title: string; description: string }> = {
+  '/dashboard': {
+    eyebrow: 'Mission Control',
+    title: 'Centro de Comando',
+    description: 'Acompanhe prontidao, foco comercial e os proximos movimentos do scanner.',
+  },
+  '/search': {
+    eyebrow: 'Scanner Workspace',
+    title: 'Scanner Consultivo',
+    description: 'Varra o mercado, leia os sinais e transforme contexto em proposta.',
+  },
+  '/dna': {
+    eyebrow: 'Biblioteca de Marca',
+    title: 'DNA da Empresa',
+    description: 'Configure a base de autoridade usada para personalizar cada proposta.',
+  },
+  '/presentations': {
+    eyebrow: 'Conteudo Comercial',
+    title: 'Apresentacoes',
+    description: 'Gerencie propostas prontas, respostas e proximos envios.',
+  },
+  '/campaigns': {
+    eyebrow: 'Orquestracao',
+    title: 'Campanhas',
+    description: 'Ative cadencias e acompanhe o desempenho de disparo.',
+  },
+  '/crm': {
+    eyebrow: 'Pipeline',
+    title: 'CRM',
+    description: 'Organize follow-ups, fases e movimentacao de leads.',
+  },
+  '/templates': {
+    eyebrow: 'Playbooks',
+    title: 'Templates',
+    description: 'Ajuste os assets que sustentam mensagens e formularios.',
+  },
+  '/settings': {
+    eyebrow: 'Configuracao',
+    title: 'Ajustes da Conta',
+    description: 'Controle plano, faturamento e configuracoes operacionais.',
+  },
+  '/admin': {
+    eyebrow: 'Controle Interno',
+    title: 'Admin',
+    description: 'Monitore uso, planos e dados administrativos.',
+  },
 };
 
 const NavItem = ({ path, label, icon: Icon, collapsed, onNavigate, currentPath }: NavItemProps) => {
@@ -102,9 +150,8 @@ export const AppLayout = () => {
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .maybeSingle()
-      .then(({ data }) => setIsAdmin(!!data));
+      .in('role', ['admin', 'moderator'])
+      .then(({ data }) => setIsAdmin(!!(data && data.length > 0)));
   }, [user]);
 
   useEffect(() => {
@@ -122,6 +169,11 @@ export const AppLayout = () => {
   const userInitial = userEmail.charAt(0).toUpperCase();
   const allRouteItems = [...menuItems, ...generalItems, { path: '/admin', label: 'Admin', icon: ShieldCheck }];
   const activeRoute = allRouteItems.find((item) => item.path === location.pathname);
+  const currentMeta = routeMeta[location.pathname] || {
+    eyebrow: 'Workspace',
+    title: activeRoute?.label || 'Painel',
+    description: 'Controle o fluxo atual do workspace.',
+  };
 
   const renderSidebarContent = ({ mobile }: { mobile: boolean }) => {
     const collapsed = mobile ? false : isSidebarCollapsed;
@@ -138,7 +190,7 @@ export const AppLayout = () => {
                 onClick={() => setIsSidebarCollapsed(false)}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[#25252d] text-[#b7b7bf] transition-colors hover:bg-[#17171c] hover:text-white"
               >
-                <PanelLeftOpen className="h-4 w-4" strokeWidth={1.9} />
+                <ChevronRight className="h-4 w-4" strokeWidth={2.2} />
               </button>
             </div>
           ) : (
@@ -160,7 +212,7 @@ export const AppLayout = () => {
                   onClick={() => setIsSidebarCollapsed(true)}
                   className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#25252d] text-[#b7b7bf] transition-colors hover:bg-[#17171c] hover:text-white"
                 >
-                  <PanelLeftClose className="h-4 w-4" strokeWidth={1.9} />
+                  <ChevronLeft className="h-4 w-4" strokeWidth={2.2} />
                 </button>
               )}
             </div>
@@ -233,7 +285,7 @@ export const AppLayout = () => {
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-[#121316] p-0 sm:p-3 lg:p-4">
+    <div className="h-screen overflow-hidden bg-white p-0 sm:p-3 lg:p-4">
       <div className="flex h-screen w-full overflow-hidden rounded-none bg-[#f4f4f6] shadow-none sm:h-[calc(100vh-1.5rem)] sm:rounded-[30px] sm:shadow-[0_25px_75px_rgba(0,0,0,0.34)] lg:h-[calc(100vh-2rem)]">
         <AnimatePresence>
           {sidebarOpen && (
@@ -262,7 +314,7 @@ export const AppLayout = () => {
         <aside
           className={cn(
             'relative hidden h-full shrink-0 border-r border-[#1a1a20] bg-[#0A0A0A] transition-[width] duration-300 ease-out lg:flex',
-            isSidebarCollapsed ? 'w-[78px]' : 'w-[248px]'
+            isSidebarCollapsed ? 'w-[78px] lg:pl-[10px]' : 'w-[248px]'
           )}
         >
           {renderSidebarContent({ mobile: false })}
@@ -280,8 +332,9 @@ export const AppLayout = () => {
                 <Menu className="h-5 w-5" />
               </Button>
               <div className="hidden sm:block">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a8a91]">Workspace</p>
-                <p className="text-sm font-semibold text-[#1A1A1A]">{activeRoute?.label || 'Painel'}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a8a91]">{currentMeta.eyebrow}</p>
+                <p className="text-sm font-semibold text-[#1A1A1A]">{currentMeta.title}</p>
+                <p className="mt-0.5 max-w-[420px] text-xs text-[#7a7a82]">{currentMeta.description}</p>
               </div>
             </div>
 

@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
 
     const { data: presentation, error: presError } = await supabase
       .from('presentations')
-      .select('id, user_id, pipeline_stage_id, business_category, analysis_data')
+      .select('id, user_id, pipeline_stage_id, business_category, analysis_data, business_name')
       .eq('public_id', public_id)
       .maybeSingle();
 
@@ -152,6 +152,26 @@ Deno.serve(async (req) => {
         user_agent: req.headers.get('user-agent'),
       },
     });
+
+    // Notify presentation owner when lead accepts
+    if (response === 'accepted') {
+      const { data: ownerData } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', presentation.user_id)
+        .maybeSingle();
+      if (ownerData?.email) {
+        await supabase.functions.invoke('send-system-email', {
+          body: {
+            type: 'proposal_accepted',
+            user_email: ownerData.email,
+            variables: {
+              empresa_prospectada: (presentation as any).business_name ?? presentation.business_category ?? 'Lead',
+            },
+          },
+        }).catch(() => {});
+      }
+    }
 
     return new Response(JSON.stringify({ success: true, response }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

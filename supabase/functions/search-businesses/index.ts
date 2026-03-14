@@ -1,4 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
+import { callGeminiJson } from "../_shared/gemini.ts";
+import { requireUserProviderKey } from "../_shared/user-provider-keys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,25 +9,32 @@ const corsHeaders = {
 };
 
 const nicheLabels: Record<string, string> = {
-  restaurant: 'Restaurantes',
-  clinic: 'Clínicas',
-  store: 'Lojas',
-  gym: 'Academias',
-  salon: 'Salões de Beleza',
-  dentist: 'Dentistas',
-  lawyer: 'Advogados',
-  accounting: 'Contabilidade',
-  pharmacy: 'Farmácias',
-  hotel: 'Hotéis',
-  school: 'Escolas',
-  real_estate: 'Imobiliárias',
+  restaurant: "Restaurantes",
+  clinic: "Clinicas",
+  store: "Lojas",
+  gym: "Academias",
+  salon: "Saloes de Beleza",
+  dentist: "Dentistas",
+  lawyer: "Advogados",
+  accounting: "Contabilidade",
+  pharmacy: "Farmacias",
+  hotel: "Hoteis",
+  school: "Escolas",
+  real_estate: "Imobiliarias",
+};
+
+type ScrapePayload = {
+  markdown: string;
+  html: string;
+  metadata: Record<string, any>;
+  links: string[];
 };
 
 async function firecrawlSearch(apiKey: string, query: string, limit: number): Promise<any[]> {
   const response = await fetch("https://api.firecrawl.dev/v1/search", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -39,65 +49,269 @@ async function firecrawlSearch(apiKey: string, query: string, limit: number): Pr
   const data = await response.json();
   if (!response.ok) {
     if (response.status === 402) {
-      throw { status: 402, message: "Créditos Firecrawl insuficientes." };
+      throw new HttpError(402, "Creditos Firecrawl insuficientes.");
     }
-    console.error(`Firecrawl search error:`, data);
+    console.error("Firecrawl search error:", data);
     return [];
   }
   return data.data || [];
 }
 
-async function firecrawlScrape(apiKey: string, url: string): Promise<string> {
+function normalizeWebsite(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+}
+
+async function firecrawlScrape(apiKey: string, url: string): Promise<ScrapePayload | null> {
   try {
-    let formattedUrl = url.trim();
-    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
-      formattedUrl = `https://${formattedUrl}`;
-    }
     const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        url: formattedUrl,
-        formats: ["markdown"],
+        url: normalizeWebsite(url),
+        formats: ["markdown", "html", "links"],
         onlyMainContent: false,
       }),
     });
-    if (!response.ok) return "";
+
+    if (!response.ok) {
+      return null;
+    }
+
     const data = await response.json();
-    return data.data?.markdown || data.markdown || "";
+    return {
+      markdown: data.data?.markdown || data.markdown || "",
+      html: data.data?.html || data.html || "",
+      metadata: data.data?.metadata || data.metadata || {},
+      links: data.data?.links || data.links || [],
+    };
   } catch {
-    return "";
+    return null;
   }
 }
 
 function extractEmails(text: string): string[] {
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   const matches = text.match(emailRegex) || [];
-  const excluded = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'css', 'js'];
-  return [...new Set(matches.filter(e => {
-    const ext = e.split('.').pop()?.toLowerCase();
-    return !excluded.includes(ext || '') && !e.includes('example.com') && !e.includes('sentry');
-  }))];
+  const excluded = ["png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "css", "js"];
+  return [
+    ...new Set(
+      matches.filter((email) => {
+        const ext = email.split(".").pop()?.toLowerCase();
+        return !excluded.includes(ext || "") && !email.includes("example.com") && !email.includes("sentry");
+      }),
+    ),
+  ];
 }
 
 function extractPhones(text: string): string[] {
-  // Brazilian phone formats: (XX) XXXXX-XXXX, (XX) XXXX-XXXX, XX XXXXX-XXXX, etc.
   const phoneRegex = /\(?\d{2}\)?\s*\d{4,5}[-.\s]?\d{4}/g;
   const matches = text.match(phoneRegex) || [];
-  return [...new Set(matches.map(p => p.trim()))];
+  return [...new Set(matches.map((phone) => phone.trim()))];
+}
+
+function extractSocialLinks(text: string): Record<string, string> {
+  const patterns = {
+    instagram: /(https?:\/\/(?:www\.)?instagram\.com\/[^\s"')]+)/i,
+    facebook: /(https?:\/\/(?:www\.)?facebook\.com\/[^\s"')]+)/i,
+    linkedin: /(https?:\/\/(?:[\w]+\.)?linkedin\.com\/[^\s"')]+)/i,
+    whatsapp: /(https?:\/\/(?:wa\.me|api\.whatsapp\.com)\/[^\s"')]+)/i,
+    youtube: /(https?:\/\/(?:www\.)?youtube\.com\/[^\s"')]+)/i,
+  };
+
+  return Object.fromEntries(
+    Object.entries(patterns)
+      .map(([key, regex]) => [key, text.match(regex)?.[1] || ""])
+      .filter(([, value]) => Boolean(value)),
+  );
+}
+
+function detectContactForm(text: string): boolean {
+  const normalized = text.toLowerCase();
+  return (
+    normalized.includes("<form") ||
+    normalized.includes("fale conosco") ||
+    normalized.includes("solicite um orcamento")
+  );
 }
 
 function deduplicateResults(results: any[]): any[] {
   const seen = new Set<string>();
-  return results.filter(r => {
-    const key = (r.url || r.title || '').toLowerCase();
+  return results.filter((result) => {
+    const key = (result.url || result.title || "").toLowerCase();
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+}
+
+function buildOnlinePresenceSnapshot(
+  website: string,
+  scrape: ScrapePayload | null,
+  fallbackEmail: string,
+  fallbackPhone: string,
+) {
+  if (!website) {
+    return {
+      score: 8,
+      classification: "critical",
+      label: "Presenca critica",
+      summary: "Nao possui site proprio. A empresa depende quase toda de reputacao local e canais de terceiros.",
+      strengths: fallbackPhone || fallbackEmail ? ["Existe um canal de contato direto."] : [],
+      weaknesses: [
+        "Nao possui site proprio",
+        "Baixa autoridade fora do Google",
+        "Narrativa comercial pouco controlada",
+      ],
+      emailsFound: fallbackEmail ? [fallbackEmail] : [],
+      phonesFound: fallbackPhone ? [fallbackPhone] : [],
+      socialLinks: {},
+      hasContactForm: false,
+      hasTitle: false,
+      hasMetaDescription: false,
+      hasHttps: false,
+      contentDepth: "low",
+    };
+  }
+
+  if (!scrape) {
+    return {
+      score: fallbackEmail && fallbackPhone ? 48 : 38,
+      classification: fallbackEmail || fallbackPhone ? "average" : "weak",
+      label: fallbackEmail || fallbackPhone ? "Presenca mediana" : "Presenca fraca",
+      summary: "Site encontrado, mas a leitura do conteudo ainda esta incompleta.",
+      strengths: ["Site proprio detectado."],
+      weaknesses: ["Auditoria detalhada do site pendente"],
+      emailsFound: fallbackEmail ? [fallbackEmail] : [],
+      phonesFound: fallbackPhone ? [fallbackPhone] : [],
+      socialLinks: {},
+      hasContactForm: false,
+      hasTitle: false,
+      hasMetaDescription: false,
+      hasHttps: website.startsWith("https://"),
+      contentDepth: "low",
+    };
+  }
+
+  const textBlob = `${scrape.markdown}\n${scrape.html}\n${scrape.links.join("\n")}`;
+  const emailsFound = extractEmails(textBlob);
+  const phonesFound = extractPhones(textBlob);
+  const socialLinks = extractSocialLinks(textBlob);
+  const hasTitle = Boolean(scrape.metadata?.title);
+  const hasMetaDescription = Boolean(scrape.metadata?.description);
+  const hasHttps = normalizeWebsite(website).startsWith("https://");
+  const hasContactForm = detectContactForm(textBlob);
+  const contentLength = scrape.markdown.length;
+  const contentDepth = contentLength > 2500 ? "high" : contentLength > 900 ? "medium" : "low";
+
+  const strengths: string[] = [];
+  const weaknesses: string[] = [];
+  let score = 18;
+
+  if (hasTitle) {
+    score += 12;
+    strengths.push("Titulo principal detectado");
+  } else {
+    weaknesses.push("Sem titulo SEO claro");
+  }
+
+  if (hasMetaDescription) {
+    score += 10;
+    strengths.push("Meta description presente");
+  } else {
+    weaknesses.push("Sem meta description visivel");
+  }
+
+  if (hasHttps) {
+    score += 8;
+    strengths.push("Site com HTTPS");
+  } else {
+    weaknesses.push("HTTPS ausente ou incerto");
+  }
+
+  if (emailsFound.length > 0 || fallbackEmail) {
+    score += 10;
+    strengths.push("Email de contato encontrado");
+  } else {
+    weaknesses.push("Email dificil de encontrar");
+  }
+
+  if (phonesFound.length > 0 || fallbackPhone) {
+    score += 10;
+    strengths.push("Telefone visivel");
+  } else {
+    weaknesses.push("Telefone pouco visivel");
+  }
+
+  if (hasContactForm) {
+    score += 8;
+    strengths.push("Fluxo de contato ou orcamento encontrado");
+  } else {
+    weaknesses.push("Sem fluxo claro de conversao");
+  }
+
+  if (Object.keys(socialLinks).length >= 2) {
+    score += 10;
+    strengths.push("Presenca social conectada");
+  } else if (Object.keys(socialLinks).length === 1) {
+    score += 5;
+    strengths.push("Tem ao menos uma rede social conectada");
+  } else {
+    weaknesses.push("Pouca prova de onipresenca digital");
+  }
+
+  if (contentDepth === "high") {
+    score += 16;
+    strengths.push("Site com conteudo robusto");
+  } else if (contentDepth === "medium") {
+    score += 10;
+    strengths.push("Site com conteudo suficiente para leitura consultiva");
+  } else {
+    weaknesses.push("Site raso ou pouco explicativo");
+  }
+
+  score = Math.max(0, Math.min(score, 100));
+
+  const classification =
+    score <= 25 ? "critical" : score <= 45 ? "weak" : score <= 70 ? "average" : "strong";
+  const label =
+    classification === "critical"
+      ? "Presenca critica"
+      : classification === "weak"
+        ? "Presenca fraca"
+        : classification === "average"
+          ? "Presenca mediana"
+          : "Presenca consistente";
+
+  return {
+    score,
+    classification,
+    label,
+    summary:
+      classification === "critical"
+        ? "A empresa tem uma presenca online muito fragil e facil de atacar com auditoria consultiva."
+        : classification === "weak"
+          ? "A base existe, mas a experiencia digital ainda transmite pouca autoridade."
+          : classification === "average"
+            ? "Existe estrutura digital minima, com espaco claro para melhorar conversao e clareza."
+            : "A empresa parece mais bem estruturada online e exige abordagem mais estrategica.",
+    strengths,
+    weaknesses,
+    emailsFound: [...new Set([fallbackEmail, ...emailsFound].filter(Boolean))],
+    phonesFound: [...new Set([fallbackPhone, ...phonesFound].filter(Boolean))],
+    socialLinks,
+    hasContactForm,
+    hasTitle,
+    hasMetaDescription,
+    hasHttps,
+    contentDepth,
+  };
 }
 
 serve(async (req) => {
@@ -107,75 +321,62 @@ serve(async (req) => {
 
   try {
     const { niches, location, radius } = await req.json();
-    const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const { user, svc } = await getAuthenticatedUserContext(req);
+    const firecrawlApiKey = Deno.env.get("FIRECRAWL_API_KEY");
+    const geminiApiKey = await requireUserProviderKey(
+      svc,
+      user.id,
+      "gemini",
+      "Configure sua chave Gemini em Configuracoes > APIs.",
+    );
 
-    if (!FIRECRAWL_API_KEY) throw new Error("FIRECRAWL_API_KEY is not configured");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!firecrawlApiKey) {
+      throw new HttpError(500, "FIRECRAWL_API_KEY nao configurada no projeto.");
+    }
 
-    // Step 1: Multi-strategy search for each niche
     const allSearchResults: { niche: string; nicheKey: string; results: any[] }[] = [];
     const limitPerNiche = Math.min(10, Math.ceil(15 / niches.length));
 
     const searchPromises = niches.map(async (nicheKey: string) => {
       const nicheLabel = nicheLabels[nicheKey] || nicheKey;
-
-      // Strategy 1: Google Maps search
       const mapsQuery = `site:google.com/maps "${nicheLabel}" "${location}"`;
-      console.log(`[Strategy 1] Google Maps: "${mapsQuery}"`);
+      const localQuery = `${nicheLabel} em ${location} avaliacoes telefone endereco`;
 
-      // Strategy 2: Local search with contact signals
-      const localQuery = `${nicheLabel} em ${location} avaliações telefone endereço`;
-      console.log(`[Strategy 2] Local: "${localQuery}"`);
-
-      // Run both strategies in parallel
       const [mapsResults, localResults] = await Promise.all([
-        firecrawlSearch(FIRECRAWL_API_KEY, mapsQuery, limitPerNiche),
-        firecrawlSearch(FIRECRAWL_API_KEY, localQuery, Math.ceil(limitPerNiche / 2)),
+        firecrawlSearch(firecrawlApiKey, mapsQuery, limitPerNiche),
+        firecrawlSearch(firecrawlApiKey, localQuery, Math.ceil(limitPerNiche / 2)),
       ]);
 
-      // Merge and deduplicate
       let combined = deduplicateResults([...mapsResults, ...localResults]);
 
-      // Strategy 3: Fallback if still few results
       if (combined.length < 3) {
         const fallbackQuery = `"${nicheLabel}" perto de "${location}" site contato`;
-        console.log(`[Strategy 3] Fallback: "${fallbackQuery}"`);
-        const fallbackResults = await firecrawlSearch(FIRECRAWL_API_KEY, fallbackQuery, limitPerNiche);
+        const fallbackResults = await firecrawlSearch(firecrawlApiKey, fallbackQuery, limitPerNiche);
         combined = deduplicateResults([...combined, ...fallbackResults]);
       }
 
-      console.log(`Total ${combined.length} results for "${nicheLabel}"`);
       return { niche: nicheLabel, nicheKey, results: combined };
     });
 
-    try {
-      const results = await Promise.all(searchPromises);
-      allSearchResults.push(...results);
-    } catch (err: any) {
-      if (err.status === 402) {
-        return new Response(JSON.stringify({ error: err.message }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw err;
-    }
+    const results = await Promise.all(searchPromises);
+    allSearchResults.push(...results);
 
-    // Build context for AI (increased to 3000 chars for richer data)
     const searchContext = allSearchResults
-      .filter(r => r.results.length > 0)
+      .filter((item) => item.results.length > 0)
       .map(({ niche, nicheKey, results }) => {
-        const entries = results.map((r: any, i: number) => {
-          const parts = [`### Resultado ${i + 1}`];
-          if (r.title) parts.push(`Título: ${r.title}`);
-          if (r.url) parts.push(`URL: ${r.url}`);
-          if (r.description) parts.push(`Descrição: ${r.description}`);
-          if (r.markdown) parts.push(`Conteúdo:\n${r.markdown.substring(0, 3000)}`);
-          return parts.join('\n');
-        }).join('\n\n');
+        const entries = results
+          .map((result: any, index: number) => {
+            const parts = [`### Resultado ${index + 1}`];
+            if (result.title) parts.push(`Titulo: ${result.title}`);
+            if (result.url) parts.push(`URL: ${result.url}`);
+            if (result.description) parts.push(`Descricao: ${result.description}`);
+            if (result.markdown) parts.push(`Conteudo:\n${result.markdown.substring(0, 3000)}`);
+            return parts.join("\n");
+          })
+          .join("\n\n");
         return `## Categoria: ${niche} (key: ${nicheKey})\n\n${entries}`;
-      }).join('\n\n---\n\n');
+      })
+      .join("\n\n---\n\n");
 
     if (!searchContext.trim()) {
       return new Response(JSON.stringify({ businesses: [] }), {
@@ -183,21 +384,20 @@ serve(async (req) => {
       });
     }
 
-    // Step 2: AI extracts structured data with improved prompt
-    const systemPrompt = `Você é um assistente especialista em extrair dados de empresas REAIS a partir de resultados de busca na web (Google Maps, diretórios e sites).
+    const systemPrompt = `Voce e um assistente especialista em extrair dados de empresas reais a partir de resultados de busca na web.
 
-REGRAS CRÍTICAS:
-- Extraia APENAS empresas reais com nome identificável. NÃO invente dados.
-- PRIORIZE dados do Google Maps quando disponíveis (ratings, endereços, telefones são mais confiáveis).
-- Telefones: extraia no formato brasileiro completo com DDD: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX. Se não houver telefone, deixe string vazia "".
-- Websites: use a URL real da empresa (NÃO URLs do Google, Facebook, Instagram, diretórios como Apontador, TripAdvisor). Se não houver site próprio, deixe string vazia "".
-- Endereços: extraia o endereço real completo incluindo bairro, cidade e estado. Se não houver, use "${location}" como fallback.
-- Rating: extraia a nota (ex: 4.5) se disponível. Se não houver, use null.
-- Email: extraia se visível nos resultados de busca. Se não houver, deixe string vazia "".
-- NÃO repita empresas duplicadas (mesmo nome = mesma empresa).
-- A "distance" deve ser um número entre 0.5 e ${radius} (estimado baseado no endereço).
-- O "category" deve ser a key em inglês fornecida nos resultados.
-- Cada empresa deve ter um "id" único (formato: niche-N, ex: restaurant-1, clinic-2).
+REGRAS CRITICAS:
+- Extraia apenas empresas reais com nome identificavel. Nao invente dados.
+- Priorize dados do Google Maps quando disponiveis.
+- Telefones: use formato brasileiro com DDD. Se nao houver, devolva string vazia.
+- Websites: use apenas o site proprio da empresa. Nao use URLs do Google, Instagram, Facebook ou diretorios.
+- Enderecos: se faltar, use "${location}" como fallback.
+- Rating: extraia a nota se disponivel. Se nao houver, use null.
+- Email: extraia se estiver visivel. Se nao houver, use string vazia.
+- Nao repita empresas duplicadas.
+- distance deve ser um numero entre 0.5 e ${radius}.
+- category deve ser a key em ingles fornecida nos resultados.
+- Cada empresa deve ter id unico no formato niche-N.
 
 FORMATO JSON ARRAY:
 [
@@ -214,112 +414,92 @@ FORMATO JSON ARRAY:
   }
 ]
 
-Responda APENAS com o JSON array, sem explicações.`;
+Responda apenas com JSON array.`;
 
-    const userPrompt = `Extraia TODAS as empresas reais dos seguintes resultados de busca para "${location}" (raio ${radius}km).
-Priorize dados do Google Maps quando disponíveis.
+    const userPrompt = `Extraia todas as empresas reais dos seguintes resultados de busca para "${location}" (raio ${radius}km).
+Priorize dados do Google Maps quando disponiveis.
 
 ${searchContext}`;
 
-    console.log("Sending to AI for structuring...");
+    let businesses = await callGeminiJson<any[]>(
+      geminiApiKey,
+      "gemini-2.5-flash",
+      systemPrompt,
+      userPrompt,
+      { temperature: 0.2, maxOutputTokens: 4000 },
+    );
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.2,
-        max_tokens: 4000,
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errorText);
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns minutos." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos insuficientes." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error("Erro ao processar resultados com IA");
-    }
-
-    const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content || "[]";
-
-    let businesses: any[] = [];
-    try {
-      const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      businesses = JSON.parse(cleanContent);
-    } catch (parseError) {
-      console.error("Error parsing AI response:", parseError);
-      return new Response(JSON.stringify({ error: "Erro ao processar resposta da IA" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Clean up websites
-    businesses = businesses.map((b: any) => ({
-      ...b,
-      website: b.website && b.website.trim() && !b.website.includes('google.com') && !b.website.includes('facebook.com/') && !b.website.includes('instagram.com/')
-        ? b.website.replace(/^https?:\/\//, '')
-        : '',
-      phone: b.phone || '',
-      email: b.email || '',
-      address: b.address || location,
+    businesses = businesses.map((business: any) => ({
+      ...business,
+      website:
+        business.website &&
+        business.website.trim() &&
+        !business.website.includes("google.com") &&
+        !business.website.includes("facebook.com/") &&
+        !business.website.includes("instagram.com/")
+          ? business.website.replace(/^https?:\/\//, "")
+          : "",
+      phone: business.phone || "",
+      email: business.email || "",
+      address: business.address || location,
+      onlinePresence: buildOnlinePresenceSnapshot(
+        business.website &&
+          business.website.trim() &&
+          !business.website.includes("google.com") &&
+          !business.website.includes("facebook.com/") &&
+          !business.website.includes("instagram.com/")
+          ? business.website.replace(/^https?:\/\//, "")
+          : "",
+        null,
+        business.email || "",
+        business.phone || "",
+      ),
     }));
 
-    // Step 3: Scrape websites for missing emails AND phones (max 5 parallel)
-    const businessesNeedingScrape = businesses.filter(b => b.website && (!b.email || !b.phone));
-    const toScrape = businessesNeedingScrape.slice(0, 5);
+    const businessesWithWebsite = businesses.filter((business) => business.website);
+    const batchSize = 5;
 
-    if (toScrape.length > 0) {
-      console.log(`Scraping ${toScrape.length} websites for emails/phones...`);
-      const scrapePromises = toScrape.map(async (b: any) => {
-        const markdown = await firecrawlScrape(FIRECRAWL_API_KEY, b.website);
-        if (markdown) {
-          // Extract email if missing
-          if (!b.email) {
-            const emails = extractEmails(markdown);
+    for (let index = 0; index < businessesWithWebsite.length; index += batchSize) {
+      const batch = businessesWithWebsite.slice(index, index + batchSize);
+
+      await Promise.all(
+        batch.map(async (business: any) => {
+          const scrape = await firecrawlScrape(firecrawlApiKey, business.website);
+          const textBlob = scrape ? `${scrape.markdown}\n${scrape.html}` : "";
+
+          if (scrape && !business.email) {
+            const emails = extractEmails(textBlob);
             if (emails.length > 0) {
-              b.email = emails[0];
-              console.log(`Found email for ${b.name}: ${b.email}`);
+              business.email = emails[0];
             }
           }
-          // Extract phone if missing
-          if (!b.phone) {
-            const phones = extractPhones(markdown);
-            if (phones.length > 0) {
-              b.phone = phones[0];
-              console.log(`Found phone for ${b.name}: ${b.phone}`);
-            }
-          }
-        }
-      });
-      await Promise.all(scrapePromises);
-    }
 
-    console.log(`Returning ${businesses.length} businesses`);
+          if (scrape && !business.phone) {
+            const phones = extractPhones(textBlob);
+            if (phones.length > 0) {
+              business.phone = phones[0];
+            }
+          }
+
+          business.onlinePresence = buildOnlinePresenceSnapshot(
+            business.website,
+            scrape,
+            business.email || "",
+            business.phone || "",
+          );
+        }),
+      );
+    }
 
     return new Response(JSON.stringify({ businesses }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Error in search-businesses:", error);
+    const status = error instanceof HttpError ? error.status : 500;
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Erro desconhecido" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

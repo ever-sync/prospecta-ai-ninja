@@ -1,12 +1,52 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
+import { callGeminiJson } from "../_shared/gemini.ts";
+import { requireUserProviderKey } from "../_shared/user-provider-keys.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+type ScrapedContent = {
+  markdown: string;
+  html: string;
+  screenshot: string | null;
+  metadata: Record<string, any>;
+};
+
+const normalizeWebsite = (url: string) => {
+  const trimmed = url.trim();
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+};
+
+const firecrawlScrape = async (apiKey: string, url: string, formats: string[], waitFor?: number) => {
+  const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      url,
+      formats,
+      onlyMainContent: false,
+      ...(waitFor ? { waitFor } : {}),
+    }),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return await response.json();
 };
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -14,268 +54,141 @@ Deno.serve(async (req) => {
     const { business, dna, profile } = await req.json();
 
     if (!business) {
-      return new Response(JSON.stringify({ error: 'Business data is required' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      return new Response(JSON.stringify({ error: "Business data is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
+    const { user, svc } = await getAuthenticatedUserContext(req);
+    const geminiApiKey = await requireUserProviderKey(
+      svc,
+      user.id,
+      "gemini",
+      "Configure sua chave Gemini em Configuracoes > APIs.",
+    );
+    const firecrawlApiKey = Deno.env.get("FIRECRAWL_API_KEY");
 
-    const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
-
-    // Step 1: Scrape website if available
-    let scrapedContent = null;
-    if (business.website && FIRECRAWL_API_KEY) {
+    let scrapedContent: ScrapedContent | null = null;
+    if (business.website && firecrawlApiKey) {
       try {
-        let url = business.website.trim();
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-          url = `https://${url}`;
-        }
-
-        console.log('Scraping website:', url);
-        const scrapeRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url,
-            formats: ['markdown', 'html', 'screenshot'],
-            onlyMainContent: false,
-          }),
-        });
-
-        if (scrapeRes.ok) {
-          const scrapeData = await scrapeRes.json();
+        const scrapeData = await firecrawlScrape(
+          firecrawlApiKey,
+          normalizeWebsite(business.website),
+          ["markdown", "html", "screenshot"],
+        );
+        if (scrapeData) {
           scrapedContent = {
-            markdown: scrapeData.data?.markdown || scrapeData.markdown || '',
-            html: scrapeData.data?.html || scrapeData.html || '',
+            markdown: scrapeData.data?.markdown || scrapeData.markdown || "",
+            html: scrapeData.data?.html || scrapeData.html || "",
             screenshot: scrapeData.data?.screenshot || scrapeData.screenshot || null,
             metadata: scrapeData.data?.metadata || scrapeData.metadata || {},
           };
-          console.log('Scrape successful, content length:', scrapedContent.markdown.length);
-        } else {
-          console.error('Scrape failed:', scrapeRes.status);
         }
-      } catch (e) {
-        console.error('Scrape error:', e);
+      } catch (error) {
+        console.error("Scrape error:", error);
       }
     }
 
-    // Step 1.5: Screenshot Google Maps reviews page
     let googleMapsScreenshot: string | null = null;
-    if (FIRECRAWL_API_KEY && business.name) {
+    if (business.name && firecrawlApiKey) {
       try {
-        const searchQuery = encodeURIComponent(`${business.name} ${business.address || ''}`);
+        const searchQuery = encodeURIComponent(`${business.name} ${business.address || ""}`);
         const mapsUrl = `https://www.google.com/maps/search/${searchQuery}`;
-        
-        console.log('Taking Google Maps screenshot:', mapsUrl);
-        const screenshotRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url: mapsUrl,
-            formats: ['screenshot'],
-            waitFor: 3000,
-          }),
-        });
-
-        if (screenshotRes.ok) {
-          const screenshotData = await screenshotRes.json();
-          const screenshotBase64 = screenshotData.data?.screenshot || screenshotData.screenshot;
-          if (screenshotBase64) {
-            googleMapsScreenshot = screenshotBase64;
-            console.log('Google Maps screenshot captured');
-          }
-        } else {
-          console.error('Google Maps screenshot failed:', screenshotRes.status);
-        }
-      } catch (e) {
-        console.error('Google Maps screenshot error:', e);
+        const screenshotData = await firecrawlScrape(firecrawlApiKey, mapsUrl, ["screenshot"], 3000);
+        googleMapsScreenshot = screenshotData?.data?.screenshot || screenshotData?.screenshot || null;
+      } catch (error) {
+        console.error("Google Maps screenshot error:", error);
       }
     }
 
-    // Step 2: AI analysis
-    const htmlSnippet = scrapedContent?.html
-      ? scrapedContent.html.substring(0, 8000)
-      : 'Sem site disponível';
+    const htmlSnippet = scrapedContent?.html ? scrapedContent.html.substring(0, 8000) : "Sem site disponivel";
     const markdownContent = scrapedContent?.markdown
       ? scrapedContent.markdown.substring(0, 6000)
-      : 'Sem conteúdo disponível';
+      : "Sem conteudo disponivel";
     const metadata = scrapedContent?.metadata || {};
 
-    const dnaCommercialContext = dna ? `
-DNA COMERCIAL (use para priorizar oportunidades e recomendacoes):
-- ICP (segmentos): ${(dna.icp_segments || []).join(', ') || 'Nao informado'}
-- ICP (porte): ${dna.icp_company_size || 'Nao informado'}
-- ICP (maturidade digital): ${dna.icp_digital_maturity || 'Nao informado'}
-- Dores prioritarias: ${(dna.priority_pains || []).join(', ') || 'Nao informado'}
-- Objecoes comuns: ${(dna.common_objections || []).join(', ') || 'Nao informado'}
-- Playbook de objecoes: ${dna.objection_responses || 'Nao informado'}
-- Ofertas/pacotes: ${dna.offer_packages || 'Nao informado'}
-- Faixa de preco: ${dna.price_range || 'Nao informado'}
-- Cases e metricas: ${dna.case_metrics || 'Nao informado'}
-- Garantia/risco reverso: ${dna.guarantee || 'Nao informado'}
-` : '';
+    const dnaContext = dna
+      ? `DNA COMERCIAL:
+- Servicos: ${(dna.services || []).join(", ") || "Nao informado"}
+- Diferenciais: ${(dna.differentials || []).join(", ") || "Nao informado"}
+- Publico-alvo: ${dna.target_audience || "Nao informado"}
+- Proposta de valor: ${dna.value_proposition || "Nao informado"}
+- ICP segmentos: ${(dna.icp_segments || []).join(", ") || "Nao informado"}
+- ICP porte: ${dna.icp_company_size || "Nao informado"}
+- ICP maturidade digital: ${dna.icp_digital_maturity || "Nao informado"}
+- Dores prioritarias: ${(dna.priority_pains || []).join(", ") || "Nao informado"}
+- Objecoes comuns: ${(dna.common_objections || []).join(", ") || "Nao informado"}
+- Ofertas/pacotes: ${dna.offer_packages || "Nao informado"}
+- Faixa de preco: ${dna.price_range || "Nao informado"}
+- Garantia: ${dna.guarantee || "Nao informado"}`
+      : "";
 
-    const dnaContext = dna ? `
-DADOS DA SUA EMPRESA (quem está prospectando):
-- Serviços: ${(dna.services || []).join(', ') || 'Não informado'}
-- Diferenciais: ${(dna.differentials || []).join(', ') || 'Não informado'}
-- Público-alvo: ${dna.target_audience || 'Não informado'}
-- Proposta de valor: ${dna.value_proposition || 'Não informado'}
-- Tom de comunicação: ${dna.tone || 'Não informado'}
-` : '';
-
-    const systemPrompt = `Você é um analista de marketing digital especializado em auditoria de presença online de empresas.
-Analise a empresa-alvo e retorne scores e recomendações.
-
-IMPORTANTE: Retorne APENAS o JSON via tool call, sem texto adicional.`;
-
-    const dnaFullJson = JSON.stringify(dna || {}, null, 2);
+    const systemPrompt = `Voce e um analista de marketing digital especializado em auditoria de presenca online de empresas.
+Retorne apenas JSON com esta estrutura:
+{
+  "scores": { "seo": 0, "speed": 0, "layout": 0, "security": 0, "overall": 0 },
+  "seo_details": {
+    "has_title": true,
+    "has_meta_description": true,
+    "has_h1": true,
+    "has_sitemap": false,
+    "issues": ["..."]
+  },
+  "security_details": {
+    "has_https": true,
+    "has_ssl": true,
+    "issues": ["..."]
+  },
+  "google_presence": {
+    "rating": 4.2,
+    "estimated_position": "media",
+    "strengths": ["..."],
+    "weaknesses": ["..."]
+  },
+  "recommendations": [
+    { "title": "...", "description": "...", "priority": "alta", "category": "SEO" }
+  ],
+  "summary": "..."
+}`;
 
     const userPrompt = `Analise a seguinte empresa:
 
 EMPRESA-ALVO:
 - Nome: ${business.name}
-- Endereço: ${business.address}
+- Endereco: ${business.address}
 - Telefone: ${business.phone}
-- Site: ${business.website || 'Sem site'}
+- Site: ${business.website || "Sem site"}
 - Categoria: ${business.category}
-- Rating Google: ${business.rating || 'N/A'}
+- Rating Google: ${business.rating || "N/A"}
+${business.onlinePresence ? `- Presenca online: ${business.onlinePresence.label} (${business.onlinePresence.score}/100)` : ""}
+${business.onlinePresence?.weaknesses?.length ? `- Fraquezas percebidas: ${business.onlinePresence.weaknesses.join(", ")}` : ""}
 
-CONTEÚDO DO SITE (HTML parcial):
+CONTEUDO DO SITE (HTML parcial):
 ${htmlSnippet}
 
-CONTEÚDO DO SITE (Markdown):
+CONTEUDO DO SITE (Markdown):
 ${markdownContent}
 
 METADADOS:
-- Title: ${metadata.title || 'N/A'}
-- Description: ${metadata.description || 'N/A'}
-- Language: ${metadata.language || 'N/A'}
+- Title: ${metadata.title || "N/A"}
+- Description: ${metadata.description || "N/A"}
+- Language: ${metadata.language || "N/A"}
 
 ${dnaContext}
-${dnaCommercialContext}
-DNA COMPLETO (JSON) - analise obrigatoria de todos os campos preenchidos:
-${dnaFullJson}
+DNA COMPLETO:
+${JSON.stringify(dna || {}, null, 2)}
 
-Analise e retorne os scores e recomendações para esta empresa.`;
+Retorne uma analise tecnica e comercial.`;
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        tools: [{
-          type: 'function',
-          function: {
-            name: 'submit_analysis',
-            description: 'Submit the complete analysis of the business',
-            parameters: {
-              type: 'object',
-              properties: {
-                scores: {
-                  type: 'object',
-                  properties: {
-                    seo: { type: 'number', description: 'Score SEO 0-100' },
-                    speed: { type: 'number', description: 'Score velocidade estimada 0-100' },
-                    layout: { type: 'number', description: 'Score layout/UX 0-100' },
-                    security: { type: 'number', description: 'Score segurança 0-100' },
-                    overall: { type: 'number', description: 'Score geral 0-100' },
-                  },
-                  required: ['seo', 'speed', 'layout', 'security', 'overall'],
-                },
-                seo_details: {
-                  type: 'object',
-                  properties: {
-                    has_title: { type: 'boolean' },
-                    has_meta_description: { type: 'boolean' },
-                    has_h1: { type: 'boolean' },
-                    has_sitemap: { type: 'boolean' },
-                    issues: { type: 'array', items: { type: 'string' } },
-                  },
-                  required: ['has_title', 'has_meta_description', 'has_h1', 'issues'],
-                },
-                security_details: {
-                  type: 'object',
-                  properties: {
-                    has_https: { type: 'boolean' },
-                    has_ssl: { type: 'boolean' },
-                    issues: { type: 'array', items: { type: 'string' } },
-                  },
-                  required: ['has_https', 'issues'],
-                },
-                google_presence: {
-                  type: 'object',
-                  properties: {
-                    rating: { type: 'number' },
-                    estimated_position: { type: 'string' },
-                    strengths: { type: 'array', items: { type: 'string' } },
-                    weaknesses: { type: 'array', items: { type: 'string' } },
-                  },
-                  required: ['strengths', 'weaknesses'],
-                },
-                recommendations: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      title: { type: 'string' },
-                      description: { type: 'string' },
-                      priority: { type: 'string', enum: ['alta', 'média', 'baixa'] },
-                      category: { type: 'string', enum: ['SEO', 'Velocidade', 'Layout', 'Segurança', 'Marketing', 'Geral'] },
-                    },
-                    required: ['title', 'description', 'priority', 'category'],
-                  },
-                },
-                summary: { type: 'string', description: 'Resumo executivo da análise em 2-3 parágrafos' },
-              },
-              required: ['scores', 'seo_details', 'security_details', 'google_presence', 'recommendations', 'summary'],
-              additionalProperties: false,
-            },
-          },
-        }],
-        tool_choice: { type: 'function', function: { name: 'submit_analysis' } },
-      }),
-    });
+    const analysis = await callGeminiJson<any>(
+      geminiApiKey,
+      "gemini-2.5-flash",
+      systemPrompt,
+      userPrompt,
+      { temperature: 0.3, maxOutputTokens: 2500 },
+    );
 
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again later.' }), {
-          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add credits.' }), {
-          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      const errText = await aiResponse.text();
-      console.error('AI error:', aiResponse.status, errText);
-      throw new Error(`AI analysis failed: ${aiResponse.status}`);
-    }
-
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-
-    if (!toolCall) {
-      throw new Error('AI did not return structured analysis');
-    }
-
-    const analysis = JSON.parse(toolCall.function.arguments);
     analysis.has_website = !!business.website;
     analysis.scraped = !!scrapedContent;
     if (googleMapsScreenshot) {
@@ -286,12 +199,14 @@ Analise e retorne os scores e recomendações para esta empresa.`;
     }
 
     return new Response(JSON.stringify({ success: true, analysis }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error('Deep analyze error:', error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Analysis failed' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    console.error("Deep analyze error:", error);
+    const status = error instanceof HttpError ? error.status : 500;
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Analysis failed" }), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

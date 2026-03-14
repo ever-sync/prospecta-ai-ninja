@@ -1,4 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
+import { callGeminiJson } from "../_shared/gemini.ts";
+import { requireUserProviderKey } from "../_shared/user-provider-keys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,25 +9,25 @@ const corsHeaders = {
 };
 
 const categoryLabels: Record<string, string> = {
-  restaurant: 'Restaurante',
-  clinic: 'Clínica',
-  store: 'Loja',
-  gym: 'Academia',
-  salon: 'Salão de Beleza',
-  dentist: 'Dentista',
-  lawyer: 'Advogado',
-  accounting: 'Contabilidade',
-  pharmacy: 'Farmácia',
-  hotel: 'Hotel',
-  school: 'Escola',
-  real_estate: 'Imobiliária',
+  restaurant: "Restaurante",
+  clinic: "Clinica",
+  store: "Loja",
+  gym: "Academia",
+  salon: "Salao de Beleza",
+  dentist: "Dentista",
+  lawyer: "Advogado",
+  accounting: "Contabilidade",
+  pharmacy: "Farmacia",
+  hotel: "Hotel",
+  school: "Escola",
+  real_estate: "Imobiliaria",
 };
 
 function getSystemPrompt(mode: string): string {
   switch (mode) {
-    case 'competitors':
-      return `Você é um analista de mercado especialista em negócios brasileiros.
-Sua tarefa é analisar a concorrência de uma empresa e sugerir diferenciais competitivos.
+    case "competitors":
+      return `Voce e um analista de mercado especialista em negocios brasileiros.
+Sua tarefa e analisar a concorrencia de uma empresa e sugerir diferenciais competitivos.
 
 FORMATO DE RESPOSTA (JSON):
 {
@@ -33,58 +36,58 @@ FORMATO DE RESPOSTA (JSON):
   ],
   "differentials": ["Diferencial 1", "Diferencial 2", "Diferencial 3"],
   "opportunities": ["Oportunidade 1", "Oportunidade 2"],
-  "summary": "Resumo da análise competitiva em 2-3 frases"
+  "summary": "Resumo da analise competitiva em 2-3 frases"
 }
 
-Gere 3-5 concorrentes plausíveis, 3 diferenciais e 2 oportunidades. Responda APENAS com JSON.`;
+Gere 3-5 concorrentes plausiveis, 3 diferenciais e 2 oportunidades. Responda apenas com JSON.`;
 
-    case 'score':
-      return `Você é um especialista em qualificação de leads B2B no mercado brasileiro.
-Sua tarefa é pontuar um lead de 0 a 100 baseado no potencial de conversão.
+    case "score":
+      return `Voce e um especialista em qualificacao de leads B2B no mercado brasileiro.
+Sua tarefa e pontuar um lead de 0 a 100 baseado no potencial de conversao.
 
-CRITÉRIOS DE AVALIAÇÃO:
+CRITERIOS DE AVALIACAO:
 - Potencial de mercado do segmento (0-25 pts)
-- Localização e acessibilidade (0-20 pts)
-- Presença digital (0-20 pts)
-- Necessidade provável de serviços (0-20 pts)
-- Avaliação/reputação (0-15 pts)
+- Localizacao e acessibilidade (0-20 pts)
+- Presenca digital (0-20 pts)
+- Necessidade provavel de servicos (0-20 pts)
+- Avaliacao/reputacao (0-15 pts)
 
 FORMATO DE RESPOSTA (JSON):
 {
   "totalScore": 78,
   "breakdown": {
     "marketPotential": { "score": 20, "max": 25, "reason": "Segmento em crescimento" },
-    "location": { "score": 15, "max": 20, "reason": "Boa localização" },
+    "location": { "score": 15, "max": 20, "reason": "Boa localizacao" },
     "digitalPresence": { "score": 18, "max": 20, "reason": "Website ativo" },
     "serviceNeed": { "score": 15, "max": 20, "reason": "Alta demanda" },
-    "reputation": { "score": 10, "max": 15, "reason": "Boa avaliação" }
+    "reputation": { "score": 10, "max": 15, "reason": "Boa avaliacao" }
   },
-  "recommendation": "Recomendação em 1-2 frases",
+  "recommendation": "Recomendacao em 1-2 frases",
   "priority": "alta"
 }
 
-priority deve ser: "alta" (>70), "média" (40-70), "baixa" (<40). Responda APENAS com JSON.`;
+priority deve ser: "alta" (>70), "media" (40-70), "baixa" (<40). Responda apenas com JSON.`;
 
-    case 'profile':
-      return `Você é um analista de negócios especialista em empresas brasileiras.
-Sua tarefa é gerar um resumo executivo rápido e estratégico de uma empresa.
+    case "profile":
+      return `Voce e um analista de negocios especialista em empresas brasileiras.
+Sua tarefa e gerar um resumo executivo rapido e estrategico de uma empresa.
 
 FORMATO DE RESPOSTA (JSON):
 {
-  "overview": "Descrição geral da empresa em 2-3 frases",
-  "targetAudience": "Público-alvo provável",
-  "estimatedSize": "Porte estimado (micro/pequeno/médio/grande)",
-  "strengths": ["Força 1", "Força 2"],
+  "overview": "Descricao geral da empresa em 2-3 frases",
+  "targetAudience": "Publico-alvo provavel",
+  "estimatedSize": "Porte estimado (micro/pequeno/medio/grande)",
+  "strengths": ["Forca 1", "Forca 2"],
   "challenges": ["Desafio 1", "Desafio 2"],
-  "bestApproachTime": "Melhor horário/dia para contato",
-  "decisionMaker": "Provável decisor (cargo)",
-  "insights": "Insight estratégico adicional em 1-2 frases"
+  "bestApproachTime": "Melhor horario/dia para contato",
+  "decisionMaker": "Provavel decisor (cargo)",
+  "insights": "Insight estrategico adicional em 1-2 frases"
 }
 
-Responda APENAS com JSON.`;
+Responda apenas com JSON.`;
 
     default:
-      throw new Error(`Modo inválido: ${mode}`);
+      throw new Error(`Modo invalido: ${mode}`);
   }
 }
 
@@ -95,14 +98,16 @@ serve(async (req) => {
 
   try {
     const { business, mode } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const { user, svc } = await getAuthenticatedUserContext(req);
+    const geminiApiKey = await requireUserProviderKey(
+      svc,
+      user.id,
+      "gemini",
+      "Configure sua chave Gemini em Configuracoes > APIs.",
+    );
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
-
-    if (!['competitors', 'score', 'profile'].includes(mode)) {
-      throw new Error("Modo inválido. Use: competitors, score, profile");
+    if (!["competitors", "score", "profile"].includes(mode)) {
+      throw new Error("Modo invalido. Use: competitors, score, profile");
     }
 
     const categoryName = categoryLabels[business.category] || business.category;
@@ -111,76 +116,29 @@ serve(async (req) => {
 
 Nome: ${business.name}
 Categoria: ${categoryName}
-Endereço: ${business.address}
-${business.phone ? `Telefone: ${business.phone}` : ''}
-${business.website ? `Website: ${business.website}` : ''}
-${business.rating ? `Avaliação: ${business.rating}/5` : ''}
-${business.distance ? `Distância: ${business.distance} km` : ''}`;
+Endereco: ${business.address}
+${business.phone ? `Telefone: ${business.phone}` : ""}
+${business.website ? `Website: ${business.website}` : ""}
+${business.rating ? `Avaliacao: ${business.rating}/5` : ""}
+${business.distance ? `Distancia: ${business.distance} km` : ""}
+${business.onlinePresence ? `Presenca online: ${business.onlinePresence.label} (${business.onlinePresence.score}/100)` : ""}`;
 
-    console.log(`Analyzing business [${mode}]:`, business.name);
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: getSystemPrompt(mode) },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 1000,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns minutos." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos insuficientes. Adicione créditos à sua conta." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(JSON.stringify({ error: "Erro ao analisar empresa" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "{}";
-
-    let result;
-    try {
-      const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      result = JSON.parse(cleanContent);
-    } catch (parseError) {
-      console.error("Error parsing AI response:", parseError, content);
-      return new Response(JSON.stringify({ error: "Erro ao processar resposta da IA" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const result = await callGeminiJson<Record<string, unknown>>(
+      geminiApiKey,
+      "gemini-2.5-flash",
+      getSystemPrompt(mode),
+      userPrompt,
+      { temperature: 0.7, maxOutputTokens: 1000 },
+    );
 
     return new Response(JSON.stringify({ result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Error in analyze-business function:", error);
+    const status = error instanceof HttpError ? error.status : 500;
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Erro desconhecido" }), {
-      status: 500,
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

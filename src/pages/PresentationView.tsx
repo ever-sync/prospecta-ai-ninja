@@ -25,7 +25,7 @@ const PresentationView = () => {
 
       const { data, error: dbError } = await supabase
         .from('presentations')
-        .select('id, user_id, business_category, analysis_data, pipeline_stage_id, presentation_html, status')
+        .select('id, user_id, business_category, analysis_data, pipeline_stage_id, presentation_html, presentation_version, presentation_content, status')
         .eq('public_id', publicId)
         .single();
 
@@ -38,7 +38,7 @@ const PresentationView = () => {
           supabase
             .from('profiles')
             .select('company_name, company_logo_url')
-            .eq('id', data.user_id),
+            .eq('user_id', data.user_id),
         );
         const analysisData = (data.analysis_data as Record<string, unknown> | null) || null;
 

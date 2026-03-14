@@ -1,14 +1,229 @@
 import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
-import { callGeminiText } from "../_shared/gemini.ts";
+import { callGeminiJson } from "../_shared/gemini.ts";
+import { renderPresentationHtml } from "../_shared/presentation-renderer.ts";
+import {
+  PresentationContentV2,
+  PresentationRenderContext,
+  PresentationResponseMode,
+  PresentationTemplateSkin,
+  PresentationTone,
+} from "../_shared/presentation-types.ts";
 import { requireUserProviderKey } from "../_shared/user-provider-keys.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-user-auth, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-user-auth, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const normalizeTemplate = (template?: string | null): PresentationTemplateSkin => {
+  if (
+    template === "modern-dark" ||
+    template === "clean-light" ||
+    template === "corporate" ||
+    template === "bold-gradient" ||
+    template === "custom"
+  ) {
+    return template;
+  }
+  return "modern-dark";
+};
+
+const normalizeTone = (tone?: string | null): PresentationTone => {
+  if (
+    tone === "professional" ||
+    tone === "consultive" ||
+    tone === "urgent" ||
+    tone === "friendly" ||
+    tone === "technical"
+  ) {
+    return tone;
+  }
+  return "consultive";
+};
+
+const normalizeResponseMode = (mode?: string | null): PresentationResponseMode =>
+  mode === "form" ? "form" : "buttons";
+
+const firstItems = (value: unknown, fallback: string[]) => {
+  if (Array.isArray(value)) {
+    const parsed = value.map((item) => String(item || "").trim()).filter(Boolean);
+    if (parsed.length > 0) return parsed;
+  }
+  return fallback;
+};
+
+const makeWhatsappUrl = (phone?: string | null, companyName?: string, businessName?: string) => {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return null;
+  const target = digits.startsWith("55") ? digits : `55${digits}`;
+  const text = encodeURIComponent(
+    `Ola! Vi a proposta da ${companyName || "sua empresa"} sobre ${businessName || "meu negocio"} e quero falar sobre os proximos passos.`,
+  );
+  return `https://wa.me/${target}?text=${text}`;
+};
+
+const buildFallbackContent = (params: {
+  analysis: Record<string, any>;
+  business: Record<string, any>;
+  dna: Record<string, any> | null;
+  tone: PresentationTone;
+  responseMode: PresentationResponseMode;
+}): PresentationContentV2 => {
+  const { analysis, business, dna, tone, responseMode } = params;
+  const services = firstItems(dna?.services, ["Diagnostico de presenca digital", "UX focada em conversao", "Captacao comercial"]);
+  const pains = firstItems(dna?.priority_pains, ["perda de leads", "baixa conversao", "presenca digital fraca"]);
+  const differentials = firstItems(dna?.differentials, ["Execucao consultiva", "Clareza no plano de acao", "Ritmo comercial forte"]);
+  const overall = Number(analysis?.scores?.overall || 0);
+  const category = String(business.category || "empresa local");
+  const tonePrefix =
+    tone === "urgent"
+      ? "Cada semana assim custa oportunidade real."
+      : tone === "technical"
+      ? "Os sinais tecnicos confirmam um gargalo de aquisicao."
+      : "Existe uma oportunidade clara de melhora comercial.";
+
+  return {
+    hero: {
+      eyebrow: "Leitura comercial estruturada",
+      headline: overall < 40
+        ? `Hoje sua operacao digital nao sustenta a venda que ${business.name} pode fechar.`
+        : `Sua presenca digital tem base, mas ainda deixa dinheiro na mesa em ${category}.`,
+      subheadline: `${tonePrefix} Esta proposta conecta o que foi analisado com um plano objetivo para atrair, convencer e converter melhor.`,
+      miniSummary: `Encontramos sinais de ${pains[0]} e um espaco claro para posicionar ${services[0]} como alavanca de crescimento.`,
+    },
+    executiveSummary: {
+      title: "Resumo executivo",
+      bullets: [
+        `A leitura da empresa ${business.name} mostra gargalos de descoberta, confianca e conversao.`,
+        `Os principais sinais indicam ${pains.slice(0, 2).join(" e ")} impactando a captacao.`,
+        `A oportunidade esta em transformar essas brechas num fluxo comercial previsivel.`,
+        `A proposta abaixo mostra onde agir primeiro e como acelerar retorno.`,
+      ],
+    },
+    diagnosis: {
+      title: "Diagnostico central",
+      summary: `A operacao atual nao comunica valor com a forca necessaria para transformar interesse em contato comercial consistente.`,
+      riskStatement: overall < 40
+        ? "Continuar igual significa seguir perdendo demanda que ja esta procurando uma solucao."
+        : "Sem ajuste fino, a empresa continua atraindo menos confianca e convertendo abaixo do potencial.",
+    },
+    googleMapsInsight: {
+      title: "Google Maps",
+      insight: `No contexto local, visibilidade e prova social influenciam diretamente a decisao de contato.`,
+      impact: `Quando o Maps nao transmite autoridade suficiente, o lead escolhe quem parece mais seguro e mais facil de acionar.`,
+    },
+    websiteInsight: {
+      title: "Site atual",
+      insight: `O site precisa reduzir friccao, clarificar proposta e sustentar melhor a decisao de compra.`,
+      impact: `Sem isso, cada clique novo vira visita pouco qualificada, curiosidade solta ou abandono antes do contato.`,
+    },
+    opportunities: [
+      {
+        title: "Mensagem comercial pouco agressiva",
+        impact: "O visitante nao percebe valor rapido o bastante para agir.",
+        urgency: "Alta",
+        opportunity: "Reposicionar a proposta com foco em dor, prova e proximo passo claro.",
+      },
+      {
+        title: "Presenca digital abaixo do potencial",
+        impact: "Parte da demanda local escolhe concorrentes mais convincentes.",
+        urgency: "Alta",
+        opportunity: "Ganhar mais descoberta e mais confianca nas primeiras impressoes.",
+      },
+      {
+        title: "Conversao sem esteira clara",
+        impact: "Interesse se perde entre visita, duvida e inercia.",
+        urgency: "Media",
+        opportunity: "Criar uma experiencia que leva do interesse ao contato com menos atrito.",
+      },
+    ],
+    solutionMapping: services.slice(0, 3).map((service, index) => ({
+      problem: pains[index] || pains[0],
+      service,
+      benefit: `Aplicar ${service.toLowerCase()} para reduzir atrito, aumentar confianca e converter mais oportunidades qualificadas.`,
+    })),
+    differentials: differentials.slice(0, 3).map((item) => ({
+      title: item,
+      description: `Esse diferencial encurta o caminho entre diagnostico, execucao e resultado percebido pelo lead.`,
+    })),
+    proof: [
+      {
+        title: "Plano orientado a oportunidade perdida",
+        metric: "Leitura comercial",
+        description: "Nao entregamos auditoria fria. Entregamos um argumento de venda conectado ao contexto do lead.",
+      },
+      {
+        title: "Execucao conectada ao DNA da sua empresa",
+        metric: "Fit comercial",
+        description: "A proposta conversa com servicos, diferenciais e posicionamento reais da sua operacao.",
+      },
+    ],
+    offer: {
+      title: "Proximo passo",
+      summary: `A proposta para ${business.name} e simples: corrigir os pontos que travam descoberta, confianca e conversao antes que mais demanda escape.`,
+      expectedResult: "Mais clareza comercial, mais autoridade digital e mais contatos qualificados entrando na operacao.",
+      riskOfInaction: "A empresa segue investindo energia em presenca digital que nao converte no ritmo que poderia.",
+    },
+    cta: {
+      title: responseMode === "form" ? "Formulario de interesse" : "Tomada de decisao",
+      primaryLabel: responseMode === "form" ? "Enviar formulario" : "Quero receber contato",
+      secondaryLabel: responseMode === "form" ? null : "Agora nao",
+      microcopy: "Se fizer sentido, o proximo passo e simples: responder agora para transformar essa leitura em plano de acao.",
+      trustLine: "Sem compromisso inicial",
+    },
+  };
+};
+
+const normalizeGeneratedContent = (
+  content: Partial<PresentationContentV2> | null | undefined,
+  fallback: PresentationContentV2,
+): PresentationContentV2 => ({
+  hero: { ...fallback.hero, ...(content?.hero || {}) },
+  executiveSummary: {
+    ...fallback.executiveSummary,
+    ...(content?.executiveSummary || {}),
+    bullets: Array.isArray(content?.executiveSummary?.bullets) && content?.executiveSummary?.bullets.length > 0
+      ? content.executiveSummary.bullets.slice(0, 4).map((item) => String(item))
+      : fallback.executiveSummary.bullets,
+  },
+  diagnosis: { ...fallback.diagnosis, ...(content?.diagnosis || {}) },
+  googleMapsInsight: { ...fallback.googleMapsInsight, ...(content?.googleMapsInsight || {}) },
+  websiteInsight: { ...fallback.websiteInsight, ...(content?.websiteInsight || {}) },
+  opportunities: Array.isArray(content?.opportunities) && content.opportunities.length > 0
+    ? content.opportunities.slice(0, 5).map((item) => ({
+        title: String(item?.title || fallback.opportunities[0].title),
+        impact: String(item?.impact || fallback.opportunities[0].impact),
+        urgency: String(item?.urgency || fallback.opportunities[0].urgency),
+        opportunity: String(item?.opportunity || fallback.opportunities[0].opportunity),
+      }))
+    : fallback.opportunities,
+  solutionMapping: Array.isArray(content?.solutionMapping) && content.solutionMapping.length > 0
+    ? content.solutionMapping.slice(0, 4).map((item) => ({
+        problem: String(item?.problem || fallback.solutionMapping[0].problem),
+        service: String(item?.service || fallback.solutionMapping[0].service),
+        benefit: String(item?.benefit || fallback.solutionMapping[0].benefit),
+      }))
+    : fallback.solutionMapping,
+  differentials: Array.isArray(content?.differentials) && content.differentials.length > 0
+    ? content.differentials.slice(0, 4).map((item) => ({
+        title: String(item?.title || fallback.differentials[0].title),
+        description: String(item?.description || fallback.differentials[0].description),
+      }))
+    : fallback.differentials,
+  proof: Array.isArray(content?.proof) && content.proof.length > 0
+    ? content.proof.slice(0, 3).map((item) => ({
+        title: String(item?.title || fallback.proof[0].title),
+        metric: item?.metric ? String(item.metric) : fallback.proof[0].metric,
+        description: String(item?.description || fallback.proof[0].description),
+      }))
+    : fallback.proof,
+  offer: { ...fallback.offer, ...(content?.offer || {}) },
+  cta: { ...fallback.cta, ...(content?.cta || {}) },
+});
+
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -21,314 +236,177 @@ Deno.serve(async (req) => {
       testimonials,
       clientLogos,
       template,
-      tone: requestedTone,
+      tone,
       customInstructions,
       publicId,
       provider,
-      responseMode: requestedResponseMode,
-      formTemplateId,
+      responseMode,
       formTemplateName,
       formTemplateBody,
     } = await req.json();
 
-    if (provider && provider !== 'gemini') {
+    if (provider && provider !== "gemini") {
       return new Response(
-        JSON.stringify({ error: 'A geracao de apresentacoes ainda suporta apenas Gemini nesta etapa.' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        },
+        JSON.stringify({ error: "A geracao de apresentacoes ainda suporta apenas Gemini nesta etapa." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
-
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
-    const respondFnUrl = `${SUPABASE_URL}/functions/v1/respond-presentation`;
 
     const { user, svc } = await getAuthenticatedUserContext(req);
     const geminiApiKey = await requireUserProviderKey(
       svc,
       user.id,
-      'gemini',
-      'Configure sua chave Gemini em Configuracoes > APIs.',
+      "gemini",
+      "Configure sua chave Gemini em Configuracoes > APIs.",
     );
 
-    const companyName = profile?.company_name || 'Nossa Empresa';
-    const logoUrl = profile?.company_logo_url || '';
-    const normalizedGoogleMapsScreenshot = analysis?.google_maps_screenshot
-      ? (String(analysis.google_maps_screenshot).startsWith('data:')
-          ? String(analysis.google_maps_screenshot)
-          : `data:image/png;base64,${analysis.google_maps_screenshot}`)
-      : '';
-    const normalizedWebsiteScreenshot = analysis?.website_screenshot
-      ? (String(analysis.website_screenshot).startsWith('data:')
-          ? String(analysis.website_screenshot)
-          : `data:image/png;base64,${analysis.website_screenshot}`)
-      : '';
+    const selectedTemplate = normalizeTemplate(template);
+    const selectedTone = normalizeTone(tone);
+    const selectedMode = normalizeResponseMode(responseMode);
+    const companyName = String(profile?.company_name || "Nossa Empresa");
+    const whatsappUrl = makeWhatsappUrl(profile?.phone, companyName, business?.name);
+    const services = firstItems(dna?.services, ["Diagnostico comercial", "Reposicionamento digital", "Conversao"]);
+    const differentials = firstItems(dna?.differentials, ["Execucao consultiva", "Velocidade de entrega"]);
+    const pains = firstItems(dna?.priority_pains, ["perda de leads", "baixa conversao"]);
 
-    const templateStyles: Record<string, string> = {
-      'modern-dark': 'Fundo escuro (#0a0a0f), accent indigo (#6366f1), tipografia moderna, bordas arredondadas, visual tech.',
-      'clean-light': 'Fundo branco (#ffffff), texto escuro (#1a1a2e), accent azul (#3b82f6), tipografia elegante serif, muito espaço em branco, minimalista.',
-      'corporate': 'Fundo cinza claro (#f8f9fa), accent azul corporativo (#1e40af), layout formal com seções bem delimitadas, estilo enterprise.',
-      'bold-gradient': 'Gradientes fortes (roxo para azul), tipografia grande e impactante, cards com glassmorphism, visual ousado.',
-    };
+    const systemPrompt = `Voce cria conteudo comercial estruturado para propostas de venda.
+Retorne apenas JSON valido no schema:
+{
+  "hero": { "eyebrow": "", "headline": "", "subheadline": "", "miniSummary": "" },
+  "executiveSummary": { "title": "", "bullets": ["", "", "", ""] },
+  "diagnosis": { "title": "", "summary": "", "riskStatement": "" },
+  "googleMapsInsight": { "title": "", "insight": "", "impact": "" },
+  "websiteInsight": { "title": "", "insight": "", "impact": "" },
+  "opportunities": [{ "title": "", "impact": "", "urgency": "", "opportunity": "" }],
+  "solutionMapping": [{ "problem": "", "service": "", "benefit": "" }],
+  "differentials": [{ "title": "", "description": "" }],
+  "proof": [{ "title": "", "metric": "", "description": "" }],
+  "offer": { "title": "", "summary": "", "expectedResult": "", "riskOfInaction": "" },
+  "cta": { "title": "", "primaryLabel": "", "secondaryLabel": "", "microcopy": "", "trustLine": "" }
+}
 
-    const toneDescriptions: Record<string, string> = {
-      'professional': 'Tom profissional e objetivo, focado em dados e resultados.',
-      'consultive': 'Tom consultivo e educativo, explicando o "porquê" de cada recomendação.',
-      'urgent': 'Tom urgente, destacando riscos e oportunidades perdidas, criando senso de urgência.',
-      'friendly': 'Tom amigável e acessível, usando linguagem simples e encorajadora.',
-      'technical': 'Tom técnico e detalhado, com termos específicos da área e métricas aprofundadas.',
-    };
+Regras:
+- Estrutura fixa, sem HTML.
+- Copy em portugues do Brasil.
+- Tom consultivo com agressividade comercial moderada.
+- Seja claro, objetivo e vendavel.
+- Priorize impacto comercial, nao auditoria tecnica fria.
+- Use DNA, servicos e analise para personalizar.
+- Nao invente depoimentos nem numeros especificos se nao existirem.
+- Use no maximo 4 bullets no resumo executivo.
+- Gere de 3 a 5 oportunidades.
+- Gere de 2 a 4 solutionMapping.
+- Gere de 2 a 4 differentials.
+- Gere de 1 a 3 proof cards.`;
 
-    const selectedTemplate = template || 'modern-dark';
-    const selectedTone = requestedTone || dna?.tone || 'professional';
-    const toneGuide = toneDescriptions[selectedTone] || toneDescriptions['professional'];
-    const responseMode = requestedResponseMode === 'form' ? 'form' : 'buttons';
-
-    let styleGuide: string;
-    if (selectedTemplate === 'custom') {
-      const bgColor = dna?.custom_bg_color || '#0c0c1d';
-      const textColor = dna?.custom_text_color || '#ffffff';
-      const buttonColor = dna?.custom_button_color || '#6366f1';
-      styleGuide = `Cores customizadas pelo usuário: fundo da página (${bgColor}), cor dos textos (${textColor}), cor dos botões e destaques (${buttonColor}). Use essas cores exatas. Tipografia moderna, bordas arredondadas, layout profissional.`;
-    } else {
-      styleGuide = templateStyles[selectedTemplate] || templateStyles['modern-dark'];
-    }
-
-    // Build services section
-    const services = (dna?.services || []).join(', ') || 'Serviços não informados';
-    const differentials = (dna?.differentials || []).join(', ') || 'Não informado';
-    const valueProposition = dna?.value_proposition || 'Não informado';
-    const targetAudience = dna?.target_audience || 'Não informado';
-    const additionalInfo = dna?.additional_info || '';
-    const portfolioUrl = dna?.portfolio_url || '';
-    const instagramUrl = dna?.instagram_url || '';
-    const linkedinUrl = dna?.linkedin_url || '';
-    const facebookUrl = dna?.facebook_url || '';
-    const youtubeUrl = dna?.youtube_url || '';
-    const icpSegments = (dna?.icp_segments || []).join(', ') || 'Nao informado';
-    const icpCompanySize = dna?.icp_company_size || 'Nao informado';
-    const icpDigitalMaturity = dna?.icp_digital_maturity || 'Nao informado';
-    const priorityPains = (dna?.priority_pains || []).join(', ') || 'Nao informado';
-    const commonObjections = (dna?.common_objections || []).join(', ') || 'Nao informado';
-    const objectionResponses = dna?.objection_responses || 'Nao informado';
-    const offerPackages = dna?.offer_packages || 'Nao informado';
-    const priceRange = dna?.price_range || 'Nao informado';
-    const caseMetrics = dna?.case_metrics || 'Nao informado';
-    const guarantee = dna?.guarantee || 'Nao informado';
-    const dnaFullJson = JSON.stringify(dna || {}, null, 2);
-    const dnaFilledKeys = Object.entries(dna || {})
-      .filter(([, value]) => {
-        if (value === null || value === undefined) return false;
-        if (typeof value === 'string') return value.trim().length > 0;
-        if (Array.isArray(value)) return value.length > 0;
-        return true;
-      })
-      .map(([key]) => key)
-      .join(', ') || 'nenhum';
-
-    // Build WhatsApp link
-    const rawPhone = profile?.phone || '';
-    const cleanPhone = rawPhone.replace(/\D/g, '');
-    const whatsappNumber = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
-    const whatsappUrl = cleanPhone ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Olá! Vi a apresentação da ${companyName} sobre minha empresa ${business.name} e gostaria de receber mais informações.`)}` : '';
-
-    // Build testimonials section
-    let testimonialsBlock = '';
-    if (testimonials && testimonials.length > 0) {
-      testimonialsBlock = `\n\nDEPOIMENTOS DE CLIENTES (incluir na apresentação como prova social):
-${testimonials.map((t: any, i: number) => `${i + 1}. "${t.testimonial}" — ${t.name}${t.company ? `, ${t.company}` : ''}${t.image_url ? ` (foto: ${t.image_url})` : ''}`).join('\n')}`;
-    }
-
-    // Build client logos section
-    let clientLogosBlock = '';
-    if (clientLogos && clientLogos.length > 0) {
-      clientLogosBlock = `\n\nLOGOS DE CLIENTES (incluir na apresentação como seção "Empresas que confiam em nós" ou "Nossos Clientes"):
-Exibir os logos em uma faixa horizontal centralizada, com espaçamento uniforme. Cada logo deve ter max-height de 50px e ser exibido com <img> tag. Se houver nome da empresa, usar como alt text.
-${clientLogos.map((l: any, i: number) => `${i + 1}. ${l.company_name || 'Cliente'}: ${l.logo_url}`).join('\n')}`;
-    }
-
-    const responseSectionNumber = 9 + (clientLogosBlock ? 1 : 0) + (testimonialsBlock ? 1 : 0);
-    const formSeed = String(formTemplateBody || '').trim();
-    const responseSectionInstruction =
-      responseMode === 'form'
-        ? `${responseSectionNumber}. **Seção de Resposta com Formulário (sem botões de aceitar/recusar)**:
-   - Criar um formulário HTML elegante para o lead preencher dados antes do contato comercial.
-   - Usar os campos sugeridos por este template de formulário: "${formSeed || 'Nome, WhatsApp, Email, principal desafio, objetivo em 90 dias'}".
-   - Campos obrigatórios mínimos: nome, telefone/WhatsApp e principal desafio.
-   - Incluir botão principal vermelho (#EF3333) com texto "Enviar formulário".
-   - No submit, executar JavaScript inline que:
-     1) envia fetch POST para "${respondFnUrl}" com JSON {"public_id":"PUBLIC_ID_PLACEHOLDER","response":"accepted"} para marcar interesse;
-     2) monta uma mensagem com as respostas do formulário;
-     3) abre o WhatsApp ${whatsappUrl || '[sem telefone]'} com essa mensagem preenchida (se houver telefone configurado);
-     4) exibe feedback visual de sucesso para o lead.
-   - Não incluir os botões "Quero receber contato" e "Agora não" neste modo.
-   - Abaixo do botão principal, incluir microcopy de confiança: "Leva menos de 1 minuto" e "Sem compromisso".`
-        : `${responseSectionNumber}. **Seção de Resposta com DOIS botões lado a lado**:
-   - Botão "✅ Quero receber contato" — vermelho (#EF3333), grande, com microcopy de baixo atrito ("1 clique, sem compromisso"), que ao clicar executa um fetch POST para "${respondFnUrl}" com body JSON {"public_id":"PUBLIC_ID_PLACEHOLDER","response":"accepted"} e depois redireciona para a URL do WhatsApp: ${whatsappUrl || '[sem telefone]'}
-   - Botão "❌ Agora não" — vermelho/cinza escuro, mesmo tamanho, que ao clicar executa um fetch POST para "${respondFnUrl}" com body JSON {"public_id":"PUBLIC_ID_PLACEHOLDER","response":"rejected"} e mostra mensagem "Obrigado pelo retorno. Se mudar de ideia, entre em contato!"
-   
-   IMPORTANTE: Use JavaScript inline nos onclick dos botões. Após o fetch, desabilite ambos os botões e mostre feedback visual. Use o texto PUBLIC_ID_PLACEHOLDER como placeholder — ele será substituído pelo ID real.
-   Abaixo dos botões colocar texto "Resposta em menos de 10 segundos" e "Sem compromisso".`;
-
-    const systemPrompt = `Você é um especialista em criar apresentações comerciais de vendas persuasivas. Seu objetivo é gerar uma apresentação HTML que VENDA os serviços da empresa prospectora para o lead analisado.
-
-OBJETIVO PRINCIPAL: A apresentação deve convencer o lead (empresa analisada) de que ele PRECISA contratar os serviços da empresa prospectora. Use os dados da análise para mostrar problemas e oportunidades, e então posicione os serviços como a solução ideal.
-
-ESTILO VISUAL: ${styleGuide}
-
-TOM DE COMUNICAÇÃO: ${toneGuide}
-
-${customInstructions ? `INSTRUÇÕES ADICIONAIS DO USUÁRIO: ${customInstructions}` : ''}
-
-ESTRUTURA OBRIGATÓRIA DA APRESENTAÇÃO:
-1. **Header** — Logo e nome da empresa prospectora (quem está vendendo)
-   - Se existir logo, usar obrigatoriamente a tag <img> com src="LOGO_URL_PLACEHOLDER"
-   - Nunca omitir a logo quando ela estiver disponível
-2. **Saudação personalizada** — Dirigida ao lead pelo nome, mencionando o setor dele
-3. **Diagnóstico do Lead** — Resumo dos problemas encontrados na análise (scores, SEO, velocidade, etc.) apresentados de forma que o lead entenda o impacto no seu negócio
-4. **Scores visuais** — Barras de progresso coloridas mostrando os scores (vermelho=ruim, amarelo=médio, verde=bom)
-${analysis?.google_maps_screenshot ? `4.5. **Screenshot do Google Maps** — Incluir a imagem do Google Maps da empresa analisada usando a tag <img> com src="data:image/png;base64,GOOGLE_MAPS_SCREENSHOT_PLACEHOLDER". Adicionar borda arredondada e sombra. Título: "Presença no Google Maps"` : `4.5. **Presença no Google Maps (fallback visual)** — Como não há screenshot disponível, criar um card visual estilizado com:
-   - Ícone do Google Maps (usar SVG inline do pin do Google Maps ou emoji 📍)
-   - Nome da empresa: "${business.name}"
-   - Rating: ${business.rating ? `${business.rating} estrelas (usar estrelas ★ amarelas preenchidas e ☆ vazias)` : 'Sem avaliação disponível'}
-   - Categoria: "${business.category || 'Não informada'}"
-   - Endereço: "${business.address || 'Não informado'}"
-   - Estilo: card com borda, fundo levemente diferente, cantos arredondados, sombra suave. Título: "Presença no Google Maps"`}
-${analysis?.website_screenshot ? `4.6. **Screenshot do Site Atual** — Incluir a imagem do site da empresa analisada usando a tag <img> com src="data:image/png;base64,WEBSITE_SCREENSHOT_PLACEHOLDER". Adicionar borda arredondada, sombra e um título "Seu Site Atual". Pode incluir anotações visuais (setas ou marcações) mencionadas no texto sobre problemas encontrados.` : `4.6. **Site Atual (fallback visual)** — Como não há screenshot do site, criar um card visual com:
-   - Ícone de globo/website (🌐)
-   - URL: "${business.website || 'Sem site cadastrado'}"
-   - ${business.website ? 'Mensagem: "Não foi possível capturar o visual do site. Acesse o link para verificar."' : 'Mensagem: "Esta empresa não possui um site — uma grande oportunidade de mercado!"'}
-   - Estilo: card com borda, cantos arredondados, sombra suave. Título: "Site Atual"`}
-5. **Problemas detalhados e Oportunidades** — Para cada área problemática, explicar o impacto em linguagem de negócio (ex: "Seu site demora 8s para carregar — isso faz você perder 53% dos visitantes")
-6. **A Solução: Nossos Serviços** — Apresentar CADA serviço da empresa prospectora como solução direta para os problemas identificados. Conectar serviço → problema → benefício
-7. **Nossos Diferenciais** — Por que escolher esta empresa e não outra
-8. **Proposta de Valor** — A promessa principal da empresa prospectora
-${portfolioUrl ? `8.5. **Botão Portfólio** — Incluir um botão estilizado "📂 Acessar Portfólio" que abre o link "${portfolioUrl}" em nova aba (target="_blank"). Estilo: botão com borda, cor accent do template, cantos arredondados, centralizado, com ícone. Colocar abaixo da proposta de valor.` : ''}
-${(instagramUrl || linkedinUrl || facebookUrl || youtubeUrl) ? `8.6. **Redes Sociais** — No rodapé ou após a proposta de valor, incluir ícones/links para as redes sociais:
-${instagramUrl ? `   - Instagram: link "${instagramUrl}" com ícone do Instagram (usar SVG inline simples ou emoji 📸)` : ''}
-${linkedinUrl ? `   - LinkedIn: link "${linkedinUrl}" com ícone do LinkedIn (usar SVG inline simples ou emoji 💼)` : ''}
-${facebookUrl ? `   - Facebook: link "${facebookUrl}" com ícone do Facebook (usar SVG inline simples ou emoji 👍)` : ''}
-${youtubeUrl ? `   - YouTube: link "${youtubeUrl}" com ícone do YouTube (usar SVG inline simples ou emoji 🎬)` : ''}
-   Estilo: ícones lado a lado, centralizados, com hover effect sutil. Abrir em nova aba.` : ''}
-${clientLogosBlock ? `${testimonialsBlock ? '9' : '9'}. **Nossos Clientes** — Seção "Empresas que confiam em nós" com os logos dos clientes dispostos em faixa horizontal centralizada` : ''}
-${testimonialsBlock ? `${clientLogosBlock ? '10' : '9'}. **Depoimentos de Clientes** — Seção com os depoimentos reais (com foto se disponível), mostrando resultados de outros clientes` : ''}
-${responseSectionInstruction}
-
-Use CSS inline e HTML puro (sem frameworks). Garanta que fique bonito e profissional em qualquer navegador.
-Retorne APENAS o HTML completo, começando com <!DOCTYPE html>.`;
-
-    const userPrompt = `Gere a apresentação HTML de vendas:
-
-EMPRESA QUE ESTÁ VENDENDO (prospectora):
+    const userPrompt = `EMPRESA VENDEDORA:
 - Nome: ${companyName}
-- Logo URL: ${logoUrl || 'Sem logo'}
-- Serviços oferecidos: ${services}
-- Diferenciais: ${differentials}
-- Proposta de valor: ${valueProposition}
-- Público-alvo: ${targetAudience}
-- Informações adicionais: ${additionalInfo}
-- Portfólio URL: ${portfolioUrl || 'Não informado'}
-- Instagram: ${instagramUrl || 'Não informado'}
-- LinkedIn: ${linkedinUrl || 'Não informado'}
-- Facebook: ${facebookUrl || 'Não informado'}
-- YouTube: ${youtubeUrl || 'Não informado'}
-- Telefone/contato: ${profile?.phone || 'Não informado'}
-- Email: ${profile?.email || 'Não informado'}
-- WhatsApp URL para CTA: ${whatsappUrl || 'Sem telefone cadastrado'}
-- DNA comercial (usar para personalizar a narrativa):
-  - ICP segmentos: ${icpSegments}
-  - ICP porte: ${icpCompanySize}
-  - ICP maturidade digital: ${icpDigitalMaturity}
-  - Dores prioritarias: ${priorityPains}
-  - Objecoes comuns: ${commonObjections}
-  - Playbook de objecoes: ${objectionResponses}
-  - Ofertas/pacotes: ${offerPackages}
-  - Faixa de preco: ${priceRange}
-  - Cases e metricas: ${caseMetrics}
-  - Garantia/risco reverso: ${guarantee}
-${testimonialsBlock}
-${clientLogosBlock}
+- Servicos: ${services.join(", ")}
+- Diferenciais: ${differentials.join(", ")}
+- Proposta de valor: ${String(dna?.value_proposition || "Nao informado")}
+- Target audience: ${String(dna?.target_audience || "Nao informado")}
+- Dores prioritarias: ${pains.join(", ")}
+- Objecoes comuns: ${firstItems(dna?.common_objections, []).join(", ") || "Nao informado"}
+- Respostas a objecoes: ${String(dna?.objection_responses || "Nao informado")}
+- Pacotes/ofertas: ${String(dna?.offer_packages || "Nao informado")}
+- Garantia: ${String(dna?.guarantee || "Nao informado")}
+- Cases metricos: ${String(dna?.case_metrics || "Nao informado")}
 
-LEAD (empresa analisada — potencial cliente):
-- Nome: ${business.name}
-- Endereço: ${business.address}
-- Telefone: ${business.phone}
-- Site: ${business.website || 'Sem site'}
-- Categoria/Setor: ${business.category}
-- Rating Google: ${business.rating || 'N/A'}
+LEAD ANALISADO:
+- Nome: ${String(business?.name || "Lead")}
+- Categoria: ${String(business?.category || "Nao informada")}
+- Endereco: ${String(business?.address || "Nao informado")}
+- Site: ${String(business?.website || "Sem site")}
+- Rating: ${String(business?.rating || "N/A")}
 
-ANÁLISE TÉCNICA DO LEAD (use para mostrar os problemas e vender a solução):
-${JSON.stringify(analysis, null, 2)}
+ANALISE:
+${JSON.stringify(analysis || {}, null, 2)}
 
-IMPORTANTE: A apresentação deve posicionar os serviços "${services}" como a solução para os problemas encontrados na análise. Cada problema deve ser conectado a um serviço específico. A apresentação é uma ferramenta de VENDAS.
+MODO DE FECHAMENTO:
+- responseMode: ${selectedMode}
+- formulario: ${String(formTemplateName || "Nao informado")}
+- campos base: ${String(formTemplateBody || "Nome, WhatsApp, Email, principal desafio, objetivo")}
 
-MODO DE RESPOSTA DA PROPOSTA:
-- Modo selecionado: ${responseMode === 'form' ? 'formulario' : 'botoes'}
-- Respeite este modo estritamente na seção final da proposta.
-${responseMode === 'form' ? `- ID do template de formulário: ${formTemplateId || 'nao informado'}
-- Nome do template de formulário: ${formTemplateName || 'Formulario personalizado'}
-- Conteudo base do template de formulário: ${formSeed || 'Nome, WhatsApp, Email, principal desafio, objetivo em 90 dias'}` : ''}
+INSTRUCOES EXTRAS DO USUARIO:
+${String(customInstructions || "Nenhuma")}
 
-Gere o HTML completo da apresentação.`;
+Entregue uma narrativa forte, facil de ler e orientada a conversao.`;
 
-    const systemPromptWithDna = `${systemPrompt}
+    const fallbackContent = buildFallbackContent({
+      analysis: analysis || {},
+      business: business || {},
+      dna: dna || null,
+      tone: selectedTone,
+      responseMode: selectedMode,
+    });
 
-REQUISITO DE COBERTURA DE DNA:
-- Analise TODO o DNA.
-- Nao ignore campos preenchidos.
-- Use os campos de DNA para personalizar copy, estrutura, oferta, prova social, objecoes e CTA.
-- Campos de DNA preenchidos: ${dnaFilledKeys}.`;
+    let generatedContent: PresentationContentV2;
 
-    const userPromptWithDna = `${userPrompt}
+    try {
+      const rawContent = await callGeminiJson<Partial<PresentationContentV2>>(
+        geminiApiKey,
+        "gemini-2.5-flash",
+        systemPrompt,
+        userPrompt,
+        { temperature: 0.45, maxOutputTokens: 4096 },
+      );
+      generatedContent = normalizeGeneratedContent(rawContent, fallbackContent);
+    } catch (error) {
+      console.error("Structured generation fallback:", error);
+      generatedContent = fallbackContent;
+    }
 
-DNA COMPLETO (JSON) PARA ANALISE OBRIGATORIA:
-${dnaFullJson}`;
+    const context: PresentationRenderContext = {
+      template: selectedTemplate,
+      tone: selectedTone,
+      responseMode: selectedMode,
+      business: business || {},
+      analysis: analysis || {},
+      dna: dna || null,
+      profile: profile || null,
+      publicId: String(publicId || ""),
+      companyName,
+      logoUrl: profile?.company_logo_url || null,
+      whatsappUrl,
+      formTemplateName: formTemplateName || null,
+      formTemplateBody: formTemplateBody || null,
+      testimonials: Array.isArray(testimonials) ? testimonials : [],
+      clientLogos: Array.isArray(clientLogos) ? clientLogos : [],
+      assets: {
+        googleMaps: {
+          src: analysis?.google_maps_screenshot || null,
+          status: analysis?.google_maps_capture_status === "ready" ? "ready" : "fallback",
+          error: analysis?.google_maps_capture_error || null,
+          capturedAt: analysis?.google_maps_captured_at || null,
+        },
+        website: {
+          src: analysis?.website_screenshot || null,
+          status: analysis?.website_capture_status === "ready" ? "ready" : "fallback",
+          error: analysis?.website_capture_error || null,
+          capturedAt: analysis?.website_captured_at || null,
+        },
+      },
+    };
 
-    let html = await callGeminiText(
-      geminiApiKey,
-      'gemini-2.5-flash',
-      systemPromptWithDna,
-      userPromptWithDna,
-      { temperature: 0.4, maxOutputTokens: 8192 },
+    const rendered = renderPresentationHtml(generatedContent, context);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        html: rendered.html,
+        version: "v2",
+        content: generatedContent,
+        assetsUsed: rendered.assetsUsed,
+        fallbacksUsed: rendered.fallbacksUsed,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-
-    // Clean up markdown code fences if present
-    html = html.replace(/^```html\n?/i, '').replace(/\n?```$/i, '').trim();
-
-    // Replace placeholders
-    if (publicId) {
-      html = html.replaceAll('PUBLIC_ID_PLACEHOLDER', publicId);
-    }
-    if (logoUrl) {
-      html = html.replaceAll('LOGO_URL_PLACEHOLDER', logoUrl);
-    }
-    if (normalizedGoogleMapsScreenshot) {
-      html = html.replaceAll('data:image/png;base64,GOOGLE_MAPS_SCREENSHOT_PLACEHOLDER', normalizedGoogleMapsScreenshot);
-      html = html.replaceAll('GOOGLE_MAPS_SCREENSHOT_PLACEHOLDER', normalizedGoogleMapsScreenshot);
-    }
-    if (normalizedWebsiteScreenshot) {
-      html = html.replaceAll('data:image/png;base64,WEBSITE_SCREENSHOT_PLACEHOLDER', normalizedWebsiteScreenshot);
-      html = html.replaceAll('WEBSITE_SCREENSHOT_PLACEHOLDER', normalizedWebsiteScreenshot);
-    }
-
-    if (logoUrl && !html.includes(logoUrl)) {
-      const fallbackLogoBlock = `
-<div style="display:flex;align-items:center;gap:12px;padding:20px 24px 0;position:relative;z-index:2;">
-  <img src="${logoUrl}" alt="${companyName}" style="max-height:48px;max-width:180px;object-fit:contain;display:block;" />
-  <div style="font-family:Arial,sans-serif;font-size:14px;font-weight:700;color:#111827;letter-spacing:0.04em;text-transform:uppercase;">${companyName}</div>
-</div>`;
-      html = html.replace(/<body([^>]*)>/i, `<body$1>${fallbackLogoBlock}`);
-    }
-
-    return new Response(JSON.stringify({ success: true, html }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
   } catch (error) {
-    console.error('Generate presentation error:', error);
+    console.error("Generate presentation error:", error);
     const status = error instanceof HttpError ? error.status : 500;
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Generation failed' }), {
-      status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Generation failed" }),
+      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 });

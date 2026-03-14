@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { deriveLeadSignalSummary } from "@/lib/lead-scoring";
 import { getEdgeFunctionErrorMessage, invokeEdgeFunction } from "@/lib/invoke-edge-function";
 import { selectFirstRow } from "@/lib/supabase/select-first-row";
+import { GeneratePresentationResponse } from "@/types/presentation";
 
 type ProposalResponseMode = "buttons" | "form";
 type AnalysisProvider = "gemini" | "claude_code" | "groq" | "openai" | "other";
@@ -310,7 +311,7 @@ const Index = () => {
 
         if (insertError || !insertedRow) throw new Error(insertError?.message || "Insert failed");
 
-        const { data: genResult, error: genError } = await invokeEdgeFunction<{ html?: string; error?: string }>(
+        const { data: genResult, error: genError } = await invokeEdgeFunction<GeneratePresentationResponse>(
           "generate-presentation",
           {
             body: {
@@ -339,7 +340,12 @@ const Index = () => {
 
         const { error: updateError } = await supabase
           .from("presentations")
-          .update({ presentation_html: genResult.html, status: "ready" } as never)
+          .update({
+            presentation_html: genResult.html,
+            presentation_version: genResult.version || "v2",
+            presentation_content: (genResult.content as never) || null,
+            status: "ready",
+          } as never)
           .eq("id", insertedRow.id);
 
         if (updateError) throw new Error(updateError.message);

@@ -80,6 +80,8 @@ Deno.serve(async (req) => {
     const firecrawlApiKey = Deno.env.get("FIRECRAWL_API_KEY");
 
     let scrapedContent: ScrapedContent | null = null;
+    let websiteCaptureError: string | null = null;
+    let googleMapsCaptureError: string | null = null;
     if (business.website && firecrawlApiKey) {
       try {
         const scrapeData = await firecrawlScrape(
@@ -97,6 +99,7 @@ Deno.serve(async (req) => {
         }
       } catch (error) {
         console.error("Scrape error:", error);
+        websiteCaptureError = error instanceof Error ? error.message : "Falha ao capturar o site";
       }
     }
 
@@ -109,6 +112,7 @@ Deno.serve(async (req) => {
         googleMapsScreenshot = screenshotData?.data?.screenshot || screenshotData?.screenshot || null;
       } catch (error) {
         console.error("Google Maps screenshot error:", error);
+        googleMapsCaptureError = error instanceof Error ? error.message : "Falha ao capturar o Google Maps";
       }
     }
 
@@ -201,6 +205,12 @@ Retorne uma analise tecnica e comercial.`;
 
     analysis.has_website = !!business.website;
     analysis.scraped = !!scrapedContent;
+    analysis.google_maps_capture_status = googleMapsScreenshot ? "ready" : "fallback";
+    analysis.website_capture_status = scrapedContent?.screenshot ? "ready" : "fallback";
+    analysis.google_maps_capture_error = googleMapsCaptureError;
+    analysis.website_capture_error = websiteCaptureError;
+    analysis.google_maps_captured_at = googleMapsScreenshot ? new Date().toISOString() : null;
+    analysis.website_captured_at = scrapedContent?.screenshot ? new Date().toISOString() : null;
     if (googleMapsScreenshot) {
       analysis.google_maps_screenshot = googleMapsScreenshot;
     }

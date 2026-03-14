@@ -15,11 +15,14 @@ import { buildCRMHref } from '@/lib/crm/deriveLeadState';
 import { selectFirstRow } from '@/lib/supabase/select-first-row';
 import { cn } from '@/lib/utils';
 import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
+import { GeneratePresentationResponse } from '@/types/presentation';
 
 type PresentationRow = {
   id: string;
   public_id: string;
+  presentation_content?: unknown;
   presentation_html?: string | null;
+  presentation_version?: string | null;
   business_name: string;
   business_address: string;
   business_phone: string;
@@ -172,7 +175,7 @@ const Presentations = () => {
         supabase.from('client_logos').select('company_name, logo_url').eq('user_id', user.id),
       ]);
 
-      const { data: genData, error: genError } = await invokeEdgeFunction<{ html: string }>('generate-presentation', {
+      const { data: genData, error: genError } = await invokeEdgeFunction<GeneratePresentationResponse>('generate-presentation', {
         body: {
           analysis: p.analysis_data,
           business: {
@@ -205,7 +208,15 @@ const Presentations = () => {
 
       if (genError) throw genError;
 
-      await supabase.from('presentations').update({ presentation_html: genData.html, status: 'ready' } as any).eq('id', p.id);
+      await supabase
+        .from('presentations')
+        .update({
+          presentation_html: genData.html,
+          presentation_version: genData.version || 'v2',
+          presentation_content: (genData.content as any) || null,
+          status: 'ready',
+        } as any)
+        .eq('id', p.id);
 
       setPresentations((prev) => prev.map((x) => (x.id === p.id ? { ...x, status: 'ready' } : x)));
       toast({ title: 'Regenerada!', description: 'Apresentacao atualizada com sucesso' });

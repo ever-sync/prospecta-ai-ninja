@@ -599,7 +599,9 @@ export type Database = {
           outcome_notes: string | null
           outcome_reason: string | null
           pipeline_stage_id: string | null
+          presentation_content: Json | null
           presentation_html: string | null
+          presentation_version: string
           public_id: string | null
           status: string | null
           user_id: string
@@ -619,7 +621,9 @@ export type Database = {
           outcome_notes?: string | null
           outcome_reason?: string | null
           pipeline_stage_id?: string | null
+          presentation_content?: Json | null
           presentation_html?: string | null
+          presentation_version?: string
           public_id?: string | null
           status?: string | null
           user_id: string
@@ -639,7 +643,9 @@ export type Database = {
           outcome_notes?: string | null
           outcome_reason?: string | null
           pipeline_stage_id?: string | null
+          presentation_content?: Json | null
           presentation_html?: string | null
+          presentation_version?: string
           public_id?: string | null
           status?: string | null
           user_id?: string

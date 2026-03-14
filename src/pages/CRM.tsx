@@ -26,11 +26,13 @@ import {
 } from '@/lib/crm/deriveLeadState';
 import { selectFirstRow } from '@/lib/supabase/select-first-row';
 import { CRMFilters, CRMMode, DEFAULT_CRM_FILTERS } from '@/types/crm';
+import { GeneratePresentationResponse } from '@/types/presentation';
 import { toast } from 'sonner';
 
 type FullPresentationRow = {
   id: string;
   public_id: string;
+  presentation_content?: unknown;
   business_name: string;
   business_address: string;
   business_phone: string;
@@ -38,6 +40,7 @@ type FullPresentationRow = {
   business_category: string;
   business_rating: number | null;
   analysis_data: unknown;
+  presentation_version?: string | null;
   status: string;
   created_at: string;
 };
@@ -280,7 +283,7 @@ const CRM = () => {
         supabase.from('client_logos').select('company_name, logo_url').eq('user_id', user.id),
       ]);
 
-      const { data: generated, error: generatedError } = await invokeEdgeFunction<{ html: string }>('generate-presentation', {
+      const { data: generated, error: generatedError } = await invokeEdgeFunction<GeneratePresentationResponse>('generate-presentation', {
         body: {
           analysis: presentation.analysis_data,
           business: {
@@ -313,7 +316,15 @@ const CRM = () => {
 
       if (generatedError) throw generatedError;
 
-      await supabase.from('presentations').update({ presentation_html: generated.html, status: 'ready' } as never).eq('id', presentation.id);
+      await supabase
+        .from('presentations')
+        .update({
+          presentation_html: generated.html,
+          presentation_version: generated.version || 'v2',
+          presentation_content: (generated.content as never) || null,
+          status: 'ready',
+        } as never)
+        .eq('id', presentation.id);
       toast.success('Proposta regenerada');
       setRegenDialogOpen(false);
     } catch (error) {

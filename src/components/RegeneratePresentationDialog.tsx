@@ -108,7 +108,7 @@ export const RegeneratePresentationDialog = ({
             Regenerar Apresentação
           </DialogTitle>
           <DialogDescription>
-            Ajuste template, tom e instrucoes para gerar uma nova versao da proposta.
+            A estrutura da proposta agora e fixa. Aqui voce ajusta estilo visual, tom e instrucoes de copy para gerar uma nova versao.
           </DialogDescription>
           <p className="text-sm text-muted-foreground">
             {businessName}

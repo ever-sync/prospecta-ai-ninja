@@ -235,6 +235,11 @@ export const AppLayout = () => {
   };
   const recentNotificationCount = notifications.filter((item) => Date.now() - new Date(item.createdAt).getTime() < 1000 * 60 * 60 * 24).length;
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth', { replace: true });
+  };
+
   useEffect(() => {
     if (!user) {
       setNotifications([]);
@@ -504,7 +509,7 @@ export const AppLayout = () => {
 
         <div className={cn('border-t border-[#1f1f25]', collapsed ? 'p-2' : 'p-3')}>
           <button
-            onClick={signOut}
+            onClick={handleSignOut}
             title="Sair"
             className={cn(
               'flex w-full items-center rounded-2xl text-sm font-medium text-[#b7b7bf] transition-colors hover:bg-[#2a1216] hover:text-[#ff9ea8]',

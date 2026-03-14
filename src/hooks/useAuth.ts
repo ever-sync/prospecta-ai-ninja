@@ -18,6 +18,26 @@ export const useAuth = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const clearSupabaseAuthStorage = () => {
+    if (typeof window === 'undefined') return;
+
+    const clearFromStorage = (storage: Storage) => {
+      const keysToRemove: string[] = [];
+      for (let index = 0; index < storage.length; index += 1) {
+        const key = storage.key(index);
+        if (!key) continue;
+        if (key.startsWith('sb-') || key.includes('supabase.auth') || key.includes('-auth-token')) {
+          keysToRemove.push(key);
+        }
+      }
+
+      keysToRemove.forEach((key) => storage.removeItem(key));
+    };
+
+    clearFromStorage(window.localStorage);
+    clearFromStorage(window.sessionStorage);
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
@@ -65,7 +85,10 @@ export const useAuth = () => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'local' });
+    clearSupabaseAuthStorage();
+    setSession(null);
+    setUser(null);
   };
 
   return { user, session, loading, signUp, signIn, signOut };

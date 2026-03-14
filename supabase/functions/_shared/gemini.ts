@@ -7,6 +7,11 @@ type GeminiOptions = {
 };
 
 const extractText = (payload: any): string => {
+  const blockReason = payload?.promptFeedback?.blockReason;
+  if (blockReason) {
+    throw new HttpError(500, `Gemini bloqueou a resposta: ${blockReason}.`);
+  }
+
   const parts = payload?.candidates?.[0]?.content?.parts || [];
   const text = parts
     .map((part: any) => part?.text || "")
@@ -18,6 +23,31 @@ const extractText = (payload: any): string => {
   }
 
   return text;
+};
+
+const stripCodeFences = (text: string) =>
+  text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+
+const tryParseJson = <T>(text: string): T | null => {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+};
+
+const extractJsonSubstring = (text: string) => {
+  const objectStart = text.indexOf("{");
+  const objectEnd = text.lastIndexOf("}");
+  const arrayStart = text.indexOf("[");
+  const arrayEnd = text.lastIndexOf("]");
+
+  const candidates = [
+    objectStart >= 0 && objectEnd > objectStart ? text.slice(objectStart, objectEnd + 1) : null,
+    arrayStart >= 0 && arrayEnd > arrayStart ? text.slice(arrayStart, arrayEnd + 1) : null,
+  ].filter(Boolean) as string[];
+
+  return candidates;
 };
 
 const callGemini = async (
@@ -87,11 +117,18 @@ export const callGeminiJson = async <T>(
     responseMimeType: "application/json",
   });
 
-  const cleanText = text.replace(/```json\n?/gi, "").replace(/```\n?/g, "").trim();
-
-  try {
-    return JSON.parse(cleanText) as T;
-  } catch {
-    throw new HttpError(500, "Gemini retornou JSON invalido.");
+  const cleanText = stripCodeFences(text);
+  const direct = tryParseJson<T>(cleanText);
+  if (direct !== null) {
+    return direct;
   }
+
+  for (const candidate of extractJsonSubstring(cleanText)) {
+    const parsed = tryParseJson<T>(candidate);
+    if (parsed !== null) {
+      return parsed;
+    }
+  }
+
+  throw new HttpError(500, "Gemini retornou JSON invalido.");
 };

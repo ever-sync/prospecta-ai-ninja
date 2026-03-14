@@ -24,6 +24,7 @@ import {
   buildLeadPublicUrl,
   slugifyCRMViewName,
 } from '@/lib/crm/deriveLeadState';
+import { selectFirstRow } from '@/lib/supabase/select-first-row';
 import { CRMFilters, CRMMode, DEFAULT_CRM_FILTERS } from '@/types/crm';
 import { toast } from 'sonner';
 
@@ -273,7 +274,7 @@ const CRM = () => {
 
     try {
       const [dnaRes, profileRes, testimonialsRes, clientLogosRes] = await Promise.all([
-        supabase.from('company_dna').select('*').eq('user_id', user.id).maybeSingle(),
+        selectFirstRow(supabase.from('company_dna').select('*').eq('user_id', user.id)),
         supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('testimonials').select('name, company, testimonial, image_url').eq('user_id', user.id),
         supabase.from('client_logos').select('company_name, logo_url').eq('user_id', user.id),

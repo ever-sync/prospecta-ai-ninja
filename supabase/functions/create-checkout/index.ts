@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,37 +12,77 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-  );
+  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 
   try {
-    const authHeader = req.headers.get("x-user-auth") ?? req.headers.get("Authorization");
-    if (!authHeader) throw new Error("User not authenticated");
-    const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
-    const user = data.user;
-    if (!user?.email) throw new Error("User not authenticated");
+    const { user, svc: serviceClient } = await getAuthenticatedUserContext(req);
+    if (!user.email) throw new HttpError(401, "Unauthorized");
 
     const { price_id } = await req.json();
     if (!price_id) throw new Error("price_id is required");
-
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-08-27.basil" });
-
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    let customerId;
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
+    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    if (!stripeKey.startsWith("sk_") && !stripeKey.startsWith("rk_")) {
+      throw new Error("STRIPE_SECRET_KEY invalida. Use uma chave secreta sk_ ou rk_.");
     }
 
+    const { data: plan } = await serviceClient
+      .from("plans")
+      .select("id")
+      .eq("stripe_price_id", price_id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!plan) throw new Error("Invalid Stripe price for checkout");
+
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+
+    const { data: profile } = await serviceClient
+      .from("profiles")
+      .select("stripe_customer_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    let customerId = profile?.stripe_customer_id || undefined;
+
+    if (!customerId) {
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id;
+      }
+    }
+
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: user.email,
+        metadata: {
+          user_id: user.id,
+        },
+      });
+      customerId = customer.id;
+    }
+
+    await serviceClient
+      .from("profiles")
+      .update({ stripe_customer_id: customerId } as never)
+      .eq("user_id", user.id);
+
+    const origin = req.headers.get("origin") || "https://envpro.com.br";
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
+      client_reference_id: user.id,
       line_items: [{ price: price_id, quantity: 1 }],
       mode: "subscription",
-      success_url: `${req.headers.get("origin")}/settings?tab=faturamento&checkout=success`,
-      cancel_url: `${req.headers.get("origin")}/settings?tab=faturamento`,
+      metadata: {
+        user_id: user.id,
+      },
+      subscription_data: {
+        metadata: {
+          user_id: user.id,
+        },
+      },
+      success_url: `${origin}/settings?tab=faturamento&checkout=success`,
+      cancel_url: `${origin}/settings?tab=faturamento`,
     });
 
     return new Response(JSON.stringify({ url: session.url }), {
@@ -50,9 +90,10 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    const status = error instanceof HttpError ? error.status : 500;
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Failed" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status,
     });
   }
 });

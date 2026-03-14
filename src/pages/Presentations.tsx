@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Presentation, Eye, Send, Trash2, Loader2, RefreshCw, Megaphone, Sparkles, CheckCircle2, Clock3, AlertTriangle, Workflow } from 'lucide-react';
+import { Presentation, Eye, Send, Trash2, Loader2, RefreshCw, Megaphone, Sparkles, CheckCircle2, Clock3, AlertTriangle, Workflow, Download } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,12 +12,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { buildCRMHref } from '@/lib/crm/deriveLeadState';
+import { selectFirstRow } from '@/lib/supabase/select-first-row';
 import { cn } from '@/lib/utils';
 import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
 type PresentationRow = {
   id: string;
   public_id: string;
+  presentation_html?: string | null;
   business_name: string;
   business_address: string;
   business_phone: string;
@@ -60,7 +62,9 @@ const Presentations = () => {
   const fetchPresentations = async () => {
     if (!user) return;
     const { data, error } = await supabase.from('presentations').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-    const { data: profileData } = await supabase.from('profiles').select('proposal_link_domain').eq('user_id', user.id).maybeSingle();
+    const { data: profileData } = await selectFirstRow(
+      supabase.from('profiles').select('proposal_link_domain').eq('user_id', user.id)
+    );
 
     if (error) {
       console.error(error);
@@ -93,6 +97,61 @@ const Presentations = () => {
 
   const getPublicUrl = (publicId: string) => `${publicBaseOrigin}/presentation/${publicId}`;
 
+  const handleDownloadPdf = (presentation: PresentationRow) => {
+    if (!presentation.presentation_html) {
+      toast({ title: 'PDF indisponivel', description: 'A apresentacao ainda nao possui HTML pronto.', variant: 'destructive' });
+      return;
+    }
+
+    const safeTitle = presentation.business_name.replace(/[\\/:*?"<>|]+/g, '-');
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '0';
+    printFrame.style.bottom = '0';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    printFrame.setAttribute('aria-hidden', 'true');
+
+    const cleanup = () => {
+      window.setTimeout(() => {
+        printFrame.remove();
+      }, 1000);
+    };
+
+    printFrame.onload = () => {
+      const frameWindow = printFrame.contentWindow;
+      if (!frameWindow) {
+        cleanup();
+        toast({ title: 'PDF indisponivel', description: 'Nao foi possivel iniciar a impressao da apresentacao.', variant: 'destructive' });
+        return;
+      }
+
+      frameWindow.focus();
+      frameWindow.print();
+      cleanup();
+    };
+
+    printFrame.srcdoc = `<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${safeTitle}</title>
+    <style>
+      @page { size: A4; margin: 12mm; }
+      html, body { margin: 0; padding: 0; background: #ffffff; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    </style>
+  </head>
+  <body>
+    ${presentation.presentation_html}
+  </body>
+</html>`;
+
+    document.body.appendChild(printFrame);
+  };
+
   const handleRegenerate = async (
     template: string,
     tone: string,
@@ -107,7 +166,7 @@ const Presentations = () => {
 
     try {
       const [dnaRes, profileRes, testimonialsRes, clientLogosRes] = await Promise.all([
-        supabase.from('company_dna').select('*').eq('user_id', user.id).maybeSingle(),
+        selectFirstRow(supabase.from('company_dna').select('*').eq('user_id', user.id)),
         supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('testimonials').select('name, company, testimonial, image_url').eq('user_id', user.id),
         supabase.from('client_logos').select('company_name, logo_url').eq('user_id', user.id),
@@ -375,6 +434,15 @@ const Presentations = () => {
                             onClick={() => setRegenDialog({ open: true, presentation: p })}
                           >
                             <RefreshCw className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-xl text-[#707078] hover:bg-[#f5f5f7] hover:text-[#1A1A1A]"
+                            title="Baixar em PDF"
+                            onClick={() => handleDownloadPdf(p)}
+                          >
+                            <Download className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"

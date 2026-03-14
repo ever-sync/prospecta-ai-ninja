@@ -10,11 +10,16 @@ const corsHeaders = {
 
 type PlanRow = {
   id: string;
+  stripe_price_id: string | null;
   stripe_product_id: string | null;
   limit_presentations: number;
   limit_campaigns: number;
   limit_emails: number;
 };
+
+const PAID_STATUSES = new Set(["active", "trialing", "past_due"]);
+const hasUsableStripeSecret = (value: string | null | undefined) =>
+  !!value && (value.startsWith("sk_") || value.startsWith("rk_"));
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -28,7 +33,6 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const authHeader = req.headers.get("x-user-auth") ?? req.headers.get("Authorization");
 
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -54,41 +58,92 @@ serve(async (req) => {
       });
     }
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-
     const { data: allPlans } = await svc
       .from("plans")
-      .select("id, stripe_product_id, limit_presentations, limit_campaigns, limit_emails")
+      .select("id, stripe_price_id, stripe_product_id, limit_presentations, limit_campaigns, limit_emails")
       .eq("is_active", true)
       .order("display_order");
 
     const plansMap = new Map<string, PlanRow>();
     for (const plan of ((allPlans || []) as PlanRow[])) {
       plansMap.set(plan.id, plan);
+      if (plan.stripe_price_id) plansMap.set(`price:${plan.stripe_price_id}`, plan);
       if (plan.stripe_product_id) plansMap.set(`product:${plan.stripe_product_id}`, plan);
     }
 
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let plan = "free";
     let productId: string | null = null;
     let subscriptionEnd: string | null = null;
+    let priceId: string | null = null;
 
-    if (customers.data.length > 0) {
-      const subscriptions = await stripe.subscriptions.list({
-        customer: customers.data[0].id,
-        status: "active",
-        limit: 1,
-      });
+    const { data: profile } = await svc
+      .from("profiles")
+      .select("stripe_customer_id, stripe_price_id, stripe_product_id, subscription_status, subscription_current_period_end")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-      if (subscriptions.data.length > 0) {
-        const subscription = subscriptions.data[0];
-        const firstItem = subscription.items.data[0];
-        productId = typeof firstItem?.price.product === "string" ? firstItem.price.product : null;
-        subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+    if (profile?.subscription_status && PAID_STATUSES.has(profile.subscription_status)) {
+      productId = profile.stripe_product_id || null;
+      priceId = profile.stripe_price_id || null;
+      subscriptionEnd = profile.subscription_current_period_end || null;
 
-        const matchedPlan = productId ? plansMap.get(`product:${productId}`) : null;
-        if (matchedPlan) plan = matchedPlan.id;
+      const matchedPlan =
+        (priceId ? plansMap.get(`price:${priceId}`) : null) ||
+        (productId ? plansMap.get(`product:${productId}`) : null) ||
+        null;
+
+      if (matchedPlan) {
+        plan = matchedPlan.id;
       }
+    }
+
+    if (plan === "free" && hasUsableStripeSecret(stripeKey)) {
+      try {
+        const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+        let customerId = profile?.stripe_customer_id || null;
+
+        if (!customerId) {
+          const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+          customerId = customers.data[0]?.id || null;
+        }
+
+        if (customerId) {
+          const subscriptions = await stripe.subscriptions.list({
+            customer: customerId,
+            limit: 1,
+          });
+
+          if (subscriptions.data.length > 0) {
+            const subscription = subscriptions.data[0];
+            const firstItem = subscription.items.data[0];
+            productId = typeof firstItem?.price.product === "string" ? firstItem.price.product : null;
+            priceId = firstItem?.price.id || null;
+            subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+
+            const matchedPlan =
+              (priceId ? plansMap.get(`price:${priceId}`) : null) ||
+              (productId ? plansMap.get(`product:${productId}`) : null) ||
+              null;
+            if (matchedPlan && PAID_STATUSES.has(subscription.status)) plan = matchedPlan.id;
+
+            await svc
+              .from("profiles")
+              .update({
+                stripe_customer_id: customerId,
+                stripe_subscription_id: subscription.id,
+                stripe_price_id: priceId,
+                stripe_product_id: productId,
+                subscription_status: subscription.status,
+                subscription_current_period_end: subscriptionEnd,
+              } as never)
+              .eq("user_id", user.id);
+          }
+        }
+      } catch (stripeError) {
+        console.error("Stripe lookup failed in check-subscription:", stripeError);
+      }
+    } else if (plan === "free" && stripeKey) {
+      console.error("Invalid STRIPE_SECRET_KEY configured for check-subscription");
     }
 
     const startOfMonth = new Date();

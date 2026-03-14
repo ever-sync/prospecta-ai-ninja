@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,46 +15,43 @@ serve(async (req) => {
 
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    const authHeader = req.headers.get("x-user-auth") ?? req.headers.get("Authorization");
 
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 401,
-      });
+    if (!stripeKey.startsWith("sk_") && !stripeKey.startsWith("rk_")) {
+      throw new Error("STRIPE_SECRET_KEY invalida. Use uma chave secreta sk_ ou rk_.");
     }
-
-    const token = authHeader.replace("Bearer ", "").trim();
-    const userClient = createClient(supabaseUrl, anonKey);
-
-    const {
-      data: { user },
-      error: authError,
-    } = await userClient.auth.getUser(token);
-
-    if (authError || !user?.email) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 401,
-      });
-    }
+    const { user, svc } = await getAuthenticatedUserContext(req);
+    if (!user.email) throw new HttpError(401, "Unauthorized");
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    const { data: profile } = await svc
+      .from("profiles")
+      .select("stripe_customer_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    if (customers.data.length === 0) {
+    let customerId = profile?.stripe_customer_id || null;
+
+    if (!customerId) {
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+      customerId = customers.data[0]?.id || null;
+    }
+
+    if (!customerId) {
       return new Response(JSON.stringify({ error: "No Stripe customer found" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 404,
       });
     }
 
+    await svc
+      .from("profiles")
+      .update({ stripe_customer_id: customerId } as never)
+      .eq("user_id", user.id);
+
     const origin = req.headers.get("origin") || "https://envpro.com.br";
     const portalSession = await stripe.billingPortal.sessions.create({
-      customer: customers.data[0].id,
+      customer: customerId,
       return_url: `${origin}/settings?tab=faturamento`,
     });
 
@@ -63,11 +60,12 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
+    const status = error instanceof HttpError ? error.status : 500;
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Failed" }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
+        status,
       },
     );
   }

@@ -41,38 +41,11 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { deriveLeadSignalSummary } from "@/lib/lead-scoring";
-import { invokeEdgeFunction } from "@/lib/invoke-edge-function";
+import { getEdgeFunctionErrorMessage, invokeEdgeFunction } from "@/lib/invoke-edge-function";
+import { selectFirstRow } from "@/lib/supabase/select-first-row";
 
 type ProposalResponseMode = "buttons" | "form";
 type AnalysisProvider = "gemini" | "claude_code" | "groq" | "openai" | "other";
-
-const extractEdgeFunctionMessage = async (error: unknown) => {
-  const context =
-    error && typeof error === "object" && "context" in error
-      ? (error as { context?: Response }).context
-      : undefined;
-
-  if (context instanceof Response) {
-    try {
-      const payload = await context.clone().json();
-      if (typeof payload?.error === "string" && payload.error.trim()) {
-        return payload.error;
-      }
-      if (typeof payload?.message === "string" && payload.message.trim()) {
-        return payload.message;
-      }
-    } catch {
-      const text = await context.clone().text().catch(() => "");
-      if (text.trim()) return text;
-    }
-  }
-
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return "Erro ao executar a analise.";
-};
 
 type ProposalFormTemplate = {
   id: string;
@@ -169,7 +142,7 @@ const Index = () => {
         },
       });
 
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       if (data.error) throw new Error(data.error);
 
       const results = (data.businesses || []) as Business[];
@@ -180,9 +153,10 @@ const Index = () => {
       });
     } catch (error) {
       console.error("Error searching businesses:", error);
+      const message = await getEdgeFunctionErrorMessage(error);
       toast({
         title: "Erro na busca",
-        description: error instanceof Error ? error.message : "Erro ao buscar empresas",
+        description: message,
         variant: "destructive",
       });
       setBusinesses([]);
@@ -283,7 +257,7 @@ const Index = () => {
 
     const [{ data: dna }, { data: profile }, { data: testimonials }, { data: clientLogos }] =
       await Promise.all([
-        supabase.from("company_dna").select("*").eq("user_id", user.id).maybeSingle(),
+        selectFirstRow(supabase.from("company_dna").select("*").eq("user_id", user.id)),
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.from("testimonials").select("name, company, testimonial, image_url").eq("user_id", user.id),
         supabase.from("client_logos").select("company_name, logo_url").eq("user_id", user.id),
@@ -304,7 +278,7 @@ const Index = () => {
           }
         );
 
-        if (analyzeError) throw new Error(analyzeError.message);
+        if (analyzeError) throw analyzeError;
         if (analyzeResult.error) throw new Error(analyzeResult.error);
 
         const analysis = analyzeResult.analysis;
@@ -360,7 +334,7 @@ const Index = () => {
           }
         );
 
-        if (genError) throw new Error(genError.message);
+        if (genError) throw genError;
         if (genResult.error) throw new Error(genResult.error);
 
         const { error: updateError } = await supabase
@@ -375,7 +349,7 @@ const Index = () => {
         );
       } catch (err) {
         console.error(`Error analyzing ${business.name}:`, err);
-        const errorMessage = await extractEdgeFunctionMessage(err);
+        const errorMessage = await getEdgeFunctionErrorMessage(err);
         setAnalysisItems((prev) =>
           prev.map((item) =>
             item.id === business.id

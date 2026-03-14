@@ -25,7 +25,7 @@ import { Business } from "@/types/business";
 import { useToast } from "@/hooks/use-toast";
 import { ApproachSuggestion } from "@/components/ApproachSuggestion";
 import { deriveLeadSignalSummary } from "@/lib/lead-scoring";
-import { invokeEdgeFunction } from "@/lib/invoke-edge-function";
+import { getEdgeFunctionErrorMessage, invokeEdgeFunction } from "@/lib/invoke-edge-function";
 
 interface BusinessAnalysisPanelProps {
   business: Business;
@@ -152,16 +152,17 @@ export const BusinessAnalysisPanel = ({
         body: { business, mode },
       });
 
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       if (data.error) throw new Error(data.error);
       if (activeBusinessIdRef.current !== requestedBusinessId) return;
 
       setCache((prev) => ({ ...prev, [mode]: data.result }));
     } catch (error) {
       console.error(`Error fetching ${mode}:`, error);
+      const message = await getEdgeFunctionErrorMessage(error);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Erro na analise",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -184,7 +185,7 @@ export const BusinessAnalysisPanel = ({
         },
       );
 
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       if (data.error) throw new Error(data.error);
       if (!data.analysis) throw new Error("Analise pesada nao retornou dados.");
       if (activeBusinessIdRef.current !== requestedBusinessId) return;
@@ -196,7 +197,7 @@ export const BusinessAnalysisPanel = ({
 
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Erro na auditoria pesada",
+        description: await getEdgeFunctionErrorMessage(error),
         variant: "destructive",
       });
     } finally {

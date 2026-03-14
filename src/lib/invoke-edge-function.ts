@@ -7,6 +7,34 @@ type InvokeOptions = {
 
 const gatewayToken = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+export const getEdgeFunctionErrorMessage = async (error: unknown) => {
+  const context =
+    error && typeof error === "object" && "context" in error
+      ? (error as { context?: Response }).context
+      : undefined;
+
+  if (context instanceof Response) {
+    try {
+      const payload = await context.clone().json();
+      if (typeof payload?.error === "string" && payload.error.trim()) {
+        return payload.error;
+      }
+      if (typeof payload?.message === "string" && payload.message.trim()) {
+        return payload.message;
+      }
+    } catch {
+      const text = await context.clone().text().catch(() => "");
+      if (text.trim()) return text;
+    }
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return "Erro ao executar a operacao.";
+};
+
 export const invokeEdgeFunction = async <T = unknown>(
   functionName: string,
   options: InvokeOptions = {},

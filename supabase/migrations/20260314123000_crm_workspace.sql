@@ -23,21 +23,25 @@ CREATE INDEX IF NOT EXISTS idx_crm_tasks_presentation
 
 ALTER TABLE public.crm_tasks ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own crm tasks" ON public.crm_tasks;
 CREATE POLICY "Users can view own crm tasks"
   ON public.crm_tasks
   FOR SELECT TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own crm tasks" ON public.crm_tasks;
 CREATE POLICY "Users can insert own crm tasks"
   ON public.crm_tasks
   FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own crm tasks" ON public.crm_tasks;
 CREATE POLICY "Users can update own crm tasks"
   ON public.crm_tasks
   FOR UPDATE TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own crm tasks" ON public.crm_tasks;
 CREATE POLICY "Users can delete own crm tasks"
   ON public.crm_tasks
   FOR DELETE TO authenticated
@@ -57,21 +61,25 @@ CREATE INDEX IF NOT EXISTS idx_crm_views_user_created
 
 ALTER TABLE public.crm_views ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own crm views" ON public.crm_views;
 CREATE POLICY "Users can view own crm views"
   ON public.crm_views
   FOR SELECT TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own crm views" ON public.crm_views;
 CREATE POLICY "Users can insert own crm views"
   ON public.crm_views
   FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own crm views" ON public.crm_views;
 CREATE POLICY "Users can update own crm views"
   ON public.crm_views
   FOR UPDATE TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own crm views" ON public.crm_views;
 CREATE POLICY "Users can delete own crm views"
   ON public.crm_views
   FOR DELETE TO authenticated

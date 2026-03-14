@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { selectFirstRow } from '@/lib/supabase/select-first-row';
 
 const PROPOSAL_MODELS = [
   {
@@ -190,11 +191,12 @@ const ProposalTemplateTab = () => {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from('company_dna')
-      .select('presentation_template, presentation_tone, presentation_instructions, custom_text_color, custom_button_color, custom_bg_color')
-      .eq('user_id', user.id)
-      .maybeSingle()
+    selectFirstRow(
+      supabase
+        .from('company_dna')
+        .select('presentation_template, presentation_tone, presentation_instructions, custom_text_color, custom_button_color, custom_bg_color')
+        .eq('user_id', user.id)
+    )
       .then(({ data }) => {
         if (data) {
           setSelectedTemplate((data as any).presentation_template || 'modern-dark');
@@ -212,11 +214,12 @@ const ProposalTemplateTab = () => {
     if (!user) return;
     setSaving(true);
 
-    const { data: existing } = await supabase
-      .from('company_dna')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle();
+    const { data: existing } = await selectFirstRow(
+      supabase
+        .from('company_dna')
+        .select('id')
+        .eq('user_id', user.id)
+    );
 
     const payload = {
       presentation_template: selectedTemplate,

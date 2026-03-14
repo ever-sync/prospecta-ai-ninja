@@ -134,25 +134,54 @@ export const CRMViewBar = ({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {views.map((view) => {
-              const slug = slugifyCRMViewName(view.name);
-              return (
-                <Button
-                  key={view.id}
-                  type="button"
-                  variant="outline"
-                  className={cn(
-                    'rounded-full border-[#e7e7eb] bg-[#fafafd] px-3 text-[#5f5f67]',
-                    activeViewSlug === slug && 'border-[#ef3333]/35 bg-[#fff2f4] text-[#a32438]'
-                  )}
-                  onClick={() => onSelectView(slug)}
-                >
-                  <Sparkles className="mr-2 h-3.5 w-3.5" />
-                  {view.name}
-                </Button>
-              );
-            })}
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {views.map((view) => {
+                const slug = slugifyCRMViewName(view.name);
+                return (
+                  <Button
+                    key={view.id}
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      'rounded-full border-[#e7e7eb] bg-[#fafafd] px-3 text-[#5f5f67]',
+                      activeViewSlug === slug && 'border-[#ef3333]/35 bg-[#fff2f4] text-[#a32438]'
+                    )}
+                    onClick={() => onSelectView(slug)}
+                  >
+                    <Sparkles className="mr-2 h-3.5 w-3.5" />
+                    {view.name}
+                  </Button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap gap-2 xl:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className={cn('rounded-full', filters.onlyReadyNotSent && 'border-[#ef3333]/35 bg-[#fff2f4] text-[#a32438]')}
+                onClick={() => onFiltersChange({ onlyReadyNotSent: !filters.onlyReadyNotSent })}
+              >
+                Prontas sem envio
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className={cn('rounded-full', filters.scoreBand === 'high' && 'border-[#ef3333]/35 bg-[#fff2f4] text-[#a32438]')}
+                onClick={() => onFiltersChange({ scoreBand: filters.scoreBand === 'high' ? 'all' : 'high' })}
+              >
+                Score alto
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className={cn('rounded-full', filters.onlyRejected && 'border-[#ef3333]/35 bg-[#fff2f4] text-[#a32438]')}
+                onClick={() => onFiltersChange({ onlyRejected: !filters.onlyRejected, onlyAccepted: false })}
+              >
+                Recusadas
+              </Button>
+            </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
@@ -234,32 +263,6 @@ export const CRMViewBar = ({
             </Select>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className={cn('rounded-full', filters.onlyReadyNotSent && 'border-[#ef3333]/35 bg-[#fff2f4] text-[#a32438]')}
-              onClick={() => onFiltersChange({ onlyReadyNotSent: !filters.onlyReadyNotSent })}
-            >
-              Prontas sem envio
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className={cn('rounded-full', filters.scoreBand === 'high' && 'border-[#ef3333]/35 bg-[#fff2f4] text-[#a32438]')}
-              onClick={() => onFiltersChange({ scoreBand: filters.scoreBand === 'high' ? 'all' : 'high' })}
-            >
-              Score alto
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className={cn('rounded-full', filters.onlyRejected && 'border-[#ef3333]/35 bg-[#fff2f4] text-[#a32438]')}
-              onClick={() => onFiltersChange({ onlyRejected: !filters.onlyRejected, onlyAccepted: false })}
-            >
-              Recusadas
-            </Button>
-          </div>
         </div>
       </Card>
 

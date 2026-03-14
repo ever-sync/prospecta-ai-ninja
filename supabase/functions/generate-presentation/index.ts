@@ -54,6 +54,16 @@ Deno.serve(async (req) => {
 
     const companyName = profile?.company_name || 'Nossa Empresa';
     const logoUrl = profile?.company_logo_url || '';
+    const normalizedGoogleMapsScreenshot = analysis?.google_maps_screenshot
+      ? (String(analysis.google_maps_screenshot).startsWith('data:')
+          ? String(analysis.google_maps_screenshot)
+          : `data:image/png;base64,${analysis.google_maps_screenshot}`)
+      : '';
+    const normalizedWebsiteScreenshot = analysis?.website_screenshot
+      ? (String(analysis.website_screenshot).startsWith('data:')
+          ? String(analysis.website_screenshot)
+          : `data:image/png;base64,${analysis.website_screenshot}`)
+      : '';
 
     const templateStyles: Record<string, string> = {
       'modern-dark': 'Fundo escuro (#0a0a0f), accent indigo (#6366f1), tipografia moderna, bordas arredondadas, visual tech.',
@@ -173,6 +183,8 @@ ${customInstructions ? `INSTRUÇÕES ADICIONAIS DO USUÁRIO: ${customInstruction
 
 ESTRUTURA OBRIGATÓRIA DA APRESENTAÇÃO:
 1. **Header** — Logo e nome da empresa prospectora (quem está vendendo)
+   - Se existir logo, usar obrigatoriamente a tag <img> com src="LOGO_URL_PLACEHOLDER"
+   - Nunca omitir a logo quando ela estiver disponível
 2. **Saudação personalizada** — Dirigida ao lead pelo nome, mencionando o setor dele
 3. **Diagnóstico do Lead** — Resumo dos problemas encontrados na análise (scores, SEO, velocidade, etc.) apresentados de forma que o lead entenda o impacto no seu negócio
 4. **Scores visuais** — Barras de progresso coloridas mostrando os scores (vermelho=ruim, amarelo=médio, verde=bom)
@@ -288,11 +300,25 @@ ${dnaFullJson}`;
     if (publicId) {
       html = html.replaceAll('PUBLIC_ID_PLACEHOLDER', publicId);
     }
-    if (analysis?.google_maps_screenshot) {
-      html = html.replaceAll('GOOGLE_MAPS_SCREENSHOT_PLACEHOLDER', analysis.google_maps_screenshot);
+    if (logoUrl) {
+      html = html.replaceAll('LOGO_URL_PLACEHOLDER', logoUrl);
     }
-    if (analysis?.website_screenshot) {
-      html = html.replaceAll('WEBSITE_SCREENSHOT_PLACEHOLDER', analysis.website_screenshot);
+    if (normalizedGoogleMapsScreenshot) {
+      html = html.replaceAll('data:image/png;base64,GOOGLE_MAPS_SCREENSHOT_PLACEHOLDER', normalizedGoogleMapsScreenshot);
+      html = html.replaceAll('GOOGLE_MAPS_SCREENSHOT_PLACEHOLDER', normalizedGoogleMapsScreenshot);
+    }
+    if (normalizedWebsiteScreenshot) {
+      html = html.replaceAll('data:image/png;base64,WEBSITE_SCREENSHOT_PLACEHOLDER', normalizedWebsiteScreenshot);
+      html = html.replaceAll('WEBSITE_SCREENSHOT_PLACEHOLDER', normalizedWebsiteScreenshot);
+    }
+
+    if (logoUrl && !html.includes(logoUrl)) {
+      const fallbackLogoBlock = `
+<div style="display:flex;align-items:center;gap:12px;padding:20px 24px 0;position:relative;z-index:2;">
+  <img src="${logoUrl}" alt="${companyName}" style="max-height:48px;max-width:180px;object-fit:contain;display:block;" />
+  <div style="font-family:Arial,sans-serif;font-size:14px;font-weight:700;color:#111827;letter-spacing:0.04em;text-transform:uppercase;">${companyName}</div>
+</div>`;
+      html = html.replace(/<body([^>]*)>/i, `<body$1>${fallbackLogoBlock}`);
     }
 
     return new Response(JSON.stringify({ success: true, html }), {

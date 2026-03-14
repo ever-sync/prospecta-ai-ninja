@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
+import { getEdgeFunctionErrorMessage, invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
 export interface SubscriptionData {
   plan: string;
@@ -39,6 +39,7 @@ export const useSubscription = () => {
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [plans, setPlans] = useState<PlanData[]>([]);
   const [loading, setLoading] = useState(true);
+  const lastSubscriptionErrorRef = useRef<string | null>(null);
 
   const isUnauthorizedFunctionsError = (err: unknown) =>
     err instanceof FunctionsHttpError && err.context?.status === 401;
@@ -69,13 +70,19 @@ export const useSubscription = () => {
       const { data, error } = await invokeEdgeFunction<SubscriptionData>('check-subscription');
       if (error) throw error;
       setSubscription(data);
+      lastSubscriptionErrorRef.current = null;
     } catch (err) {
       if (isUnauthorizedFunctionsError(err)) {
         setSubscription(null);
         return;
       }
 
-      console.error('Failed to check subscription:', err);
+      const message = await getEdgeFunctionErrorMessage(err);
+      setSubscription(null);
+      if (lastSubscriptionErrorRef.current !== message) {
+        lastSubscriptionErrorRef.current = message;
+        console.warn('Failed to check subscription:', message);
+      }
     } finally {
       setLoading(false);
     }

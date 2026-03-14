@@ -55,6 +55,9 @@ const App = () => (
             <Route path="/campaigns" element={<Campaigns />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/planos" element={<Admin initialTab="planos" />} />
+            <Route path="/admin/custos" element={<Admin initialTab="custos" />} />
+            <Route path="/admin/emails" element={<Admin initialTab="emails" />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />

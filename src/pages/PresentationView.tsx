@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizePresentationHtml } from '@/lib/presentation-html';
+import { selectFirstRow } from '@/lib/supabase/select-first-row';
 import { Loader2 } from 'lucide-react';
 
 const getScoreBucket = (analysisData: any): 'low' | 'medium' | 'high' | 'unknown' => {
@@ -32,7 +34,26 @@ const PresentationView = () => {
       } else if (data.status !== 'ready') {
         setError('Apresentação ainda está sendo gerada');
       } else {
-        setHtml(data.presentation_html);
+        const profile = await selectFirstRow(
+          supabase
+            .from('profiles')
+            .select('company_name, company_logo_url')
+            .eq('id', data.user_id),
+        );
+        const analysisData = (data.analysis_data as Record<string, unknown> | null) || null;
+
+        setHtml(
+          sanitizePresentationHtml(data.presentation_html || '', {
+            companyName: profile?.company_name || 'Nossa Empresa',
+            logoSrc: profile?.company_logo_url || null,
+            googleMapsScreenshot: typeof analysisData?.google_maps_screenshot === 'string'
+              ? analysisData.google_maps_screenshot
+              : null,
+            websiteScreenshot: typeof analysisData?.website_screenshot === 'string'
+              ? analysisData.website_screenshot
+              : null,
+          }),
+        );
         // Register view (fire and forget)
         supabase
           .from('presentation_views')

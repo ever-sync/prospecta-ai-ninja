@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { selectFirstRow } from '@/lib/supabase/select-first-row';
 
 const STEP_CONFIG = [
   {
@@ -68,11 +69,12 @@ const DNAFormTab = () => {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from('company_dna')
-      .select('*')
-      .eq('user_id', user.id)
-      .single()
+    selectFirstRow(
+      supabase
+        .from('company_dna')
+        .select('*')
+        .eq('user_id', user.id)
+    )
       .then(({ data }) => {
         if (data) {
           setHasRecord(true);

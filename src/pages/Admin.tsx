@@ -101,12 +101,19 @@ const StatCard = ({ icon: Icon, label, value, sub, color }: {
   </Card>
 );
 
-const Admin = () => {
+type AdminTab = 'dashboard' | 'custos' | 'planos' | 'emails';
+
+interface AdminProps {
+  initialTab?: AdminTab;
+}
+
+const Admin = ({ initialTab = 'dashboard' }: AdminProps) => {
   const { user, session, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [activeTab, setActiveTab] = useState<AdminTab>(initialTab);
   const [period, setPeriod] = useState<PeriodDays>(30);
   const [chartLoading, setChartLoading] = useState(false);
 
@@ -158,6 +165,10 @@ const Admin = () => {
     fetchStats(newPeriod);
   };
 
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
   if (isAdmin === false) return <Navigate to="/" replace />;
 
   if (loading) {
@@ -186,7 +197,7 @@ const Admin = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="dashboard" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AdminTab)} className="space-y-6">
         <TabsList>
           <TabsTrigger value="dashboard">📊 Dashboard</TabsTrigger>
           <TabsTrigger value="custos">💰 Custos & APIs</TabsTrigger>

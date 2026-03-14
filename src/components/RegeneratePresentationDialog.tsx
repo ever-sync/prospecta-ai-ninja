@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, RefreshCw, Palette } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { selectFirstRow } from '@/lib/supabase/select-first-row';
 
 const TEMPLATES = [
   { value: 'modern-dark', label: 'Moderno Escuro', description: 'Fundo escuro, cores vibrantes, visual tech' },
@@ -53,11 +54,12 @@ export const RegeneratePresentationDialog = ({
   const loadDnaColors = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data } = await supabase
-      .from('company_dna')
-      .select('custom_text_color, custom_button_color, custom_bg_color, presentation_template, presentation_tone')
-      .eq('user_id', user.id)
-      .maybeSingle();
+    const { data } = await selectFirstRow(
+      supabase
+        .from('company_dna')
+        .select('custom_text_color, custom_button_color, custom_bg_color, presentation_template, presentation_tone')
+        .eq('user_id', user.id)
+    );
     if (data) {
       setCustomTextColor(data.custom_text_color || '#ffffff');
       setCustomButtonColor(data.custom_button_color || '#6366f1');

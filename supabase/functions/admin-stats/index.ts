@@ -354,18 +354,36 @@ serve(async (req) => {
 
     const { data: topUsersRows } = await svc
       .from("presentations")
-      .select("user_id, profiles(email, company_name)")
+      .select("user_id")
       .order("created_at", { ascending: false })
       .limit(1000);
+
+    const uniqueUserIds = Array.from(new Set((topUsersRows || []).map((row) => row.user_id).filter(Boolean)));
+    const { data: topUserProfiles } = uniqueUserIds.length > 0
+      ? await svc
+          .from("profiles")
+          .select("user_id, email, company_name")
+          .in("user_id", uniqueUserIds)
+      : { data: [] };
+
+    const profileMap = new Map(
+      (topUserProfiles || []).map((profile) => [
+        profile.user_id,
+        {
+          email: profile.email || "",
+          company: profile.company_name || "",
+        },
+      ]),
+    );
 
     const userMap = new Map<string, { count: number; email: string; company: string }>();
     for (const row of topUsersRows || []) {
       const userId = row.user_id;
-      const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+      const profile = profileMap.get(userId);
       const existing = userMap.get(userId) || {
         count: 0,
         email: profile?.email || "",
-        company: profile?.company_name || "",
+        company: profile?.company || "",
       };
       existing.count += 1;
       userMap.set(userId, existing);

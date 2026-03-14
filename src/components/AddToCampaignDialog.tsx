@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Megaphone } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
@@ -91,6 +91,9 @@ export const AddToCampaignDialog = ({ open, onOpenChange, presentationIds, onSuc
             <Megaphone className="w-5 h-5 text-primary" />
             Enviar para Campanha
           </DialogTitle>
+          <DialogDescription>
+            Escolha uma campanha existente para anexar as apresentações selecionadas.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="py-4 space-y-4">

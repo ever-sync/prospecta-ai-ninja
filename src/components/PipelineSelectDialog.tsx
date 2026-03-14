@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { dedupeStages, sortStages } from '@/lib/crm/deriveLeadState';
 import { Loader2 } from 'lucide-react';
 
 interface PipelineStage {
@@ -14,14 +16,23 @@ interface PipelineStage {
   color: string;
   position: number;
   is_default: boolean;
+  default_status: string | null;
 }
 
 type ResponseMode = 'buttons' | 'form';
+type ApiProvider = 'gemini' | 'claude_code' | 'groq' | 'openai' | 'other';
 
 interface FormTemplate {
   id: string;
   name: string;
   body: string;
+}
+
+interface UserAiApiKey {
+  id: string;
+  provider: ApiProvider;
+  custom_provider: string | null;
+  api_key: string;
 }
 
 interface PipelineSelectDialogProps {
@@ -30,12 +41,41 @@ interface PipelineSelectDialogProps {
     attach: boolean;
     stageId?: string;
     responseMode: ResponseMode;
+    analysisProvider?: ApiProvider;
     formTemplateId?: string;
     formTemplateName?: string;
     formTemplateBody?: string;
   }) => void;
   onCancel: () => void;
 }
+
+const ANALYSIS_PROVIDER_META: Record<ApiProvider, { label: string; supported: boolean; summary: string }> = {
+  gemini: {
+    label: 'Gemini',
+    supported: true,
+    summary: 'Boa velocidade e custo eficiente para a analise atual. Hoje e o provider conectado ao motor completo de analise e geracao.',
+  },
+  openai: {
+    label: 'OpenAI',
+    supported: false,
+    summary: 'Costuma entregar boa consistencia e qualidade, mas ainda nao esta roteado nesta etapa da analise.',
+  },
+  groq: {
+    label: 'Groq',
+    supported: false,
+    summary: 'Tende a ter baixa latencia, mas ainda nao esta roteado nesta etapa da analise.',
+  },
+  claude_code: {
+    label: 'Claude Code',
+    supported: false,
+    summary: 'Pode ter boa leitura contextual, mas ainda nao esta roteado nesta etapa da analise.',
+  },
+  other: {
+    label: 'Outro',
+    supported: false,
+    summary: 'Provider personalizado detectado. Ainda nao existe roteamento desta etapa para provedores customizados.',
+  },
+};
 
 export const PipelineSelectDialog = ({ open, onConfirm, onCancel }: PipelineSelectDialogProps) => {
   const { user } = useAuth();
@@ -45,6 +85,8 @@ export const PipelineSelectDialog = ({ open, onConfirm, onCancel }: PipelineSele
   const [responseMode, setResponseMode] = useState<ResponseMode>('buttons');
   const [formTemplates, setFormTemplates] = useState<FormTemplate[]>([]);
   const [formTemplateId, setFormTemplateId] = useState('');
+  const [apiKeys, setApiKeys] = useState<UserAiApiKey[]>([]);
+  const [analysisProvider, setAnalysisProvider] = useState<ApiProvider | ''>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -54,7 +96,7 @@ export const PipelineSelectDialog = ({ open, onConfirm, onCancel }: PipelineSele
       setResponseMode('buttons');
       setFormTemplateId('');
 
-      const [{ data: stagesData }, { data: templatesData }] = await Promise.all([
+      const [{ data: stagesData }, { data: templatesData }, { data: apiKeysData }] = await Promise.all([
         supabase
           .from('pipeline_stages')
           .select('*')
@@ -66,13 +108,27 @@ export const PipelineSelectDialog = ({ open, onConfirm, onCancel }: PipelineSele
           .eq('user_id', user.id)
           .eq('channel', 'formulario')
           .order('name'),
+        supabase
+          .from('user_ai_api_keys')
+          .select('id, provider, custom_provider, api_key')
+          .eq('user_id', user.id)
+          .order('created_at'),
       ]);
 
-      if (stagesData && stagesData.length > 0) {
-        setStages(stagesData as PipelineStage[]);
-        setStageId(stagesData[0].id);
+      const normalizedStages = dedupeStages(sortStages(((stagesData || []) as PipelineStage[]) || []));
+      const resolvedApiKeys = ((apiKeysData || []) as UserAiApiKey[]) || [];
+
+      if (normalizedStages.length > 0) {
+        setStages(normalizedStages);
+        setStageId(normalizedStages[0].id);
+      } else {
+        setStages([]);
+        setStageId('');
       }
       setFormTemplates((templatesData as FormTemplate[]) || []);
+      setApiKeys(resolvedApiKeys);
+      const preferredProvider = resolvedApiKeys.find((item) => item.provider === 'gemini')?.provider || resolvedApiKeys[0]?.provider || '';
+      setAnalysisProvider(preferredProvider);
       setLoading(false);
     };
     load();
@@ -80,6 +136,14 @@ export const PipelineSelectDialog = ({ open, onConfirm, onCancel }: PipelineSele
 
   const selectedFormTemplate = formTemplates.find((tpl) => tpl.id === formTemplateId);
   const mustSelectFormTemplate = responseMode === 'form' && !formTemplateId;
+  const selectedApiKey = apiKeys.find((item) => item.provider === analysisProvider);
+  const selectedProviderMeta = analysisProvider ? ANALYSIS_PROVIDER_META[analysisProvider] : null;
+  const selectedProviderName =
+    selectedApiKey?.provider === 'other' && selectedApiKey.custom_provider
+      ? selectedApiKey.custom_provider
+      : (analysisProvider ? ANALYSIS_PROVIDER_META[analysisProvider].label : '');
+  const providerSupported = selectedProviderMeta?.supported ?? false;
+  const mustSelectSupportedProvider = apiKeys.length > 0 && (!analysisProvider || !providerSupported);
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
@@ -120,6 +184,46 @@ export const PipelineSelectDialog = ({ open, onConfirm, onCancel }: PipelineSele
                 </Select>
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Motor da analise</Label>
+              {apiKeys.length === 0 ? (
+                <div className="rounded-xl border border-[#f2d4d8] bg-[#fff5f6] px-4 py-3 text-sm text-[#7a2a38]">
+                  Nenhuma chave de IA encontrada. Cadastre ao menos uma em Configuracoes &gt; APIs.
+                </div>
+              ) : (
+                <>
+                  <Select value={analysisProvider} onValueChange={(value) => setAnalysisProvider(value as ApiProvider)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione qual chave usar na analise..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {apiKeys.map((item) => {
+                        const meta = ANALYSIS_PROVIDER_META[item.provider];
+                        const label = item.provider === 'other' && item.custom_provider ? item.custom_provider : meta.label;
+                        return (
+                          <SelectItem key={item.id} value={item.provider}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+
+                  {selectedProviderMeta ? (
+                    <div className="rounded-xl border border-[#ececf0] bg-[#fafafc] px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-[#1A1A1A]">{selectedProviderName}</p>
+                        <Badge className={selectedProviderMeta.supported ? 'border-[#cdebd7] bg-[#eefbf3] text-[#1f8f47]' : 'border-[#f5d2d7] bg-[#fff3f5] text-[#a22639]'}>
+                          {selectedProviderMeta.supported ? 'Disponivel agora' : 'Em breve nesta etapa'}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 text-sm leading-relaxed text-[#66666d]">{selectedProviderMeta.summary}</p>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
 
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">Resposta da proposta</Label>
@@ -168,12 +272,13 @@ export const PipelineSelectDialog = ({ open, onConfirm, onCancel }: PipelineSele
                 attach,
                 stageId: attach ? stageId : undefined,
                 responseMode,
+                analysisProvider: analysisProvider || undefined,
                 formTemplateId: responseMode === 'form' ? formTemplateId : undefined,
                 formTemplateName: responseMode === 'form' ? selectedFormTemplate?.name : undefined,
                 formTemplateBody: responseMode === 'form' ? selectedFormTemplate?.body : undefined,
               })
             }
-            disabled={loading || (attach && !stageId) || mustSelectFormTemplate}
+            disabled={loading || (attach && !stageId) || mustSelectFormTemplate || mustSelectSupportedProvider}
           >
             Continuar
           </Button>

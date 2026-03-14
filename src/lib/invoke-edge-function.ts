@@ -35,8 +35,8 @@ export const invokeEdgeFunction = async <T = unknown>(
   return supabase.functions.invoke<T>(functionName, {
     ...options,
     headers: {
-      Authorization: `Bearer ${gatewayToken}`,
-      "x-user-auth": `Bearer ${session.access_token}`,
+      ...(gatewayToken ? { apikey: gatewayToken } : {}),
+      Authorization: `Bearer ${session.access_token}`,
       ...options.headers,
     },
   });

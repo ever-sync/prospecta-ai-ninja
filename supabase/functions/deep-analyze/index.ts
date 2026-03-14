@@ -51,13 +51,23 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { business, dna, profile } = await req.json();
+    const { business, dna, profile, provider } = await req.json();
 
     if (!business) {
       return new Response(JSON.stringify({ error: "Business data is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (provider && provider !== "gemini") {
+      return new Response(
+        JSON.stringify({ error: "O fluxo de analise atual suporta apenas Gemini nesta etapa." }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const { user, svc } = await getAuthenticatedUserContext(req);

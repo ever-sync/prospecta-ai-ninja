@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ProposalTemplateTab from '@/components/ProposalTemplateTab';
 import FormBuilder, { defaultFormSchema, type FormSchema } from '@/components/FormBuilder';
@@ -626,6 +626,9 @@ const TemplatesManager = () => {
               <ClipboardList className="h-5 w-5 text-[#EF3333]" />
               Respostas do Formulário
             </DialogTitle>
+            <DialogDescription>
+              Consulte as respostas recebidas para este template de formulario.
+            </DialogDescription>
           </DialogHeader>
           {responses.length === 0 ? (
             <p className="py-8 text-center text-sm text-[#6d6d75]">Nenhuma resposta recebida ainda.</p>
@@ -661,6 +664,9 @@ const TemplatesManager = () => {
               {getChannelIcon(formChannel)}
               {editingTemplate ? `Editar Template de ${getChannelLabel(formChannel)}` : `Novo Template de ${getChannelLabel(formChannel)}`}
             </DialogTitle>
+            <DialogDescription>
+              Configure o conteudo e as variaveis do template para este canal.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, ChevronDown, History, MapPin, Plus, Radar, Search, Target, X } from "lucide-react";
+import { ChevronDown, MapPin, Plus, Radar, Search, Target, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,14 +34,11 @@ const RADIUS_PRESETS = [
 export const SearchFilters = ({
   onSearch,
   isLoading,
-  hasSearched = false,
-  totalResults = 0,
 }: SearchFiltersProps) => {
   const [selectedNiches, setSelectedNiches] = useState<string[]>([]);
   const [customNiche, setCustomNiche] = useState("");
   const [location, setLocation] = useState("");
   const [radius, setRadius] = useState(5);
-  const [hasSavedSearch, setHasSavedSearch] = useState(false);
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<SearchAdvancedFilters>(DEFAULT_SEARCH_ADVANCED_FILTERS);
 
@@ -69,7 +66,6 @@ export const SearchFilters = ({
         ...DEFAULT_SEARCH_ADVANCED_FILTERS,
         ...(savedSearch.advanced || {}),
       });
-      setHasSavedSearch(true);
     } catch (error) {
       console.error("Error loading saved search filters:", error);
     }
@@ -107,30 +103,6 @@ export const SearchFilters = ({
     setCustomNiche("");
   };
 
-  const applySavedSearch = () => {
-    if (typeof window === "undefined") return;
-
-    try {
-      const rawSavedSearch = window.localStorage.getItem(LAST_SEARCH_STORAGE_KEY);
-      if (!rawSavedSearch) return;
-
-      const savedSearch = JSON.parse(rawSavedSearch) as Partial<Filters>;
-      if (!Array.isArray(savedSearch.niches) || typeof savedSearch.location !== "string" || typeof savedSearch.radius !== "number") {
-        return;
-      }
-
-      setSelectedNiches(savedSearch.niches.filter((item): item is string => typeof item === "string"));
-      setLocation(savedSearch.location);
-      setRadius(savedSearch.radius);
-      setAdvancedFilters({
-        ...DEFAULT_SEARCH_ADVANCED_FILTERS,
-        ...(savedSearch.advanced || {}),
-      });
-    } catch (error) {
-      console.error("Error applying saved search filters:", error);
-    }
-  };
-
   const persistSearch = () => {
     if (typeof window === "undefined") return;
 
@@ -143,7 +115,6 @@ export const SearchFilters = ({
         advanced: advancedFilters,
       }),
     );
-    setHasSavedSearch(true);
   };
 
   const handleSearch = () => {
@@ -184,7 +155,6 @@ export const SearchFilters = ({
     );
   }, [radius]);
 
-  const isSearchTooBroad = selectedNiches.length > 3;
   const activeAdvancedFilterCount = useMemo(() => {
     return [
       advancedFilters.district.trim().length > 0,
@@ -198,84 +168,8 @@ export const SearchFilters = ({
     ].filter(Boolean).length;
   }, [advancedFilters]);
 
-  const searchSummary = useMemo(() => {
-    if (!canSearch) {
-      return "Defina nicho, localizacao e raio para montar uma varredura consultiva.";
-    }
-
-    return `${selectedNiches.length} nicho(s) em ${location.trim()} com varredura de ${radius} km, estimativa de ate ${expectedDepthPerNiche} resultado(s) por nicho${activeAdvancedFilterCount > 0 ? ` e ${activeAdvancedFilterCount} filtro(s) avancado(s)` : ""}.`;
-  }, [activeAdvancedFilterCount, canSearch, expectedDepthPerNiche, location, radius, selectedNiches.length]);
-
   return (
     <div className="space-y-6">
-      <div className="rounded-[24px] border border-[#1d1d22] bg-[#111115] p-5 text-white">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/55">
-              Command Panel
-            </p>
-            <h3 className="mt-2 text-xl font-semibold">Monte a proxima leitura de mercado</h3>
-          </div>
-          <div className="rounded-2xl bg-white/6 p-3 text-[#EF3333]">
-            <Radar className="h-5 w-5" />
-          </div>
-        </div>
-
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Nicho</p>
-            <p className="mt-2 text-sm font-medium text-white/90">
-              {selectedNiches.length > 0 ? `${selectedNiches.length} ativo(s)` : "Ainda nao definido"}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Local</p>
-            <p className="mt-2 truncate text-sm font-medium text-white/90">
-              {location.trim() || "Aguardando localizacao"}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Raio</p>
-            <p className="mt-2 text-sm font-medium text-white/90">{radius} km de cobertura</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Profundidade</p>
-            <p className="mt-2 text-sm font-medium text-white/90">
-              {selectedNiches.length > 0 ? `Ate ${expectedDepthPerNiche} por nicho` : "Defina o recorte"}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-[#f24d62]/20 bg-[#EF3333]/10 px-4 py-3">
-          <p className="text-sm leading-relaxed text-white/85">{searchSummary}</p>
-        </div>
-
-        {hasSavedSearch ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={applySavedSearch}
-            className="mt-3 h-9 rounded-xl px-3 text-white/80 hover:bg-white/8 hover:text-white"
-          >
-            <History className="mr-2 h-4 w-4" />
-            Reaplicar ultima busca
-          </Button>
-        ) : null}
-
-        {hasSearched ? (
-          <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Ultima varredura</p>
-              <p className="mt-1 text-sm font-medium text-white/90">{totalResults} lead(s) retornado(s)</p>
-            </div>
-            <Badge className="rounded-full border border-[#EF3333]/35 bg-[#EF3333]/15 text-[#ffb6bf]">
-              Sessao ativa
-            </Badge>
-          </div>
-        ) : null}
-      </div>
-
       <div className="space-y-3">
         <Label className="flex items-center gap-2 text-sm font-medium text-[#1A1A1A]">
           <Target className="h-4 w-4 text-[#EF3333]" />
@@ -603,125 +497,6 @@ export const SearchFilters = ({
           ))}
         </div>
         <p className="text-xs leading-relaxed text-[#7c7c83]">{activeRadiusPreset.helper}</p>
-      </div>
-
-      <div className="rounded-[24px] border border-[#ececf0] bg-[#fafafc] p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a8a92]">Diagnostico do recorte</p>
-            <h4 className="mt-1 text-base font-semibold text-[#1A1A1A]">Antes de iniciar a varredura</h4>
-          </div>
-          <div className="rounded-2xl bg-white p-2 text-[#EF3333] shadow-[0_10px_20px_rgba(20,20,24,0.05)]">
-            <Search className="h-4 w-4" />
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          {selectedNicheLabels.length > 0 ? (
-            selectedNicheLabels.map((label) => (
-              <Badge key={label} variant="outline" className="rounded-full border-[#e6e6eb] bg-white px-3 py-1.5 text-xs text-[#57575f]">
-                {label}
-              </Badge>
-            ))
-          ) : (
-            <Badge variant="outline" className="rounded-full border-dashed border-[#d8d8de] bg-white px-3 py-1.5 text-xs text-[#8d8d95]">
-              Nenhum nicho selecionado
-            </Badge>
-          )}
-        </div>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-[#ececf0] bg-white p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Cobertura</p>
-            <p className="mt-1 text-sm font-semibold text-[#1A1A1A]">{radius} km</p>
-            <p className="mt-1 text-xs text-[#7c7c83]">{activeRadiusPreset.label}</p>
-          </div>
-          <div className="rounded-2xl border border-[#ececf0] bg-white p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Base</p>
-            <p className="mt-1 text-sm font-semibold text-[#1A1A1A]">{location.trim() || "Nao definida"}</p>
-            <p className="mt-1 text-xs text-[#7c7c83]">
-              {advancedFilters.district.trim() ? `${advancedFilters.district.trim()}, ${location.trim()}` : "Termo principal da busca"}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-[#ececf0] bg-white p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Profundidade</p>
-            <p className="mt-1 text-sm font-semibold text-[#1A1A1A]">
-              {selectedNiches.length > 0 ? `Ate ${expectedDepthPerNiche}/nicho` : "Aguardando nicho"}
-            </p>
-            <p className="mt-1 text-xs text-[#7c7c83]">Estimativa baseada na coleta atual</p>
-          </div>
-        </div>
-
-        {activeAdvancedFilterCount > 0 ? (
-          <div className="mt-4 rounded-2xl border border-[#ececf0] bg-white p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Filtros avancados ativos</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {advancedFilters.district.trim() ? (
-                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
-                  Bairro: {advancedFilters.district.trim()}
-                </Badge>
-              ) : null}
-              {advancedFilters.queryHint.trim() ? (
-                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
-                  Palavra: {advancedFilters.queryHint.trim()}
-                </Badge>
-              ) : null}
-              {advancedFilters.minRating !== "any" ? (
-                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
-                  Nota: {advancedFilters.minRating === "4_plus" ? "4.0+" : "4.5+"}
-                </Badge>
-              ) : null}
-              {advancedFilters.websiteMode === "with_site" ? (
-                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
-                  Com site
-                </Badge>
-              ) : null}
-              {advancedFilters.websiteMode === "without_site" ? (
-                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
-                  Sem site
-                </Badge>
-              ) : null}
-              {advancedFilters.requirePhone ? (
-                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
-                  Com telefone
-                </Badge>
-              ) : null}
-              {advancedFilters.requireEmail ? (
-                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
-                  Com email
-                </Badge>
-              ) : null}
-              {advancedFilters.limitResults !== DEFAULT_SEARCH_ADVANCED_FILTERS.limitResults ? (
-                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
-                  Limite: {advancedFilters.limitResults}
-                </Badge>
-              ) : null}
-              {advancedFilters.initialSort !== DEFAULT_SEARCH_ADVANCED_FILTERS.initialSort ? (
-                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
-                  Ordem: {advancedFilters.initialSort === "rating_desc" ? "rating" : "distancia"}
-                </Badge>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-
-        <div
-          className={cn(
-            "mt-4 rounded-2xl border px-4 py-3 text-sm leading-relaxed",
-            isSearchTooBroad
-              ? "border-[#f2d4d8] bg-[#fff5f6] text-[#7a2a38]"
-              : "border-[#e8eaef] bg-white text-[#5d5d65]",
-          )}
-        >
-          {isSearchTooBroad ? (
-            <span className="flex items-start gap-2">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#EF3333]" />
-              Com muitos nichos no mesmo scan, a coleta tende a ficar mais superficial. Se quiser mais densidade, rode em lotes menores.
-            </span>
-          ) : (
-            "Recorte equilibrado. Esse formato costuma gerar uma leitura mais util para abordagem consultiva."
-          )}
-        </div>
       </div>
 
       <Button

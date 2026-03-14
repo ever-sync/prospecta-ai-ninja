@@ -29,6 +29,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/compon
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
+import { buildCRMHref } from '@/lib/crm/deriveLeadState';
 import { cn } from '@/lib/utils';
 import { BRAND } from '@/config/brand';
 import { useState, useEffect, type ElementType } from 'react';
@@ -39,10 +40,10 @@ import sidebarCollapsedLogo from '@/logos/favicon.svg';
 const SIDEBAR_STORAGE_KEY = 'prospecta.sidebar.collapsed';
 
 const menuItems = [
-  { path: '/dashboard', label: 'Mission Control', icon: LayoutGrid },
+  { path: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { path: '/crm', label: 'CRM', icon: Users },
-  { path: '/search', label: 'Scanner', icon: SearchIcon },
   { path: '/dna', label: 'DNA', icon: Fingerprint },
+  { path: '/search', label: 'Scanner', icon: SearchIcon },
   { path: '/presentations', label: 'Apresentacoes', icon: FileBarChart },
   { path: '/campaigns', label: 'Campanhas', icon: Send },
   { path: '/templates', label: 'Templates', icon: FileStack },
@@ -89,6 +90,13 @@ type ConversionNotificationRow = {
   event_type: string;
   id: string;
   presentation_id: string;
+};
+
+type TaskNotificationRow = {
+  due_at: string | null;
+  id: string;
+  presentation_id: string;
+  title: string;
 };
 
 const routeMeta: Record<string, { eyebrow: string; title: string; description: string }> = {
@@ -254,9 +262,19 @@ export const AppLayout = () => {
         .order('created_at', { ascending: false })
         .limit(20);
 
+      const { data: taskRows, error: tasksError } = await supabase
+        .from('crm_tasks')
+        .select('id, title, due_at, presentation_id')
+        .eq('user_id', user.id)
+        .eq('status', 'open')
+        .not('due_at', 'is', null)
+        .lte('due_at', new Date().toISOString())
+        .order('due_at', { ascending: false })
+        .limit(8);
+
       if (!active) return;
 
-      if (presentationsError || conversionsError) {
+      if (presentationsError || conversionsError || tasksError) {
         setNotifications([]);
         setNotificationsLoading(false);
         return;
@@ -264,10 +282,10 @@ export const AppLayout = () => {
 
       const presentations = (presentationRows || []) as PresentationNotificationRow[];
       const conversions = (conversionRows || []) as ConversionNotificationRow[];
+      const overdueTasks = (taskRows || []) as TaskNotificationRow[];
       const presentationMap = new Map(presentations.map((item) => [item.id, item]));
 
-      const missingIds = conversions
-        .map((item) => item.presentation_id)
+      const missingIds = [...conversions.map((item) => item.presentation_id), ...overdueTasks.map((item) => item.presentation_id)]
         .filter((id) => !presentationMap.has(id));
 
       if (missingIds.length > 0) {
@@ -290,7 +308,7 @@ export const AppLayout = () => {
             id: `presentation-${item.id}`,
             createdAt: item.created_at || new Date().toISOString(),
             description: isReady ? 'A proposta ja esta pronta para envio.' : 'Nova proposta entrou em analise na plataforma.',
-            href: '/presentations',
+            href: buildCRMHref({ mode: 'queue', leadId: item.id }),
             icon: isReady ? CheckCircle2 : FileText,
             iconClassName: isReady ? 'bg-[#effaf3] text-[#1f8f47]' : 'bg-[#fff0f1] text-[#EF3333]',
             title: isReady
@@ -341,14 +359,29 @@ export const AppLayout = () => {
           id: `conversion-${item.id}`,
           createdAt: item.created_at,
           description: resolved.description,
-          href: '/presentations',
+          href: buildCRMHref({ mode: 'queue', leadId: item.presentation_id }),
           icon: resolved.icon,
           iconClassName: resolved.iconClassName,
           title: resolved.title,
         };
       });
 
-      const merged = [...conversionNotifications, ...createdNotifications]
+      const overdueTaskNotifications: PlatformNotification[] = overdueTasks.map((task) => {
+        const presentation = presentationMap.get(task.presentation_id);
+        const businessName = presentation?.business_name ? `: ${presentation.business_name}` : '';
+
+        return {
+          id: `task-${task.id}`,
+          createdAt: task.due_at || new Date().toISOString(),
+          description: task.title,
+          href: buildCRMHref({ mode: 'queue', leadId: task.presentation_id }),
+          icon: Clock3,
+          iconClassName: 'bg-[#fff8ef] text-[#9a5a10]',
+          title: `Follow-up vencido${businessName}`,
+        };
+      });
+
+      const merged = [...overdueTaskNotifications, ...conversionNotifications, ...createdNotifications]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 12);
 
@@ -364,6 +397,9 @@ export const AppLayout = () => {
         void loadNotifications();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'message_conversion_events', filter: `user_id=eq.${user.id}` }, () => {
+        void loadNotifications();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_tasks', filter: `user_id=eq.${user.id}` }, () => {
         void loadNotifications();
       })
       .subscribe();

@@ -24,11 +24,22 @@ Deno.serve(async (req) => {
       tone: requestedTone,
       customInstructions,
       publicId,
+      provider,
       responseMode: requestedResponseMode,
       formTemplateId,
       formTemplateName,
       formTemplateBody,
     } = await req.json();
+
+    if (provider && provider !== 'gemini') {
+      return new Response(
+        JSON.stringify({ error: 'A geracao de apresentacoes ainda suporta apenas Gemini nesta etapa.' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
+    }
 
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
     const respondFnUrl = `${SUPABASE_URL}/functions/v1/respond-presentation`;

@@ -8,14 +8,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
+import { buildCRMHref } from '@/lib/crm/deriveLeadState';
 import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
+import { useNavigate } from 'react-router-dom';
 
 interface Campaign {
   id: string;
@@ -154,6 +156,7 @@ const plusDaysIso = (days: number) => {
 };
 
 const Campaigns = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const { canUse } = useSubscription();
@@ -767,6 +770,9 @@ const Campaigns = () => {
         <DialogContent className="max-w-xl rounded-[22px] border border-[#ececf0] bg-white">
           <DialogHeader>
             <DialogTitle className="text-[#1A1A1A]">Nova Campanha</DialogTitle>
+            <DialogDescription>
+              Configure o canal, template e agendamento para criar uma nova campanha.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -831,6 +837,9 @@ const Campaigns = () => {
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto rounded-[22px] border border-[#ececf0] bg-white">
           <DialogHeader>
             <DialogTitle className="text-[#1A1A1A]">Adicionar Apresentacoes</DialogTitle>
+            <DialogDescription>
+              Selecione as apresentações que devem entrar nesta campanha.
+            </DialogDescription>
           </DialogHeader>
           {availablePresentations.length === 0 ? (
             <p className="text-muted-foreground text-sm py-4">Nenhuma apresentacao disponivel para adicionar.</p>
@@ -854,6 +863,19 @@ const Campaigns = () => {
                     <p className="text-sm font-medium text-foreground">{p.business_name}</p>
                     <p className="text-xs text-[#6e6e76]">{p.business_phone || 'Sem telefone'}</p>
                   </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      navigate(buildCRMHref({ mode: 'queue', leadId: p.id }));
+                    }}
+                  >
+                    CRM
+                  </Button>
                 </label>
               ))}
             </div>

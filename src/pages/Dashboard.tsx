@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { buildCRMHref } from '@/lib/crm/deriveLeadState';
 import { cn } from '@/lib/utils';
 
 interface AnalysisScores {
@@ -607,7 +608,7 @@ const Dashboard = () => {
   }, [campaignPresentations, campaigns, conversionEvents, presentationViews, presentations, user]);
 
   const quickLinks = [
-    { label: 'Ver propostas', icon: Workflow, path: '/presentations' },
+    { label: 'Abrir CRM', icon: Workflow, path: buildCRMHref({ mode: 'queue' }) },
     { label: 'Abrir campanhas', icon: Send, path: '/campaigns' },
     { label: 'Voltar ao scanner', icon: TrendingUp, path: '/search' },
   ];
@@ -952,7 +953,7 @@ const Dashboard = () => {
                 <Button
                   variant="ghost"
                   className="rounded-xl text-[#5f5f67] hover:bg-[#f6f6f8]"
-                  onClick={() => navigate('/presentations')}
+                  onClick={() => navigate(buildCRMHref({ mode: 'queue' }))}
                 >
                   Abrir fila
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -985,7 +986,7 @@ const Dashboard = () => {
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => navigate('/presentations')}
+                      onClick={() => navigate(buildCRMHref({ mode: 'queue', leadId: item.id }))}
                       className="w-full rounded-[22px] border border-[#ececf0] px-4 py-4 text-left transition-colors hover:bg-[#fafafd]"
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -1053,7 +1054,7 @@ const Dashboard = () => {
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => navigate('/presentations')}
+                      onClick={() => navigate(buildCRMHref({ mode: 'queue', leadId: item.id }))}
                       className="w-full rounded-[22px] border border-[#ececf0] px-4 py-4 text-left transition-colors hover:bg-[#fafafd]"
                     >
                       <div className="flex items-start justify-between gap-3">

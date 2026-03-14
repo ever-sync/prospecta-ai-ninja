@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -50,6 +50,9 @@ const CampaignPreviewDialog = ({
             <Eye className="w-5 h-5 text-primary" />
             Preview — {campaignName}
           </DialogTitle>
+          <DialogDescription>
+            Revise as mensagens da campanha antes de disparar o envio para os leads selecionados.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center justify-between mb-2">

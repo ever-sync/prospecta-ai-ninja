@@ -235,6 +235,80 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          due_at: string | null
+          id: string
+          metadata: Json
+          presentation_id: string
+          status: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          metadata?: Json
+          presentation_id: string
+          status?: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          metadata?: Json
+          presentation_id?: string
+          status?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_tasks_presentation_id_fkey"
+            columns: ["presentation_id"]
+            isOneToOne: false
+            referencedRelation: "presentations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_views: {
+        Row: {
+          created_at: string
+          filters: Json
+          id: string
+          is_default: boolean
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          is_default?: boolean
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          is_default?: boolean
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       lead_notes: {
         Row: {
           content: string
@@ -522,6 +596,8 @@ export type Database = {
           created_at: string | null
           id: string
           lead_response: string | null
+          outcome_notes: string | null
+          outcome_reason: string | null
           pipeline_stage_id: string | null
           presentation_html: string | null
           public_id: string | null
@@ -540,6 +616,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           lead_response?: string | null
+          outcome_notes?: string | null
+          outcome_reason?: string | null
           pipeline_stage_id?: string | null
           presentation_html?: string | null
           public_id?: string | null
@@ -558,6 +636,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           lead_response?: string | null
+          outcome_notes?: string | null
+          outcome_reason?: string | null
           pipeline_stage_id?: string | null
           presentation_html?: string | null
           public_id?: string | null
@@ -672,7 +752,52 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      crm_lead_snapshot: {
+        Row: {
+          analysis_score: number | null
+          business_address: string | null
+          business_category: string | null
+          business_email: string | null
+          business_name: string | null
+          business_phone: string | null
+          business_website: string | null
+          campaign_count: number | null
+          created_at: string | null
+          followup_due: boolean | null
+          is_hot: boolean | null
+          is_opened_no_response: boolean | null
+          is_ready_not_sent: boolean | null
+          last_channel: string | null
+          last_event_at: string | null
+          last_event_type: string | null
+          last_opened_at: string | null
+          last_response_at: string | null
+          last_sent_at: string | null
+          lead_response: string | null
+          next_followup_at: string | null
+          note_count: number | null
+          outcome_notes: string | null
+          outcome_reason: string | null
+          pipeline_stage_id: string | null
+          presentation_html: string | null
+          presentation_id: string | null
+          public_id: string | null
+          status: string | null
+          system_status: string | null
+          temperature: string | null
+          user_id: string | null
+          view_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presentations_pipeline_stage_id_fkey"
+            columns: ["pipeline_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_role: {

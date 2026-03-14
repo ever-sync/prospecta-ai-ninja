@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -105,6 +105,9 @@ export const RegeneratePresentationDialog = ({
             <RefreshCw className="w-5 h-5 text-primary" />
             Regenerar Apresentação
           </DialogTitle>
+          <DialogDescription>
+            Ajuste template, tom e instrucoes para gerar uma nova versao da proposta.
+          </DialogDescription>
           <p className="text-sm text-muted-foreground">
             {businessName}
           </p>

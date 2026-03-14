@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Pencil, Send, ExternalLink } from 'lucide-react';
 
 interface EmailTemplate {
@@ -188,6 +188,9 @@ export default function SystemEmailsManager() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar template: {editing?.name}</DialogTitle>
+            <DialogDescription>
+              Ajuste assunto e HTML do template de email do sistema.
+            </DialogDescription>
           </DialogHeader>
           {editing && (
             <div className="space-y-4 py-2">

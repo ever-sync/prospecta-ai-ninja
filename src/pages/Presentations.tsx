@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Presentation, Eye, Send, Trash2, Loader2, RefreshCw, Megaphone, Sparkles, CheckCircle2, Clock3, AlertTriangle } from 'lucide-react';
+import { Presentation, Eye, Send, Trash2, Loader2, RefreshCw, Megaphone, Sparkles, CheckCircle2, Clock3, AlertTriangle, Workflow } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { AddToCampaignDialog } from '@/components/AddToCampaignDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { buildCRMHref } from '@/lib/crm/deriveLeadState';
 import { cn } from '@/lib/utils';
 import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
@@ -393,6 +394,15 @@ const Presentations = () => {
                           </Button>
                         </>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-xl text-[#707078] hover:bg-[#f5f5f7] hover:text-[#1A1A1A]"
+                        title="Abrir no CRM"
+                        onClick={() => window.open(buildCRMHref({ mode: 'queue', leadId: p.id }), '_self')}
+                      >
+                        <Workflow className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"

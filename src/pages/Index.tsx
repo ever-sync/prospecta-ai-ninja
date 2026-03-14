@@ -44,6 +44,35 @@ import { deriveLeadSignalSummary } from "@/lib/lead-scoring";
 import { invokeEdgeFunction } from "@/lib/invoke-edge-function";
 
 type ProposalResponseMode = "buttons" | "form";
+type AnalysisProvider = "gemini" | "claude_code" | "groq" | "openai" | "other";
+
+const extractEdgeFunctionMessage = async (error: unknown) => {
+  const context =
+    error && typeof error === "object" && "context" in error
+      ? (error as { context?: Response }).context
+      : undefined;
+
+  if (context instanceof Response) {
+    try {
+      const payload = await context.clone().json();
+      if (typeof payload?.error === "string" && payload.error.trim()) {
+        return payload.error;
+      }
+      if (typeof payload?.message === "string" && payload.message.trim()) {
+        return payload.message;
+      }
+    } catch {
+      const text = await context.clone().text().catch(() => "");
+      if (text.trim()) return text;
+    }
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return "Erro ao executar a analise.";
+};
 
 type ProposalFormTemplate = {
   id: string;
@@ -236,6 +265,7 @@ const Index = () => {
   const startAnalysis = async (
     pipelineStageId?: string,
     responseMode: ProposalResponseMode = "buttons",
+    analysisProvider: AnalysisProvider = "gemini",
     formTemplate?: ProposalFormTemplate,
     explicitTargets?: Business[] | null,
   ) => {
@@ -270,7 +300,7 @@ const Index = () => {
         const { data: analyzeResult, error: analyzeError } = await invokeEdgeFunction<{ analysis?: any; error?: string }>(
           "deep-analyze",
           {
-            body: { business, dna, profile },
+            body: { business, dna, profile, provider: analysisProvider },
           }
         );
 
@@ -321,6 +351,7 @@ const Index = () => {
               tone: (dna as { presentation_tone?: string } | null)?.presentation_tone || "professional",
               customInstructions:
                 (dna as { presentation_instructions?: string } | null)?.presentation_instructions || "",
+              provider: analysisProvider,
               responseMode,
               formTemplateId: responseMode === "form" ? formTemplate?.id || null : null,
               formTemplateName: responseMode === "form" ? formTemplate?.name || null : null,
@@ -344,13 +375,14 @@ const Index = () => {
         );
       } catch (err) {
         console.error(`Error analyzing ${business.name}:`, err);
+        const errorMessage = await extractEdgeFunctionMessage(err);
         setAnalysisItems((prev) =>
           prev.map((item) =>
             item.id === business.id
               ? {
                   ...item,
                   status: "error",
-                  error: err instanceof Error ? err.message : "Erro",
+                  error: errorMessage,
                 }
               : item
           )
@@ -477,6 +509,7 @@ const Index = () => {
           startAnalysis(
             result.attach ? result.stageId : undefined,
             result.responseMode,
+            result.analysisProvider || "gemini",
             result.responseMode === "form" && result.formTemplateId
               ? {
                   id: result.formTemplateId,
@@ -562,11 +595,6 @@ const Index = () => {
               <h1 className="mt-4 text-3xl font-semibold tracking-tight lg:text-5xl">
                 Encontre sinais, leia contexto e ataque os leads certos.
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/68 lg:text-base">
-                A envPRO deixa de ser apenas uma lista de empresas e passa a operar como um workspace
-                de leitura comercial. Primeiro voce varre o mercado. Depois entende por que agir agora.
-                Entao transforma isso em proposta consultiva.
-              </p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
@@ -601,53 +629,31 @@ const Index = () => {
               totalResults={businesses.length}
             />
           </Card>
-
-          <Card className="rounded-[28px] border border-[#ececf0] bg-white p-5 shadow-[0_12px_28px_rgba(20,20,24,0.05)]">
-            <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-[#EF3333]" />
-              <h2 className="text-base font-semibold text-[#1A1A1A]">Resumo da sessao</h2>
-            </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-              <div className="rounded-[22px] border border-[#ececf0] bg-[#fafafc] p-4">
-                <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Resultados</p>
-                <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{sessionState.filteredResults}</p>
-                <p className="mt-1 text-sm text-[#66666d]">
-                  {hasSearched ? "Leads prontos para triagem" : "Aguardando sua primeira busca"}
-                </p>
-              </div>
-              <div className="rounded-[22px] border border-[#ececf0] bg-[#fafafc] p-4">
-                <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Selecionados</p>
-                <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{sessionState.selectedCount}</p>
-                <p className="mt-1 text-sm text-[#66666d]">Fila pronta para analise profunda</p>
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-[22px] border border-[#f2d4d8] bg-[#fff5f6] p-4">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-[#b04a58]">Leitura recomendada</p>
-              <p className="mt-2 text-sm leading-relaxed text-[#6e2b37]">
-                {topLead
-                  ? `${topLead.name} aparece como lead mais promissor neste recorte. ${focusedSignal?.onlinePresenceWeaknesses[0] || "Abra a inteligencia dele antes de decidir o lote final."}`
-                  : "Defina o recorte de busca para a envPRO montar a leitura priorizada do mercado."}
-              </p>
-            </div>
-          </Card>
         </aside>
 
         <section className="space-y-5">
           <Card className="rounded-[28px] border border-[#ececf0] bg-white p-4 shadow-[0_12px_28px_rgba(20,20,24,0.05)] lg:p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <p className="text-sm font-medium text-[#75757d]">Scanner Workspace</p>
-                <h2 className="mt-1 text-2xl font-semibold tracking-tight text-[#1A1A1A] lg:text-3xl">
-                  Leads priorizados por contexto
-                </h2>
-                <p className="mt-2 text-sm text-[#66666d] lg:text-base">
-                  Veja quem merece leitura imediata, quem tem sinais fracos e onde a proposta consultiva tende a funcionar melhor.
-                </p>
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center">
+                <div className="flex items-center gap-2 whitespace-nowrap">
+                  <Target className="h-4 w-4 text-[#EF3333]" />
+                  <h2 className="text-base font-semibold text-[#1A1A1A]">Resumo da sessao</h2>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <div className="min-w-[160px] rounded-[20px] border border-[#ececf0] bg-[#fafafc] px-4 py-3">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Resultados</p>
+                    <p className="mt-1 text-2xl font-semibold text-[#1A1A1A]">{sessionState.filteredResults}</p>
+                  </div>
+
+                  <div className="min-w-[160px] rounded-[20px] border border-[#ececf0] bg-[#fafafc] px-4 py-3">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Selecionados</p>
+                    <p className="mt-1 text-2xl font-semibold text-[#1A1A1A]">{sessionState.selectedCount}</p>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 xl:justify-end">
                 <Button
                   onClick={() => setShowRefinementDialog(true)}
                   variant="outline"

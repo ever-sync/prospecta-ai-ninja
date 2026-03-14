@@ -47,192 +47,30 @@ export type Database = {
         }
         Relationships: []
       }
-      user_ai_api_keys: {
-        Row: {
-          api_key: string
-          created_at: string
-          custom_provider: string | null
-          id: string
-          provider: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          api_key: string
-          created_at?: string
-          custom_provider?: string | null
-          id?: string
-          provider: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          api_key?: string
-          created_at?: string
-          custom_provider?: string | null
-          id?: string
-          provider?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      campaign_message_attempts: {
-        Row: {
-          attempt_no: number
-          campaign_id: string
-          campaign_presentation_id: string
-          channel: string
-          created_at: string
-          delivered_at: string | null
-          error_reason: string | null
-          followup_step: number
-          id: string
-          metadata: Json
-          next_followup_at: string | null
-          next_retry_at: string | null
-          presentation_id: string
-          provider: string
-          provider_message_id: string | null
-          read_at: string | null
-          send_mode: string
-          sent_at: string | null
-          status: string
-          template_id: string | null
-          updated_at: string
-          user_id: string
-          variant_id: string | null
-        }
-        Insert: {
-          attempt_no?: number
-          campaign_id: string
-          campaign_presentation_id: string
-          channel?: string
-          created_at?: string
-          delivered_at?: string | null
-          error_reason?: string | null
-          followup_step?: number
-          id?: string
-          metadata?: Json
-          next_followup_at?: string | null
-          next_retry_at?: string | null
-          presentation_id: string
-          provider?: string
-          provider_message_id?: string | null
-          read_at?: string | null
-          send_mode?: string
-          sent_at?: string | null
-          status?: string
-          template_id?: string | null
-          updated_at?: string
-          user_id: string
-          variant_id?: string | null
-        }
-        Update: {
-          attempt_no?: number
-          campaign_id?: string
-          campaign_presentation_id?: string
-          channel?: string
-          created_at?: string
-          delivered_at?: string | null
-          error_reason?: string | null
-          followup_step?: number
-          id?: string
-          metadata?: Json
-          next_followup_at?: string | null
-          next_retry_at?: string | null
-          presentation_id?: string
-          provider?: string
-          provider_message_id?: string | null
-          read_at?: string | null
-          send_mode?: string
-          sent_at?: string | null
-          status?: string
-          template_id?: string | null
-          updated_at?: string
-          user_id?: string
-          variant_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "campaign_message_attempts_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "campaign_message_attempts_campaign_presentation_id_fkey"
-            columns: ["campaign_presentation_id"]
-            isOneToOne: false
-            referencedRelation: "campaign_presentations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "campaign_message_attempts_presentation_id_fkey"
-            columns: ["presentation_id"]
-            isOneToOne: false
-            referencedRelation: "presentations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "campaign_message_attempts_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "message_templates"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "campaign_message_attempts_variant_id_fkey"
-            columns: ["variant_id"]
-            isOneToOne: false
-            referencedRelation: "message_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       campaign_presentations: {
         Row: {
           campaign_id: string
           created_at: string | null
-          delivery_status: string | null
-          followup_step: number
           id: string
-          last_status_at: string | null
-          next_followup_at: string | null
           presentation_id: string
-          provider_message_id: string | null
           send_status: string | null
           sent_at: string | null
-          variant_id: string | null
         }
         Insert: {
           campaign_id: string
           created_at?: string | null
-          delivery_status?: string | null
-          followup_step?: number
           id?: string
-          last_status_at?: string | null
-          next_followup_at?: string | null
           presentation_id: string
-          provider_message_id?: string | null
           send_status?: string | null
           sent_at?: string | null
-          variant_id?: string | null
         }
         Update: {
           campaign_id?: string
           created_at?: string | null
-          delivery_status?: string | null
-          followup_step?: number
           id?: string
-          last_status_at?: string | null
-          next_followup_at?: string | null
           presentation_id?: string
-          provider_message_id?: string | null
           send_status?: string | null
           sent_at?: string | null
-          variant_id?: string | null
         }
         Relationships: [
           {
@@ -247,13 +85,6 @@ export type Database = {
             columns: ["presentation_id"]
             isOneToOne: false
             referencedRelation: "presentations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "campaign_presentations_variant_id_fkey"
-            columns: ["variant_id"]
-            isOneToOne: false
-            referencedRelation: "message_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -335,29 +166,19 @@ export type Database = {
       company_dna: {
         Row: {
           additional_info: string | null
-          case_metrics: string | null
-          common_objections: string[] | null
           created_at: string | null
           custom_bg_color: string | null
           custom_button_color: string | null
           custom_text_color: string | null
           differentials: string[] | null
           facebook_url: string | null
-          guarantee: string | null
           id: string
-          icp_company_size: string | null
-          icp_digital_maturity: string | null
-          icp_segments: string[] | null
           instagram_url: string | null
           linkedin_url: string | null
-          objection_responses: string | null
-          offer_packages: string | null
           portfolio_url: string | null
-          price_range: string | null
           presentation_instructions: string | null
           presentation_template: string | null
           presentation_tone: string | null
-          priority_pains: string[] | null
           services: string[] | null
           target_audience: string | null
           tone: string | null
@@ -368,29 +189,19 @@ export type Database = {
         }
         Insert: {
           additional_info?: string | null
-          case_metrics?: string | null
-          common_objections?: string[] | null
           created_at?: string | null
           custom_bg_color?: string | null
           custom_button_color?: string | null
           custom_text_color?: string | null
           differentials?: string[] | null
           facebook_url?: string | null
-          guarantee?: string | null
           id?: string
-          icp_company_size?: string | null
-          icp_digital_maturity?: string | null
-          icp_segments?: string[] | null
           instagram_url?: string | null
           linkedin_url?: string | null
-          objection_responses?: string | null
-          offer_packages?: string | null
           portfolio_url?: string | null
-          price_range?: string | null
           presentation_instructions?: string | null
           presentation_template?: string | null
           presentation_tone?: string | null
-          priority_pains?: string[] | null
           services?: string[] | null
           target_audience?: string | null
           tone?: string | null
@@ -401,29 +212,19 @@ export type Database = {
         }
         Update: {
           additional_info?: string | null
-          case_metrics?: string | null
-          common_objections?: string[] | null
           created_at?: string | null
           custom_bg_color?: string | null
           custom_button_color?: string | null
           custom_text_color?: string | null
           differentials?: string[] | null
           facebook_url?: string | null
-          guarantee?: string | null
           id?: string
-          icp_company_size?: string | null
-          icp_digital_maturity?: string | null
-          icp_segments?: string[] | null
           instagram_url?: string | null
           linkedin_url?: string | null
-          objection_responses?: string | null
-          offer_packages?: string | null
           portfolio_url?: string | null
-          price_range?: string | null
           presentation_instructions?: string | null
           presentation_template?: string | null
           presentation_tone?: string | null
-          priority_pains?: string[] | null
           services?: string[] | null
           target_audience?: string | null
           tone?: string | null
@@ -466,160 +267,45 @@ export type Database = {
           },
         ]
       }
-      message_conversion_events: {
-        Row: {
-          campaign_id: string | null
-          campaign_presentation_id: string | null
-          channel: string
-          created_at: string
-          event_type: string
-          id: string
-          metadata: Json
-          niche: string | null
-          pipeline_stage_id: string | null
-          presentation_id: string
-          score_bucket: string
-          source: string | null
-          template_id: string | null
-          user_id: string | null
-          variant_id: string | null
-        }
-        Insert: {
-          campaign_id?: string | null
-          campaign_presentation_id?: string | null
-          channel?: string
-          created_at?: string
-          event_type: string
-          id?: string
-          metadata?: Json
-          niche?: string | null
-          pipeline_stage_id?: string | null
-          presentation_id: string
-          score_bucket?: string
-          source?: string | null
-          template_id?: string | null
-          user_id?: string | null
-          variant_id?: string | null
-        }
-        Update: {
-          campaign_id?: string | null
-          campaign_presentation_id?: string | null
-          channel?: string
-          created_at?: string
-          event_type?: string
-          id?: string
-          metadata?: Json
-          niche?: string | null
-          pipeline_stage_id?: string | null
-          presentation_id?: string
-          score_bucket?: string
-          source?: string | null
-          template_id?: string | null
-          user_id?: string | null
-          variant_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "message_conversion_events_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "message_conversion_events_campaign_presentation_id_fkey"
-            columns: ["campaign_presentation_id"]
-            isOneToOne: false
-            referencedRelation: "campaign_presentations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "message_conversion_events_pipeline_stage_id_fkey"
-            columns: ["pipeline_stage_id"]
-            isOneToOne: false
-            referencedRelation: "pipeline_stages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "message_conversion_events_presentation_id_fkey"
-            columns: ["presentation_id"]
-            isOneToOne: false
-            referencedRelation: "presentations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "message_conversion_events_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "message_templates"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "message_conversion_events_variant_id_fkey"
-            columns: ["variant_id"]
-            isOneToOne: false
-            referencedRelation: "message_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       message_templates: {
         Row: {
           body: string
-          campaign_objective: string | null
-          cta_trigger: string | null
           channel: string
           created_at: string | null
-          experiment_group: string | null
           id: string
           image_url: string | null
           include_proposal_link: boolean | null
-          is_active: boolean
           name: string
           send_as_audio: boolean
           subject: string | null
-          target_persona: string | null
           updated_at: string | null
           user_id: string
-          variant_key: string
         }
         Insert: {
           body?: string
-          campaign_objective?: string | null
-          cta_trigger?: string | null
           channel?: string
           created_at?: string | null
-          experiment_group?: string | null
           id?: string
           image_url?: string | null
           include_proposal_link?: boolean | null
-          is_active?: boolean
           name?: string
           send_as_audio?: boolean
           subject?: string | null
-          target_persona?: string | null
           updated_at?: string | null
           user_id: string
-          variant_key?: string
         }
         Update: {
           body?: string
-          campaign_objective?: string | null
-          cta_trigger?: string | null
           channel?: string
           created_at?: string | null
-          experiment_group?: string | null
           id?: string
           image_url?: string | null
           include_proposal_link?: boolean | null
-          is_active?: boolean
           name?: string
           send_as_audio?: boolean
           subject?: string | null
-          target_persona?: string | null
           updated_at?: string | null
           user_id?: string
-          variant_key?: string
         }
         Relationships: []
       }
@@ -800,8 +486,6 @@ export type Database = {
       }
       profiles: {
         Row: {
-          campaign_sender_email: string | null
-          campaign_sender_name: string | null
           company_logo_url: string | null
           company_name: string | null
           created_at: string | null
@@ -809,18 +493,9 @@ export type Database = {
           email: string | null
           id: string
           phone: string | null
-          proposal_link_domain: string | null
           user_id: string
-          whatsapp_connection_type: string
-          whatsapp_official_access_token: string | null
-          whatsapp_official_phone_number_id: string | null
-          whatsapp_unofficial_api_token: string | null
-          whatsapp_unofficial_api_url: string | null
-          whatsapp_unofficial_instance: string | null
         }
         Insert: {
-          campaign_sender_email?: string | null
-          campaign_sender_name?: string | null
           company_logo_url?: string | null
           company_name?: string | null
           created_at?: string | null
@@ -828,18 +503,9 @@ export type Database = {
           email?: string | null
           id?: string
           phone?: string | null
-          proposal_link_domain?: string | null
           user_id: string
-          whatsapp_connection_type?: string
-          whatsapp_official_access_token?: string | null
-          whatsapp_official_phone_number_id?: string | null
-          whatsapp_unofficial_api_token?: string | null
-          whatsapp_unofficial_api_url?: string | null
-          whatsapp_unofficial_instance?: string | null
         }
         Update: {
-          campaign_sender_email?: string | null
-          campaign_sender_name?: string | null
           company_logo_url?: string | null
           company_name?: string | null
           created_at?: string | null
@@ -847,14 +513,7 @@ export type Database = {
           email?: string | null
           id?: string
           phone?: string | null
-          proposal_link_domain?: string | null
           user_id?: string
-          whatsapp_connection_type?: string
-          whatsapp_official_access_token?: string | null
-          whatsapp_official_phone_number_id?: string | null
-          whatsapp_unofficial_api_token?: string | null
-          whatsapp_unofficial_api_url?: string | null
-          whatsapp_unofficial_instance?: string | null
         }
         Relationships: []
       }
@@ -887,42 +546,6 @@ export type Database = {
           name?: string
           testimonial?: string
           updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      whatsapp_optimization_runs: {
-        Row: {
-          created_at: string
-          groups_evaluated: number
-          groups_promoted: number
-          id: string
-          lookback_days: number
-          metadata: Json
-          min_sample: number
-          mode: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          groups_evaluated?: number
-          groups_promoted?: number
-          id?: string
-          lookback_days?: number
-          metadata?: Json
-          min_sample?: number
-          mode?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          groups_evaluated?: number
-          groups_promoted?: number
-          id?: string
-          lookback_days?: number
-          metadata?: Json
-          min_sample?: number
-          mode?: string
           user_id?: string
         }
         Relationships: []

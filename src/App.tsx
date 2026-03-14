@@ -7,7 +7,11 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ForgotPassword from "./pages/ForgotPassword";
 import MarketingLanding from "./pages/MarketingLanding";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfUse from "./pages/TermsOfUse";
+import LgpdPage from "./pages/LgpdPage";
 import DNA from "./pages/DNA";
 import Dashboard from "./pages/Dashboard";
 import CRM from "./pages/CRM";
@@ -36,6 +40,10 @@ const App = () => (
         <Routes>
           <Route path="/" element={<MarketingLanding />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/esqueci-minha-senha" element={<ForgotPassword />} />
+          <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
+          <Route path="/termos-de-uso" element={<TermsOfUse />} />
+          <Route path="/lgpd" element={<LgpdPage />} />
           <Route path="/presentation/:publicId" element={<PresentationView />} />
           <Route path="/form/:slug" element={<FormView />} />
           <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>

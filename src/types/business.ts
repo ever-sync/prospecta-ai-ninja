@@ -74,7 +74,30 @@ export interface SearchFilters {
   niches: string[];
   location: string;
   radius: number;
+  advanced?: SearchAdvancedFilters;
 }
+
+export interface SearchAdvancedFilters {
+  district: string;
+  queryHint: string;
+  minRating: "any" | "4_plus" | "4_5_plus";
+  websiteMode: "any" | "with_site" | "without_site";
+  requirePhone: boolean;
+  requireEmail: boolean;
+  limitResults: number;
+  initialSort: "score_desc" | "rating_desc" | "distance_asc";
+}
+
+export const DEFAULT_SEARCH_ADVANCED_FILTERS: SearchAdvancedFilters = {
+  district: "",
+  queryHint: "",
+  minRating: "any",
+  websiteMode: "any",
+  requirePhone: false,
+  requireEmail: false,
+  limitResults: 20,
+  initialSort: "score_desc",
+};
 
 export interface SearchRefinementFilters {
   siteStatus: "all" | "with_site" | "without_site";

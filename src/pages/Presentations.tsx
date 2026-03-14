@@ -30,7 +30,7 @@ type PresentationRow = {
 };
 
 const resolvePublicBaseOrigin = (domain?: string | null) => {
-  const fallback = 'https://prospecta-ai-ninja.lovable.app';
+  const fallback = 'https://envpro.com.br';
   const value = (domain || '').trim().replace(/\/+$/, '');
   if (!value) return fallback;
   if (/^https?:\/\//i.test(value)) return value;
@@ -54,7 +54,7 @@ const Presentations = () => {
     open: false,
     presentation: null,
   });
-  const [publicBaseOrigin, setPublicBaseOrigin] = useState('https://prospecta-ai-ninja.lovable.app');
+  const [publicBaseOrigin, setPublicBaseOrigin] = useState('https://envpro.com.br');
 
   const fetchPresentations = async () => {
     if (!user) return;

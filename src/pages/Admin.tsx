@@ -144,7 +144,7 @@ const Admin = () => {
         return;
       }
       const { data: roleData } = await supabase
-        .from('user_roles').select('role').eq('user_id', user.id).in('role', ['admin', 'moderator']);
+        .from('user_roles').select('role').eq('user_id', user.id).in('role', ['superadmin', 'admin', 'moderator']);
       
       if (!roleData || roleData.length === 0) { setIsAdmin(false); setLoading(false); return; }
       setIsAdmin(true);

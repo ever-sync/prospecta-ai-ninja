@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Activity,
-  ArrowRight,
   BookOpenCheck,
   CircleCheck,
   Eye,
@@ -48,14 +47,6 @@ const chartConfig = {
   layout: { label: "Layout", color: "#EF3333" },
   security: { label: "Seguranca", color: "#4E4E56" },
   count: { label: "Apresentacoes", color: "#EF3333" },
-};
-
-const formatDate = (value: string | null) => {
-  if (!value) return "-";
-  return new Date(value).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "short",
-  });
 };
 
 const Dashboard = () => {
@@ -194,28 +185,6 @@ const Dashboard = () => {
       }));
   }, [presentations]);
 
-  const hotPresentations = useMemo(() => {
-    return presentations
-      .filter((item) => item.status === "ready")
-      .map((item) => ({
-        ...item,
-        viewed: viewedIds.has(item.id),
-        score: item.analysis_data?.scores?.overall ?? 0,
-      }))
-      .sort((a, b) => {
-        if (Number(b.viewed) !== Number(a.viewed)) return Number(b.viewed) - Number(a.viewed);
-        return (b.score || 0) - (a.score || 0);
-      })
-      .slice(0, 4);
-  }, [presentations, viewedIds]);
-
-  const nextAction = useMemo(() => {
-    if (ready === 0) return "Rode sua primeira varredura e transforme os melhores leads em propostas.";
-    if (openRate >= 50) return "Faca follow-up das propostas abertas primeiro. A janela esta quente.";
-    if (readiness.some((item) => !item.ready)) return "Complete a base de autoridade para aumentar a percepcao consultiva das propostas.";
-    return "Selecione os leads com melhor leitura e gere a proxima leva de analises.";
-  }, [openRate, readiness, ready]);
-
   if (loading) {
     return (
       <div className="space-y-4 p-2 lg:space-y-5 lg:p-4">
@@ -261,6 +230,12 @@ const Dashboard = () => {
     },
   ];
 
+  const quickLinks = [
+    { label: "Abrir scanner", icon: Radar, path: "/search" },
+    { label: "Revisar DNA da empresa", icon: BookOpenCheck, path: "/dna" },
+    { label: "Ver apresentacoes", icon: FileSearch, path: "/presentations" },
+  ];
+
   return (
     <div className="space-y-4 p-2 lg:space-y-5 lg:p-4">
       <motion.section
@@ -271,13 +246,13 @@ const Dashboard = () => {
       >
         <div className="relative overflow-hidden px-6 py-7 lg:px-8 lg:py-8">
           <div className="absolute inset-y-0 right-0 w-[320px] bg-[radial-gradient(circle_at_top_right,_rgba(239,51,51,0.22),_transparent_60%)]" />
-          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#ffb6bf]">
                 Mission Control
               </p>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight lg:text-5xl">
-                Centro de comando do scanner consultivo
+                Centro de comando
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/68 lg:text-base">
                 {companyName
@@ -286,17 +261,23 @@ const Dashboard = () => {
               </p>
             </div>
 
-            <div className="max-w-md rounded-[24px] border border-white/10 bg-white/5 p-5">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Proxima recomendacao</p>
-              <p className="mt-3 text-sm leading-relaxed text-white/85">{nextAction}</p>
-              <Button
-                onClick={() => navigate("/search")}
-                className="mt-4 rounded-xl bg-white text-[#111115] hover:bg-white/90"
-              >
-                Ir para o scanner
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
+            <div className="w-full max-w-md rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Atalhos do workspace</p>
+              <div className="mt-4 grid gap-3">
+                {quickLinks.map((item) => (
+                  <Button
+                    key={item.path}
+                    variant="outline"
+                    className="justify-start rounded-xl border-white/10 bg-white text-[#111115] hover:bg-white/92"
+                    onClick={() => navigate(item.path)}
+                  >
+                    <item.icon className="mr-2 h-4 w-4 text-[#EF3333]" />
+                    {item.label}
+                  </Button>
+                ))}
+              </div>
             </div>
+
           </div>
         </div>
       </motion.section>
@@ -457,67 +438,6 @@ const Dashboard = () => {
             </Card>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26, duration: 0.3 }}>
-            <Card className="rounded-[28px] border border-[#1E1E24] bg-[#17171D] text-white shadow-[0_16px_30px_rgba(10,10,14,0.2)]">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-xl font-semibold">Foco de execucao</CardTitle>
-                <p className="text-sm text-white/60">Escolha as proximas propostas que merecem energia agora.</p>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {hotPresentations.length === 0 ? (
-                  <div className="rounded-[22px] bg-white/6 px-4 py-4 text-sm text-white/70">
-                    Sem apresentacoes prontas no momento. Va para o scanner e monte a primeira leva.
-                  </div>
-                ) : (
-                  hotPresentations.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => navigate("/presentations")}
-                      className="flex w-full items-center justify-between gap-3 rounded-[22px] bg-white/6 px-4 py-4 text-left transition-colors hover:bg-white/10"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-white">{item.business_name || "Lead sem nome"}</p>
-                        <p className="mt-1 text-xs text-white/60">
-                          {item.viewed ? "Ja abriu a proposta" : "Ainda nao abriu"} • criada em {formatDate(item.created_at)}
-                        </p>
-                      </div>
-                      <Badge className="rounded-full border border-[#EF3333]/30 bg-[#EF3333]/15 text-[#ffb6bf]">
-                        {item.score}
-                      </Badge>
-                    </button>
-                  ))
-                )}
-
-                <div className="rounded-[22px] bg-[#EF3333] px-4 py-4 text-white">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-white/80">Prioridade</p>
-                  <p className="mt-2 text-sm font-medium">{nextAction}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.3 }}>
-            <Card className="rounded-[28px] border border-[#ececf0] bg-white shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold text-[#1A1A1A]">Atalhos do workspace</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3">
-                <Button variant="outline" className="justify-start rounded-xl border-[#e6e6eb] bg-white" onClick={() => navigate("/search")}>
-                  <Radar className="mr-2 h-4 w-4 text-[#EF3333]" />
-                  Abrir scanner
-                </Button>
-                <Button variant="outline" className="justify-start rounded-xl border-[#e6e6eb] bg-white" onClick={() => navigate("/dna")}>
-                  <BookOpenCheck className="mr-2 h-4 w-4 text-[#EF3333]" />
-                  Revisar DNA da empresa
-                </Button>
-                <Button variant="outline" className="justify-start rounded-xl border-[#e6e6eb] bg-white" onClick={() => navigate("/presentations")}>
-                  <FileSearch className="mr-2 h-4 w-4 text-[#EF3333]" />
-                  Ver apresentacoes
-                </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
         </div>
       </div>
     </div>

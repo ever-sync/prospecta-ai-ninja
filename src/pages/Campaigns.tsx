@@ -76,7 +76,7 @@ interface PreviewLead {
 const HYBRID_API_THRESHOLD = 15;
 
 const resolvePublicBaseOrigin = (domain?: string | null) => {
-  const fallback = 'https://prospecta-ai-ninja.lovable.app';
+  const fallback = 'https://envpro.com.br';
   const value = (domain || '').trim().replace(/\/+$/, '');
   if (!value) return fallback;
   if (/^https?:\/\//i.test(value)) return value;

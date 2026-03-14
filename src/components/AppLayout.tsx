@@ -14,14 +14,23 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Bell,
+  CheckCircle2,
+  Clock3,
+  SendHorizontal,
+  XCircle,
+  FileText,
+  Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { BRAND } from '@/config/brand';
 import { useState, useEffect, type ElementType } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import sidebarExpandedLogo from '@/logos/dark.svg';
@@ -58,11 +67,35 @@ type NavItemProps = {
   currentPath: string;
 };
 
+type PlatformNotification = {
+  id: string;
+  createdAt: string;
+  description: string;
+  href: string;
+  icon: ElementType;
+  iconClassName: string;
+  title: string;
+};
+
+type PresentationNotificationRow = {
+  business_name: string | null;
+  created_at: string | null;
+  id: string;
+  status: string | null;
+};
+
+type ConversionNotificationRow = {
+  created_at: string;
+  event_type: string;
+  id: string;
+  presentation_id: string;
+};
+
 const routeMeta: Record<string, { eyebrow: string; title: string; description: string }> = {
   '/dashboard': {
     eyebrow: 'Mission Control',
     title: 'Centro de Comando',
-    description: 'Acompanhe prontidao, foco comercial e os proximos movimentos do scanner.',
+    description: '',
   },
   '/search': {
     eyebrow: 'Scanner Workspace',
@@ -132,12 +165,30 @@ const NavItem = ({ path, label, icon: Icon, collapsed, onNavigate, currentPath }
   );
 };
 
+const formatNotificationTime = (value: string) => {
+  const date = new Date(value);
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 60) return `${diffMinutes} min`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} h`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays} d`;
+
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+};
+
 export const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { subscription, loading: subLoading } = useSubscription();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [notifications, setNotifications] = useState<PlatformNotification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -150,7 +201,7 @@ export const AppLayout = () => {
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .in('role', ['admin', 'moderator'])
+      .in('role', ['superadmin', 'admin', 'moderator'])
       .then(({ data }) => setIsAdmin(!!(data && data.length > 0)));
   }, [user]);
 
@@ -174,6 +225,154 @@ export const AppLayout = () => {
     title: activeRoute?.label || 'Painel',
     description: 'Controle o fluxo atual do workspace.',
   };
+  const recentNotificationCount = notifications.filter((item) => Date.now() - new Date(item.createdAt).getTime() < 1000 * 60 * 60 * 24).length;
+
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      setNotificationsLoading(false);
+      return;
+    }
+
+    let active = true;
+
+    const loadNotifications = async () => {
+      setNotificationsLoading(true);
+
+      const { data: presentationRows, error: presentationsError } = await supabase
+        .from('presentations')
+        .select('id, business_name, status, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(12);
+
+      const { data: conversionRows, error: conversionsError } = await supabase
+        .from('message_conversion_events')
+        .select('id, created_at, event_type, presentation_id')
+        .eq('user_id', user.id)
+        .in('event_type', ['sent', 'opened', 'accepted', 'rejected'])
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (!active) return;
+
+      if (presentationsError || conversionsError) {
+        setNotifications([]);
+        setNotificationsLoading(false);
+        return;
+      }
+
+      const presentations = (presentationRows || []) as PresentationNotificationRow[];
+      const conversions = (conversionRows || []) as ConversionNotificationRow[];
+      const presentationMap = new Map(presentations.map((item) => [item.id, item]));
+
+      const missingIds = conversions
+        .map((item) => item.presentation_id)
+        .filter((id) => !presentationMap.has(id));
+
+      if (missingIds.length > 0) {
+        const { data: extraPresentations } = await supabase
+          .from('presentations')
+          .select('id, business_name, status, created_at')
+          .in('id', [...new Set(missingIds)]);
+
+        (extraPresentations || []).forEach((item) => {
+          const row = item as PresentationNotificationRow;
+          presentationMap.set(row.id, row);
+        });
+      }
+
+      const createdNotifications: PlatformNotification[] = presentations
+        .filter((item) => Boolean(item.created_at))
+        .map((item) => {
+          const isReady = item.status === 'ready';
+          return {
+            id: `presentation-${item.id}`,
+            createdAt: item.created_at || new Date().toISOString(),
+            description: isReady ? 'A proposta ja esta pronta para envio.' : 'Nova proposta entrou em analise na plataforma.',
+            href: '/presentations',
+            icon: isReady ? CheckCircle2 : FileText,
+            iconClassName: isReady ? 'bg-[#effaf3] text-[#1f8f47]' : 'bg-[#fff0f1] text-[#EF3333]',
+            title: isReady
+              ? `Proposta pronta${item.business_name ? `: ${item.business_name}` : ''}`
+              : `Proposta criada${item.business_name ? `: ${item.business_name}` : ''}`,
+          };
+        });
+
+      const conversionNotifications: PlatformNotification[] = conversions.map((item) => {
+        const presentation = presentationMap.get(item.presentation_id);
+        const businessName = presentation?.business_name ? `: ${presentation.business_name}` : '';
+
+        const config: Record<string, Omit<PlatformNotification, 'id' | 'createdAt' | 'href'>> = {
+          accepted: {
+            title: `Proposta aceita${businessName}`,
+            description: 'O lead demonstrou interesse e abriu espaco para avancar.',
+            icon: CheckCircle2,
+            iconClassName: 'bg-[#effaf3] text-[#1f8f47]',
+          },
+          opened: {
+            title: `Proposta visualizada${businessName}`,
+            description: 'O lead abriu a proposta e entrou no radar quente.',
+            icon: Eye,
+            iconClassName: 'bg-[#eef4ff] text-[#356dff]',
+          },
+          rejected: {
+            title: `Proposta recusada${businessName}`,
+            description: 'O lead recusou a proposta. Vale revisar abordagem e timing.',
+            icon: XCircle,
+            iconClassName: 'bg-[#fff5f6] text-[#b23246]',
+          },
+          sent: {
+            title: `Proposta enviada${businessName}`,
+            description: 'A plataforma concluiu o envio para esse lead.',
+            icon: SendHorizontal,
+            iconClassName: 'bg-[#fff0f1] text-[#EF3333]',
+          },
+        };
+
+        const resolved = config[item.event_type] || {
+          title: `Atualizacao da proposta${businessName}`,
+          description: 'A plataforma registrou um novo evento nesse lead.',
+          icon: Clock3,
+          iconClassName: 'bg-[#f5f5f7] text-[#66666d]',
+        };
+
+        return {
+          id: `conversion-${item.id}`,
+          createdAt: item.created_at,
+          description: resolved.description,
+          href: '/presentations',
+          icon: resolved.icon,
+          iconClassName: resolved.iconClassName,
+          title: resolved.title,
+        };
+      });
+
+      const merged = [...conversionNotifications, ...createdNotifications]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 12);
+
+      setNotifications(merged);
+      setNotificationsLoading(false);
+    };
+
+    void loadNotifications();
+
+    const refreshChannel = supabase
+      .channel(`platform-notifications-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'presentations', filter: `user_id=eq.${user.id}` }, () => {
+        void loadNotifications();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'message_conversion_events', filter: `user_id=eq.${user.id}` }, () => {
+        void loadNotifications();
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      void supabase.removeChannel(refreshChannel);
+    };
+  }, [user]);
 
   const renderSidebarContent = ({ mobile }: { mobile: boolean }) => {
     const collapsed = mobile ? false : isSidebarCollapsed;
@@ -183,7 +382,7 @@ export const AppLayout = () => {
         <div className={cn('border-b border-[#1f1f25]', collapsed ? 'px-2.5 py-4' : 'px-4 py-5')}>
           {collapsed ? (
             <div className="flex flex-col items-center gap-3">
-              <img src={sidebarCollapsedLogo} alt="Prospecta IA" className="h-9 w-9" />
+              <img src={sidebarCollapsedLogo} alt={BRAND.name} className="h-9 w-9" />
               <button
                 type="button"
                 aria-label="Expandir sidebar"
@@ -195,7 +394,7 @@ export const AppLayout = () => {
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3">
-              <img src={sidebarExpandedLogo} alt="Prospecta IA" className="h-10 w-auto" />
+              <img src={sidebarExpandedLogo} alt={BRAND.name} className="h-10 w-auto" />
               {mobile ? (
                 <button
                   type="button"
@@ -334,11 +533,81 @@ export const AppLayout = () => {
               <div className="hidden sm:block">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a8a91]">{currentMeta.eyebrow}</p>
                 <p className="text-sm font-semibold text-[#1A1A1A]">{currentMeta.title}</p>
-                <p className="mt-0.5 max-w-[420px] text-xs text-[#7a7a82]">{currentMeta.description}</p>
+                {currentMeta.description ? <p className="mt-0.5 max-w-[420px] text-xs text-[#7a7a82]">{currentMeta.description}</p> : null}
               </div>
             </div>
 
             <div className="flex items-center gap-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative h-10 w-10 rounded-full border border-[#ececf0] bg-white text-[#1A1A1A] hover:bg-[#f8f8f9]"
+                  >
+                    <Bell className="h-4 w-4" />
+                    {recentNotificationCount > 0 && (
+                      <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#EF3333] px-1 text-[10px] font-bold text-white">
+                        {recentNotificationCount > 9 ? '9+' : recentNotificationCount}
+                      </span>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[380px] rounded-[22px] border border-[#ececf0] bg-white p-0 shadow-[0_18px_40px_rgba(20,20,24,0.10)]">
+                  <div className="border-b border-[#ececf0] px-4 py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-[#1A1A1A]">Notificacoes</p>
+                        <p className="mt-0.5 text-xs text-[#7a7a82]">Propostas, respostas e envios recentes da plataforma.</p>
+                      </div>
+                      <Badge className="rounded-full border-[#f2d4d8] bg-[#fff5f6] text-[#b23246]">
+                        {notifications.length}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="max-h-[420px] overflow-y-auto p-2">
+                    {notificationsLoading ? (
+                      <div className="space-y-2 p-2">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                          <Skeleton key={index} className="h-[74px] rounded-[18px]" />
+                        ))}
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#f5f5f7] text-[#7a7a82]">
+                          <Bell className="h-5 w-5" />
+                        </div>
+                        <p className="mt-4 text-sm font-semibold text-[#1A1A1A]">Nenhuma notificacao ainda</p>
+                        <p className="mt-1 text-xs leading-5 text-[#7a7a82]">Quando a plataforma gerar, enviar, abrir ou receber resposta em propostas, tudo aparece aqui.</p>
+                      </div>
+                    ) : (
+                      notifications.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => navigate(item.href)}
+                          className="flex w-full items-start gap-3 rounded-[18px] px-3 py-3 text-left transition-colors hover:bg-[#f8f8fa]"
+                        >
+                          <div className={cn('mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl', item.iconClassName)}>
+                            <item.icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="text-sm font-semibold text-[#1A1A1A]">{item.title}</p>
+                              <span className="shrink-0 text-[11px] font-medium uppercase tracking-[0.12em] text-[#9a9aa1]">
+                                {formatNotificationTime(item.createdAt)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs leading-5 text-[#6f6f77]">{item.description}</p>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               {subLoading ? (
                 <Skeleton className="h-7 w-20 rounded-full" />
               ) : (

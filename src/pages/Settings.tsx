@@ -18,6 +18,7 @@ import {
   KeyRound,
   Trash2,
   Bot,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,10 +28,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
+import { formatBrazilPhone, formatCpfCnpj, validateBrazilPhone } from '@/lib/br-utils';
 
 const fieldClass = 'h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]';
 const cardClass = 'rounded-[22px] border border-[#ececf0] bg-white p-6 shadow-[0_10px_24px_rgba(18,18,22,0.05)]';
@@ -80,12 +83,17 @@ const Settings = () => {
   const { subscription, plans, loading: subLoading, startCheckout, openCustomerPortal, refreshSubscription } = useSubscription();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>(() => resolveInitialTab());
+  const [fullName, setFullName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [documentNumber, setDocumentNumber] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [voiceId, setVoiceId] = useState('');
   const [saving, setSaving] = useState(false);
+  const [emailChangeDialogOpen, setEmailChangeDialogOpen] = useState(false);
+  const [pendingAccessEmail, setPendingAccessEmail] = useState('');
+  const [sendingAccessEmailChange, setSendingAccessEmailChange] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [savingIntegrations, setSavingIntegrations] = useState(false);
@@ -124,9 +132,11 @@ const Settings = () => {
       .single()
       .then(({ data }) => {
         if (data) {
+          setFullName(data.full_name || '');
           setCompanyName(data.company_name || '');
-          setEmail(data.email || '');
-          setPhone(data.phone || '');
+          setEmail(data.email || user.email || '');
+          setPhone(formatBrazilPhone(data.phone || ''));
+          setDocumentNumber(data.document_number || '');
           setLogoUrl(data.company_logo_url || '');
           setVoiceId(data.elevenlabs_voice_id || '');
           setWhatsAppConnectionType((data.whatsapp_connection_type as WhatsAppConnectionType) || 'unofficial');
@@ -171,6 +181,12 @@ const Settings = () => {
   }, [apiProvider, customProviderName]);
 
   useEffect(() => {
+    if (user?.email) {
+      setEmail(user.email);
+    }
+  }, [user?.email]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('checkout') === 'success') {
       toast({ title: 'Assinatura ativada!', description: 'Seu plano foi atualizado com sucesso.' });
@@ -210,10 +226,29 @@ const Settings = () => {
 
   const handleSave = async () => {
     if (!user) return;
+    if (!fullName.trim()) {
+      toast({ title: 'Campo obrigatorio', description: 'Informe o nome completo do responsavel.', variant: 'destructive' });
+      return;
+    }
+    if (!companyName.trim()) {
+      toast({ title: 'Campo obrigatorio', description: 'Informe o nome da empresa.', variant: 'destructive' });
+      return;
+    }
+    if (!validateBrazilPhone(phone)) {
+      toast({ title: 'Telefone invalido', description: 'Informe um telefone valido com DDD.', variant: 'destructive' });
+      return;
+    }
+
     setSaving(true);
     const { error } = await supabase
       .from('profiles')
-      .update({ company_name: companyName, email, phone, company_logo_url: logoUrl, elevenlabs_voice_id: voiceId || null })
+      .update({
+        company_name: companyName.trim(),
+        company_logo_url: logoUrl,
+        elevenlabs_voice_id: voiceId || null,
+        full_name: fullName.trim(),
+        phone: formatBrazilPhone(phone),
+      })
       .eq('user_id', user.id);
     if (error) {
       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
@@ -221,6 +256,37 @@ const Settings = () => {
       toast({ title: 'Salvo!', description: 'Configuracoes atualizadas com sucesso.' });
     }
     setSaving(false);
+  };
+
+  const handleRequestEmailChange = async () => {
+    if (!pendingAccessEmail.trim()) {
+      toast({ title: 'Campo obrigatorio', description: 'Informe o novo email de acesso.', variant: 'destructive' });
+      return;
+    }
+
+    if (pendingAccessEmail.trim().toLowerCase() === (email || '').trim().toLowerCase()) {
+      toast({ title: 'Sem alteracao', description: 'Informe um email diferente do atual.', variant: 'destructive' });
+      return;
+    }
+
+    setSendingAccessEmailChange(true);
+    const { error } = await supabase.auth.updateUser(
+      { email: pendingAccessEmail.trim().toLowerCase() },
+      { emailRedirectTo: `${window.location.origin}/settings?tab=empresa` }
+    );
+
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({
+        title: 'Verificacao enviada',
+        description: 'Confira o novo email para concluir a alteracao do acesso.',
+      });
+      setEmailChangeDialogOpen(false);
+      setPendingAccessEmail('');
+    }
+
+    setSendingAccessEmailChange(false);
   };
 
   const handleSaveApiKey = async () => {
@@ -418,22 +484,49 @@ const Settings = () => {
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="fullName" className="text-sm text-[#1A1A1A]">
+                    Nome completo
+                  </Label>
+                  <Input id="fullName" className={fieldClass} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nome do responsavel" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="companyName" className="text-sm text-[#1A1A1A]">
                     Nome da Empresa
                   </Label>
                   <Input id="companyName" className={fieldClass} value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Sua empresa" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="settingsEmail" className="text-sm text-[#1A1A1A]">
-                    Email
+                  <Label htmlFor="documentNumber" className="text-sm text-[#1A1A1A]">
+                    CPF ou CNPJ
                   </Label>
-                  <Input id="settingsEmail" className={fieldClass} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contato@empresa.com" />
+                  <Input
+                    id="documentNumber"
+                    className={`${fieldClass} bg-[#f7f7fa] text-[#65656d]`}
+                    value={formatCpfCnpj(documentNumber)}
+                    readOnly
+                    disabled
+                    placeholder="Documento principal"
+                  />
+                  <p className="text-xs text-[#6d6d75]">Esse documento define o perfil da empresa e nao pode ser alterado apos o cadastro.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="settingsEmail" className="text-sm text-[#1A1A1A]">
+                    Email de acesso
+                  </Label>
+                  <Input id="settingsEmail" className={`${fieldClass} bg-[#f7f7fa] text-[#65656d]`} type="email" value={email} readOnly disabled placeholder="contato@empresa.com" />
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs text-[#6d6d75]">O email de acesso so pode ser alterado com verificacao.</p>
+                    <Button type="button" variant="outline" size="sm" className="h-9 rounded-xl border-[#f1d2d7] text-[#b2374b] hover:bg-[#fff3f5]" onClick={() => setEmailChangeDialogOpen(true)}>
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Alterar com verificacao
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="settingsPhone" className="text-sm text-[#1A1A1A]">
                     Telefone
                   </Label>
-                  <Input id="settingsPhone" className={fieldClass} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" />
+                  <Input id="settingsPhone" className={fieldClass} value={phone} onChange={(e) => setPhone(formatBrazilPhone(e.target.value))} placeholder="(11) 99999-9999" />
                 </div>
               </div>
 
@@ -814,6 +907,46 @@ const Settings = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={emailChangeDialogOpen} onOpenChange={setEmailChangeDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-[22px] border border-[#ececf0] bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#1A1A1A]">Alterar email de acesso</DialogTitle>
+            <DialogDescription className="text-[#6d6d75]">
+              Enviaremos um link de verificacao para o novo email. A troca so sera concluida depois da confirmacao.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="pendingAccessEmail" className="text-sm text-[#1A1A1A]">
+                Novo email
+              </Label>
+              <Input
+                id="pendingAccessEmail"
+                type="email"
+                className={fieldClass}
+                value={pendingAccessEmail}
+                onChange={(e) => setPendingAccessEmail(e.target.value)}
+                placeholder="novoemail@empresa.com"
+              />
+            </div>
+
+            <div className="rounded-xl border border-[#ececf0] bg-[#fafafd] p-3 text-xs text-[#6d6d75]">
+              Email atual: <span className="font-semibold text-[#1A1A1A]">{email || 'nao informado'}</span>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" className="rounded-xl" onClick={() => setEmailChangeDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" className="rounded-xl gradient-primary text-primary-foreground" onClick={handleRequestEmailChange} disabled={sendingAccessEmailChange}>
+              {sendingAccessEmailChange ? 'Enviando...' : 'Enviar verificacao'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
+import { BRAND } from '@/config/brand';
 import type { FormField, FormSchema } from '@/components/FormBuilder';
 
 interface DbFormSchema extends FormSchema {
@@ -248,7 +249,7 @@ export default function FormView() {
         </form>
 
         <p className="text-xs text-center text-muted-foreground pb-6">
-          Powered by <span className="font-semibold text-[#ef3333]">Prospecta IA</span>
+          Powered by <span className="font-semibold text-[#ef3333]">{BRAND.name}</span>
         </p>
       </div>
     </div>

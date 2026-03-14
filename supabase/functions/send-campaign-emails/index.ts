@@ -6,7 +6,7 @@ const corsHeaders = {
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 function resolveBaseOrigin(domain: string | null | undefined, requestOrigin: string | null): string {
-  const fallback = requestOrigin || 'https://prospecta-ai-ninja.lovable.app';
+  const fallback = requestOrigin || 'https://envpro.com.br';
   const value = (domain || '').trim().replace(/\/+$/, '');
   if (!value) return fallback;
   if (/^https?:\/\//i.test(value)) return value;
@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
       .eq('user_id', user.id)
       .single();
 
-    const senderName = profile?.campaign_sender_name || profile?.company_name || 'Prospecta IA';
+    const senderName = profile?.campaign_sender_name || profile?.company_name || 'envPRO';
     const fromEmail = profile?.campaign_sender_email || 'onboarding@resend.dev';
     const baseOrigin = resolveBaseOrigin(profile?.proposal_link_domain, req.headers.get('origin'));
 
@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
               </div>
             ` : ''}
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-            <p style="color: #999; font-size: 12px;">Enviado por ${senderName} via Prospecta IA</p>
+            <p style="color: #999; font-size: 12px;">Enviado por ${senderName} via envPRO</p>
           </div>
         `;
       } else {
@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
               aceitar receber nosso contato diretamente pelo WhatsApp.
             </p>
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-            <p style="color: #999; font-size: 12px;">Enviado por ${senderName} via Prospecta IA</p>
+            <p style="color: #999; font-size: 12px;">Enviado por ${senderName} via envPRO</p>
           </div>
         `;
       }

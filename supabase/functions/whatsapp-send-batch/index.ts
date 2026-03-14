@@ -151,7 +151,7 @@ function buildTrackedPresentationUrl(
 }
 
 function resolveBaseOrigin(domain: string | null | undefined, requestOrigin: string | null): string {
-  const fallback = requestOrigin || "https://prospecta-ai-ninja.lovable.app";
+  const fallback = requestOrigin || "https://envpro.com.br";
   const value = (domain || "").trim().replace(/\/+$/, "");
   if (!value) return fallback;
   if (/^https?:\/\//i.test(value)) return value;

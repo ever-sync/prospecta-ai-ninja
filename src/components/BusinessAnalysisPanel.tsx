@@ -1,7 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
   BarChart3,
   Building2,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
   Globe,
   Loader2,
   MapPin,
@@ -18,7 +22,6 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Business } from "@/types/business";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ApproachSuggestion } from "@/components/ApproachSuggestion";
 import { deriveLeadSignalSummary } from "@/lib/lead-scoring";
@@ -27,6 +30,11 @@ import { invokeEdgeFunction } from "@/lib/invoke-edge-function";
 interface BusinessAnalysisPanelProps {
   business: Business;
   onClose: () => void;
+  onGenerateProposal: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
+  canGoPrevious: boolean;
+  canGoNext: boolean;
 }
 
 interface CompetitorData {
@@ -54,10 +62,45 @@ interface ProfileData {
   insights: string;
 }
 
+interface HeavyAnalysisData {
+  scores: {
+    seo?: number;
+    speed?: number;
+    layout?: number;
+    security?: number;
+    overall?: number;
+  };
+  seo_details?: {
+    has_title?: boolean;
+    has_meta_description?: boolean;
+    has_h1?: boolean;
+    has_sitemap?: boolean;
+    issues?: string[];
+  };
+  security_details?: {
+    has_https?: boolean;
+    has_ssl?: boolean;
+    issues?: string[];
+  };
+  google_presence?: {
+    rating?: number;
+    estimated_position?: string;
+    strengths?: string[];
+    weaknesses?: string[];
+  };
+  recommendations?: { title: string; description: string; priority: string; category: string }[];
+  summary?: string;
+  scraped?: boolean;
+  has_website?: boolean;
+  website_screenshot?: string | null;
+  google_maps_screenshot?: string | null;
+}
+
 type AnalysisCache = {
   competitors?: CompetitorData;
   score?: ScoreData;
   profile?: ProfileData;
+  heavy?: HeavyAnalysisData;
 };
 
 const priorityToneClass = {
@@ -72,16 +115,37 @@ const onlinePresenceToneClass = {
   healthy: "border-[#d8e8de] bg-[#f3fbf5] text-[#21603a]",
 };
 
-export const BusinessAnalysisPanel = ({ business, onClose }: BusinessAnalysisPanelProps) => {
+const buildScreenshotSrc = (value?: string | null) => {
+  if (!value) return null;
+  return value.startsWith("data:") ? value : `data:image/png;base64,${value}`;
+};
+
+export const BusinessAnalysisPanel = ({
+  business,
+  onClose,
+  onGenerateProposal,
+  onPrevious,
+  onNext,
+  canGoPrevious,
+  canGoNext,
+}: BusinessAnalysisPanelProps) => {
   const [cache, setCache] = useState<AnalysisCache>({});
   const [loading, setLoading] = useState<string | null>(null);
+  const activeBusinessIdRef = useRef(business.id);
   const { toast } = useToast();
 
   const signal = useMemo(() => deriveLeadSignalSummary(business), [business]);
 
+  useEffect(() => {
+    activeBusinessIdRef.current = business.id;
+    setCache({});
+    setLoading(null);
+  }, [business.id]);
+
   const fetchAnalysis = async (mode: "competitors" | "score" | "profile") => {
     if (cache[mode] && !loading) return;
     setLoading(mode);
+    const requestedBusinessId = business.id;
 
     try {
       const { data, error } = await invokeEdgeFunction<{ result?: any; error?: string }>("analyze-business", {
@@ -90,6 +154,7 @@ export const BusinessAnalysisPanel = ({ business, onClose }: BusinessAnalysisPan
 
       if (error) throw new Error(error.message);
       if (data.error) throw new Error(data.error);
+      if (activeBusinessIdRef.current !== requestedBusinessId) return;
 
       setCache((prev) => ({ ...prev, [mode]: data.result }));
     } catch (error) {
@@ -100,7 +165,44 @@ export const BusinessAnalysisPanel = ({ business, onClose }: BusinessAnalysisPan
         variant: "destructive",
       });
     } finally {
-      setLoading(null);
+      if (activeBusinessIdRef.current === requestedBusinessId) {
+        setLoading(null);
+      }
+    }
+  };
+
+  const fetchHeavyAnalysis = async (force = false) => {
+    if (cache.heavy && !force) return;
+    setLoading("heavy");
+    const requestedBusinessId = business.id;
+
+    try {
+      const { data, error } = await invokeEdgeFunction<{ analysis?: HeavyAnalysisData; error?: string }>(
+        "deep-analyze",
+        {
+          body: { business },
+        },
+      );
+
+      if (error) throw new Error(error.message);
+      if (data.error) throw new Error(data.error);
+      if (!data.analysis) throw new Error("Analise pesada nao retornou dados.");
+      if (activeBusinessIdRef.current !== requestedBusinessId) return;
+
+      setCache((prev) => ({ ...prev, heavy: data.analysis }));
+    } catch (error) {
+      console.error("Error fetching heavy analysis:", error);
+      if (activeBusinessIdRef.current !== requestedBusinessId) return;
+
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro na auditoria pesada",
+        variant: "destructive",
+      });
+    } finally {
+      if (activeBusinessIdRef.current === requestedBusinessId) {
+        setLoading(null);
+      }
     }
   };
 
@@ -112,6 +214,15 @@ export const BusinessAnalysisPanel = ({ business, onClose }: BusinessAnalysisPan
     });
     fetchAnalysis(mode);
   };
+
+  const refreshHeavy = () => {
+    setCache((prev) => ({ ...prev, heavy: undefined }));
+    fetchHeavyAnalysis(true);
+  };
+
+  useEffect(() => {
+    fetchHeavyAnalysis();
+  }, [business.id]);
 
   const LoadingState = ({ label }: { label: string }) => (
     <div className="flex flex-col items-center justify-center rounded-[24px] border border-[#ececf0] bg-[#fafafc] px-6 py-12">
@@ -144,9 +255,42 @@ export const BusinessAnalysisPanel = ({ business, onClose }: BusinessAnalysisPan
           </div>
         </div>
 
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-9 w-9 rounded-xl text-[#5b5b62]">
-          <X className="h-4 w-4" />
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onPrevious}
+              disabled={!canGoPrevious}
+              className="rounded-xl border-[#e6e6eb] bg-white"
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" />
+              Lead anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onNext}
+              disabled={!canGoNext}
+              className="rounded-xl border-[#e6e6eb] bg-white"
+            >
+              Proximo lead
+              <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
+
+          <Button
+            onClick={onGenerateProposal}
+            className="rounded-xl bg-[#111115] text-white hover:bg-[#1d1d24]"
+          >
+            <Sparkles className="mr-2 h-4 w-4 text-[#EF3333]" />
+            Gerar proposta para este lead
+          </Button>
+
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-9 w-9 rounded-xl text-[#5b5b62]">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -190,14 +334,18 @@ export const BusinessAnalysisPanel = ({ business, onClose }: BusinessAnalysisPan
         defaultValue="summary"
         className="mt-6"
         onValueChange={(value) => {
+          if (value === "heavy" && !cache.heavy) fetchHeavyAnalysis();
           if (value === "competitors" && !cache.competitors) fetchAnalysis("competitors");
           if (value === "score" && !cache.score) fetchAnalysis("score");
           if (value === "profile" && !cache.profile) fetchAnalysis("profile");
         }}
       >
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-[22px] border border-[#ececf0] bg-[#f5f5f7] p-2 sm:grid-cols-5">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-[22px] border border-[#ececf0] bg-[#f5f5f7] p-2 sm:grid-cols-6">
           <TabsTrigger value="summary" className="rounded-2xl text-xs font-semibold data-[state=active]:bg-white">
             Resumo
+          </TabsTrigger>
+          <TabsTrigger value="heavy" className="rounded-2xl text-xs font-semibold data-[state=active]:bg-white">
+            Auditoria
           </TabsTrigger>
           <TabsTrigger value="approach" className="rounded-2xl text-xs font-semibold data-[state=active]:bg-white">
             Abordagem
@@ -295,6 +443,233 @@ export const BusinessAnalysisPanel = ({ business, onClose }: BusinessAnalysisPan
               </div>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="heavy" className="mt-5">
+          {loading === "heavy" ? (
+            <LoadingState label="Rodando auditoria pesada do site, SEO, seguranca e capturas visuais..." />
+          ) : cache.heavy ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-base font-semibold text-[#1A1A1A]">Auditoria pesada</h4>
+                  <p className="text-sm text-[#66666d]">
+                    Leitura tecnica aprofundada do site e da presenca digital do lead.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={refreshHeavy} className="rounded-xl">
+                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                  Atualizar
+                </Button>
+              </div>
+
+              <div className="rounded-[24px] border border-[#1d1d22] bg-[#111115] p-6 text-white">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Diagnostico principal</p>
+                    <p className="mt-2 text-5xl font-semibold">{cache.heavy.scores?.overall ?? "-"}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: "SEO", value: cache.heavy.scores?.seo },
+                      { label: "Velocidade", value: cache.heavy.scores?.speed },
+                      { label: "Layout", value: cache.heavy.scores?.layout },
+                      { label: "Seguranca", value: cache.heavy.scores?.security },
+                    ].map((item) => (
+                      <Badge
+                        key={item.label}
+                        variant="outline"
+                        className="rounded-full border-white/15 bg-white/5 text-white/85"
+                      >
+                        {item.label} {item.value ?? "-"}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <p className="mt-4 text-sm leading-relaxed text-white/78">
+                  {cache.heavy.summary || "A auditoria pesada foi concluida, mas nao retornou um resumo executivo."}
+                </p>
+              </div>
+
+              {(buildScreenshotSrc(cache.heavy.website_screenshot) || buildScreenshotSrc(cache.heavy.google_maps_screenshot)) ? (
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {buildScreenshotSrc(cache.heavy.website_screenshot) ? (
+                    <div className="rounded-[24px] border border-[#ececf0] bg-white p-4">
+                      <p className="text-sm font-semibold text-[#1A1A1A]">Screenshot do site</p>
+                      <img
+                        src={buildScreenshotSrc(cache.heavy.website_screenshot) || undefined}
+                        alt={`Screenshot do site de ${business.name}`}
+                        className="mt-3 w-full rounded-[20px] border border-[#ececf0] object-cover shadow-[0_12px_30px_rgba(20,20,24,0.08)]"
+                      />
+                    </div>
+                  ) : null}
+
+                  {buildScreenshotSrc(cache.heavy.google_maps_screenshot) ? (
+                    <div className="rounded-[24px] border border-[#ececf0] bg-white p-4">
+                      <p className="text-sm font-semibold text-[#1A1A1A]">Screenshot do Google Maps</p>
+                      <img
+                        src={buildScreenshotSrc(cache.heavy.google_maps_screenshot) || undefined}
+                        alt={`Google Maps de ${business.name}`}
+                        className="mt-3 w-full rounded-[20px] border border-[#ececf0] object-cover shadow-[0_12px_30px_rgba(20,20,24,0.08)]"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-[24px] border border-[#ececf0] bg-white p-4">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-[#EF3333]" />
+                    <p className="text-sm font-semibold text-[#1A1A1A]">SEO e estrutura</p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {[
+                      { label: "Title", ok: cache.heavy.seo_details?.has_title },
+                      { label: "Meta description", ok: cache.heavy.seo_details?.has_meta_description },
+                      { label: "H1", ok: cache.heavy.seo_details?.has_h1 },
+                      { label: "Sitemap", ok: cache.heavy.seo_details?.has_sitemap },
+                    ].map((item) => (
+                      <Badge
+                        key={item.label}
+                        className={
+                          item.ok
+                            ? "rounded-full border border-[#cfe6d7] bg-[#f3fbf5] text-[#21603a]"
+                            : "rounded-full border border-[#f4c6cd] bg-[#fff3f5] text-[#9f2336]"
+                        }
+                      >
+                        {item.ok ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <AlertTriangle className="mr-1 h-3.5 w-3.5" />}
+                        {item.label}
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {(cache.heavy.seo_details?.issues || []).length > 0 ? (
+                      cache.heavy.seo_details?.issues?.map((issue) => (
+                        <p key={issue} className="text-sm text-[#53535a]">
+                          {issue}
+                        </p>
+                      ))
+                    ) : (
+                      <p className="text-sm text-[#66666d]">Nenhum problema estrutural relevante retornado.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-[24px] border border-[#ececf0] bg-white p-4">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-[#EF3333]" />
+                    <p className="text-sm font-semibold text-[#1A1A1A]">Seguranca e reputacao local</p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {[
+                      { label: "HTTPS", ok: cache.heavy.security_details?.has_https },
+                      { label: "SSL", ok: cache.heavy.security_details?.has_ssl },
+                    ].map((item) => (
+                      <Badge
+                        key={item.label}
+                        className={
+                          item.ok
+                            ? "rounded-full border border-[#cfe6d7] bg-[#f3fbf5] text-[#21603a]"
+                            : "rounded-full border border-[#f4c6cd] bg-[#fff3f5] text-[#9f2336]"
+                        }
+                      >
+                        {item.ok ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <AlertTriangle className="mr-1 h-3.5 w-3.5" />}
+                        {item.label}
+                      </Badge>
+                    ))}
+                    {typeof cache.heavy.google_presence?.rating === "number" ? (
+                      <Badge variant="outline" className="rounded-full border-[#ececf0] bg-[#f8f8fa] text-[#5f5f67]">
+                        Rating {cache.heavy.google_presence.rating}
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {(cache.heavy.security_details?.issues || []).length > 0 ? (
+                      cache.heavy.security_details?.issues?.map((issue) => (
+                        <p key={issue} className="text-sm text-[#53535a]">
+                          {issue}
+                        </p>
+                      ))
+                    ) : (
+                      <p className="text-sm text-[#66666d]">Nenhum problema critico de seguranca retornado.</p>
+                    )}
+                    {cache.heavy.google_presence?.estimated_position ? (
+                      <p className="text-sm text-[#53535a]">
+                        Posicionamento estimado no Google: {cache.heavy.google_presence.estimated_position}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-[24px] border border-[#ececf0] bg-white p-4">
+                  <p className="text-sm font-semibold text-[#1A1A1A]">Forcas percebidas</p>
+                  <div className="mt-3 space-y-2">
+                    {(cache.heavy.google_presence?.strengths || []).length > 0 ? (
+                      cache.heavy.google_presence?.strengths?.map((item) => (
+                        <p key={item} className="text-sm text-[#53535a]">
+                          {item}
+                        </p>
+                      ))
+                    ) : (
+                      <p className="text-sm text-[#66666d]">Nenhuma forca relevante foi destacada.</p>
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-[24px] border border-[#ececf0] bg-white p-4">
+                  <p className="text-sm font-semibold text-[#1A1A1A]">Fraquezas percebidas</p>
+                  <div className="mt-3 space-y-2">
+                    {(cache.heavy.google_presence?.weaknesses || []).length > 0 ? (
+                      cache.heavy.google_presence?.weaknesses?.map((item) => (
+                        <p key={item} className="text-sm text-[#53535a]">
+                          {item}
+                        </p>
+                      ))
+                    ) : (
+                      <p className="text-sm text-[#66666d]">Nenhuma fraqueza relevante foi destacada.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border border-[#ececf0] bg-white p-4">
+                <p className="text-sm font-semibold text-[#1A1A1A]">Recomendacoes prioritarias</p>
+                <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                  {(cache.heavy.recommendations || []).length > 0 ? (
+                    cache.heavy.recommendations?.map((item, index) => (
+                      <div key={`${item.title}-${index}`} className="rounded-[20px] border border-[#ececf0] bg-[#fafafc] p-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge className="rounded-full border border-[#ef3333]/25 bg-[#fff2f4] text-[#8f2434]">
+                            {item.priority}
+                          </Badge>
+                          <Badge variant="outline" className="rounded-full border-[#ececf0] bg-white text-[#5f5f67]">
+                            {item.category}
+                          </Badge>
+                        </div>
+                        <p className="mt-3 text-sm font-semibold text-[#1A1A1A]">{item.title}</p>
+                        <p className="mt-2 text-sm leading-relaxed text-[#5f5f67]">{item.description}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-[#66666d]">A auditoria pesada nao retornou recomendacoes estruturadas.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-[24px] border border-dashed border-[#e0e0e6] bg-[#fafafc] px-6 py-12 text-center">
+              <p className="text-sm text-[#66666d]">
+                Execute uma auditoria pesada para inspecionar site, SEO, seguranca e sinais comerciais com captura visual.
+              </p>
+              <Button onClick={() => fetchHeavyAnalysis(true)} className="mt-4 rounded-xl bg-[#111115] text-white hover:bg-[#1d1d24]">
+                <Sparkles className="mr-2 h-4 w-4 text-[#EF3333]" />
+                Rodar auditoria pesada
+              </Button>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="approach" className="mt-5">

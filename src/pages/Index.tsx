@@ -117,6 +117,7 @@ const Index = () => {
   const [showProgress, setShowProgress] = useState(false);
   const [showPipelineDialog, setShowPipelineDialog] = useState(false);
   const [showRefinementDialog, setShowRefinementDialog] = useState(false);
+  const [analysisTargets, setAnalysisTargets] = useState<Business[] | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const { canUse, getRemainingUsage } = useSubscription();
@@ -131,7 +132,12 @@ const Index = () => {
 
     try {
       const { data, error } = await invokeEdgeFunction<{ businesses?: Business[]; error?: string }>("search-businesses", {
-        body: { niches: filters.niches, location: filters.location, radius: filters.radius },
+        body: {
+          niches: filters.niches,
+          location: filters.location,
+          radius: filters.radius,
+          advanced: filters.advanced,
+        },
       });
 
       if (error) throw new Error(error.message);
@@ -196,16 +202,45 @@ const Index = () => {
       return;
     }
 
+    setAnalysisTargets(selected);
+    setShowPipelineDialog(true);
+  };
+
+  const handleGenerateProposalForBusiness = (business: Business) => {
+    if (!user) return;
+
+    if (!canUse("presentations")) {
+      toast({
+        title: "Limite atingido",
+        description: "Voce atingiu o limite de apresentacoes do seu plano. Faca upgrade em Configuracoes > Faturamento.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const remaining = getRemainingUsage("presentations");
+    if (remaining !== null && remaining !== Infinity && remaining < 1) {
+      toast({
+        title: "Limite insuficiente",
+        description: "Voce nao possui apresentacoes disponiveis no momento.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAnalysisTargets([business]);
+    setSelectedBusiness(null);
     setShowPipelineDialog(true);
   };
 
   const startAnalysis = async (
     pipelineStageId?: string,
     responseMode: ProposalResponseMode = "buttons",
-    formTemplate?: ProposalFormTemplate
+    formTemplate?: ProposalFormTemplate,
+    explicitTargets?: Business[] | null,
   ) => {
     if (!user) return;
-    const selected = businesses.filter((item) => selectedIds.has(item.id));
+    const selected = explicitTargets ?? businesses.filter((item) => selectedIds.has(item.id));
 
     const items: AnalysisItem[] = selected.map((item) => ({
       id: item.id,
@@ -436,7 +471,9 @@ const Index = () => {
       <PipelineSelectDialog
         open={showPipelineDialog}
         onConfirm={(result) => {
+          const targets = analysisTargets;
           setShowPipelineDialog(false);
+          setAnalysisTargets(null);
           startAnalysis(
             result.attach ? result.stageId : undefined,
             result.responseMode,
@@ -446,10 +483,14 @@ const Index = () => {
                   name: result.formTemplateName || "Formulario",
                   body: result.formTemplateBody || "",
                 }
-              : undefined
+              : undefined,
+            targets,
           );
         }}
-        onCancel={() => setShowPipelineDialog(false)}
+        onCancel={() => {
+          setShowPipelineDialog(false);
+          setAnalysisTargets(null);
+        }}
       />
 
       <Dialog open={showRefinementDialog} onOpenChange={setShowRefinementDialog}>
@@ -481,7 +522,30 @@ const Index = () => {
             </DialogDescription>
           </DialogHeader>
           {selectedBusiness ? (
-            <BusinessAnalysisPanel business={selectedBusiness} onClose={() => setSelectedBusiness(null)} />
+            <BusinessAnalysisPanel
+              business={selectedBusiness}
+              onClose={() => setSelectedBusiness(null)}
+              onGenerateProposal={() => handleGenerateProposalForBusiness(selectedBusiness)}
+              onPrevious={() => {
+                const currentIndex = filteredBusinesses.findIndex((business) => business.id === selectedBusiness.id);
+                if (currentIndex > 0) {
+                  setSelectedBusiness(filteredBusinesses[currentIndex - 1]);
+                }
+              }}
+              onNext={() => {
+                const currentIndex = filteredBusinesses.findIndex((business) => business.id === selectedBusiness.id);
+                if (currentIndex >= 0 && currentIndex < filteredBusinesses.length - 1) {
+                  setSelectedBusiness(filteredBusinesses[currentIndex + 1]);
+                }
+              }}
+              canGoPrevious={filteredBusinesses.findIndex((business) => business.id === selectedBusiness.id) > 0}
+              canGoNext={
+                (() => {
+                  const currentIndex = filteredBusinesses.findIndex((business) => business.id === selectedBusiness.id);
+                  return currentIndex >= 0 && currentIndex < filteredBusinesses.length - 1;
+                })()
+              }
+            />
           ) : null}
         </DialogContent>
       </Dialog>

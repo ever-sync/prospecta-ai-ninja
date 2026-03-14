@@ -267,6 +267,96 @@ export type Database = {
           },
         ]
       }
+      message_conversion_events: {
+        Row: {
+          campaign_id: string | null
+          campaign_presentation_id: string | null
+          channel: string
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          niche: string | null
+          pipeline_stage_id: string | null
+          presentation_id: string
+          score_bucket: string
+          source: string | null
+          template_id: string | null
+          user_id: string | null
+          variant_id: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          campaign_presentation_id?: string | null
+          channel?: string
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          niche?: string | null
+          pipeline_stage_id?: string | null
+          presentation_id: string
+          score_bucket?: string
+          source?: string | null
+          template_id?: string | null
+          user_id?: string | null
+          variant_id?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          campaign_presentation_id?: string | null
+          channel?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          niche?: string | null
+          pipeline_stage_id?: string | null
+          presentation_id?: string
+          score_bucket?: string
+          source?: string | null
+          template_id?: string | null
+          user_id?: string | null
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_conversion_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_conversion_events_presentation_id_fkey"
+            columns: ["presentation_id"]
+            isOneToOne: false
+            referencedRelation: "presentations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_conversion_events_pipeline_stage_id_fkey"
+            columns: ["pipeline_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_conversion_events_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "message_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_conversion_events_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "message_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_templates: {
         Row: {
           body: string
@@ -489,8 +579,11 @@ export type Database = {
           company_logo_url: string | null
           company_name: string | null
           created_at: string | null
+          document_number: string | null
+          document_type: string | null
           elevenlabs_voice_id: string | null
           email: string | null
+          full_name: string | null
           id: string
           phone: string | null
           user_id: string
@@ -499,8 +592,11 @@ export type Database = {
           company_logo_url?: string | null
           company_name?: string | null
           created_at?: string | null
+          document_number?: string | null
+          document_type?: string | null
           elevenlabs_voice_id?: string | null
           email?: string | null
+          full_name?: string | null
           id?: string
           phone?: string | null
           user_id: string
@@ -509,8 +605,11 @@ export type Database = {
           company_logo_url?: string | null
           company_name?: string | null
           created_at?: string | null
+          document_number?: string | null
+          document_type?: string | null
           elevenlabs_voice_id?: string | null
           email?: string | null
+          full_name?: string | null
           id?: string
           phone?: string | null
           user_id?: string
@@ -585,7 +684,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "moderator" | "superadmin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -713,7 +812,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user"],
+      app_role: ["admin", "moderator", "superadmin", "user"],
     },
   },
 } as const

@@ -51,7 +51,7 @@ serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
-      .in("role", ["admin", "moderator"]);
+      .in("role", ["superadmin", "admin", "moderator"]);
 
     if (!roleData || roleData.length === 0) {
       console.error("[AdminApiUsage] Forbidden: User does not have required role", { userId: user.id });

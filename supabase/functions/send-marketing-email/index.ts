@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Prospecta IA <noreply@prospecta.ai>',
+        from: 'envPRO <noreply@prospecta.ai>',
         to: [targetEmail],
         subject: finalSubject,
         html: finalHtml,

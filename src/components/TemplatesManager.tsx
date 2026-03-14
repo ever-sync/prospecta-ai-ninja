@@ -14,6 +14,7 @@ import ProposalTemplateTab from '@/components/ProposalTemplateTab';
 import FormBuilder, { defaultFormSchema, type FormSchema } from '@/components/FormBuilder';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { BRAND } from '@/config/brand';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
@@ -114,8 +115,8 @@ const TemplatesManager = () => {
           customBody: formBody,
           variables: {
             nome_empresa: 'Restaurante Exemplo',
-            sua_empresa: 'Prospecta IA',
-            link_proposta: 'https://prospecta.ai/demo'
+            sua_empresa: BRAND.name,
+            link_proposta: `${BRAND.websiteUrl}/demo`
           }
         }
       });
@@ -336,7 +337,7 @@ const TemplatesManager = () => {
       .replace(/\{\{rating\}\}/g, '4.5')
       .replace(/\{\{score\}\}/g, '72')
       .replace(/\{\{link_proposta\}\}/g, 'https://app.com/presentation/abc123')
-      .replace(/\{\{sua_empresa\}\}/g, 'Minha Empresa');
+      .replace(/\{\{sua_empresa\}\}/g, BRAND.name);
   };
 
   const getChannelLabel = (channel: string) => {

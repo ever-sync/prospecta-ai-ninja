@@ -30,6 +30,58 @@ type ScrapePayload = {
   links: string[];
 };
 
+type SearchResult = {
+  title?: string;
+  url?: string;
+  description?: string;
+  markdown?: string;
+};
+
+type SearchAdvancedFilters = {
+  district?: string;
+  queryHint?: string;
+  minRating?: "any" | "4_plus" | "4_5_plus";
+  websiteMode?: "any" | "with_site" | "without_site";
+  requirePhone?: boolean;
+  requireEmail?: boolean;
+  limitResults?: number;
+  initialSort?: "score_desc" | "rating_desc" | "distance_asc";
+};
+
+const DEFAULT_ADVANCED_FILTERS: Required<SearchAdvancedFilters> = {
+  district: "",
+  queryHint: "",
+  minRating: "any",
+  websiteMode: "any",
+  requirePhone: false,
+  requireEmail: false,
+  limitResults: 20,
+  initialSort: "score_desc",
+};
+
+const genericBusinessTokens = new Set([
+  "clinica",
+  "clinicas",
+  "hospital",
+  "instituto",
+  "centro",
+  "grupo",
+  "especialidades",
+  "especialidade",
+  "medicina",
+  "saude",
+  "ortopedia",
+  "ortopedia",
+  "traumatologia",
+  "odontologia",
+  "fisioterapia",
+  "laboratorio",
+  "consultorio",
+  "consultorio",
+  "dr",
+  "dra",
+]);
+
 async function firecrawlSearch(apiKey: string, query: string, limit: number): Promise<any[]> {
   const response = await fetch("https://api.firecrawl.dev/v1/search", {
     method: "POST",
@@ -63,6 +115,236 @@ function normalizeWebsite(url: string): string {
     return `https://${trimmed}`;
   }
   return trimmed;
+}
+
+function normalizeText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getBusinessNameTokens(name: string) {
+  const tokens = normalizeText(name)
+    .split(" ")
+    .filter((token) => token.length >= 4);
+  const brandTokens = tokens.filter((token) => !genericBusinessTokens.has(token));
+  return { tokens, brandTokens };
+}
+
+function getResultText(result: SearchResult): string {
+  return [result.title, result.description, result.markdown, result.url].filter(Boolean).join("\n");
+}
+
+function isDirectoryOrSocialUrl(url: string): boolean {
+  const normalized = normalizeText(url);
+  return (
+    normalized.includes("google com") ||
+    normalized.includes("googleusercontent com") ||
+    normalized.includes("facebook com") ||
+    normalized.includes("instagram com") ||
+    normalized.includes("linkedin com") ||
+    normalized.includes("youtube com") ||
+    normalized.includes("wa me") ||
+    normalized.includes("whatsapp com")
+  );
+}
+
+function getWebsiteHost(url: string): string {
+  try {
+    const parsed = new URL(normalizeWebsite(url));
+    return parsed.hostname.replace(/^www\./i, "");
+  } catch {
+    return url.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0];
+  }
+}
+
+function normalizeAdvancedFilters(rawFilters: unknown): Required<SearchAdvancedFilters> {
+  if (!rawFilters || typeof rawFilters !== "object") {
+    return DEFAULT_ADVANCED_FILTERS;
+  }
+
+  const filters = rawFilters as SearchAdvancedFilters;
+  const minRating =
+    filters.minRating === "4_plus" || filters.minRating === "4_5_plus" ? filters.minRating : "any";
+  const websiteMode =
+    filters.websiteMode === "with_site" || filters.websiteMode === "without_site" ? filters.websiteMode : "any";
+  const initialSort =
+    filters.initialSort === "rating_desc" || filters.initialSort === "distance_asc"
+      ? filters.initialSort
+      : "score_desc";
+  const rawLimit = typeof filters.limitResults === "number" ? filters.limitResults : DEFAULT_ADVANCED_FILTERS.limitResults;
+  const limitResults = Math.min(50, Math.max(5, Math.round(rawLimit / 5) * 5));
+
+  return {
+    district: typeof filters.district === "string" ? filters.district.trim() : "",
+    queryHint: typeof filters.queryHint === "string" ? filters.queryHint.trim() : "",
+    minRating,
+    websiteMode,
+    requirePhone: Boolean(filters.requirePhone),
+    requireEmail: Boolean(filters.requireEmail),
+    limitResults,
+    initialSort,
+  };
+}
+
+function hasAdvancedSearchFilters(filters: Required<SearchAdvancedFilters>) {
+  return (
+    Boolean(filters.district) ||
+    Boolean(filters.queryHint) ||
+    filters.minRating !== "any" ||
+    filters.websiteMode !== "any" ||
+    filters.requirePhone ||
+    filters.requireEmail ||
+    filters.limitResults !== DEFAULT_ADVANCED_FILTERS.limitResults ||
+    filters.initialSort !== DEFAULT_ADVANCED_FILTERS.initialSort
+  );
+}
+
+function buildGeoContext(location: string, district: string) {
+  return [district.trim(), location.trim()].filter(Boolean).join(", ");
+}
+
+function buildSearchQueryHint(filters: Required<SearchAdvancedFilters>) {
+  const parts = [
+    filters.queryHint,
+    filters.websiteMode === "with_site" ? "site oficial" : "",
+    filters.requirePhone || filters.requireEmail ? "contato" : "",
+    filters.minRating === "4_plus" ? "4 estrelas" : "",
+    filters.minRating === "4_5_plus" ? "4.5 estrelas" : "",
+  ];
+
+  return parts.filter(Boolean).join(" ").trim();
+}
+
+function matchesAdvancedFilters(business: any, filters: Required<SearchAdvancedFilters>) {
+  if (filters.websiteMode === "with_site" && !business.website) return false;
+  if (filters.websiteMode === "without_site" && business.website) return false;
+  if (filters.requirePhone && !business.phone) return false;
+  if (filters.requireEmail && !business.email) return false;
+
+  const rating = business.rating ?? null;
+  if (filters.minRating === "4_plus" && (rating === null || rating < 4)) return false;
+  if (filters.minRating === "4_5_plus" && (rating === null || rating < 4.5)) return false;
+
+  return true;
+}
+
+function getBusinessSearchScore(business: any) {
+  const hasWebsite = business.website ? 18 : 0;
+  const hasPhone = business.phone ? 12 : 0;
+  const hasEmail = business.email ? 10 : 0;
+  const rating = business.rating ?? 0;
+  const ratingScore = rating >= 4.5 ? 18 : rating >= 4 ? 14 : rating >= 3.5 ? 8 : 0;
+  const proximityScore =
+    business.distance <= 3 ? 14 : business.distance <= 8 ? 10 : business.distance <= 15 ? 6 : 2;
+  const presenceScore = business.onlinePresence ? Math.max(0, 24 - Math.round(business.onlinePresence.score / 4)) : 12;
+  return hasWebsite + hasPhone + hasEmail + ratingScore + proximityScore + presenceScore;
+}
+
+function sortBusinessesForSearch(items: any[], sortMode: Required<SearchAdvancedFilters>["initialSort"]) {
+  return [...items].sort((a, b) => {
+    if (sortMode === "rating_desc") {
+      return (b.rating ?? 0) - (a.rating ?? 0) || getBusinessSearchScore(b) - getBusinessSearchScore(a);
+    }
+
+    if (sortMode === "distance_asc") {
+      return (a.distance ?? Infinity) - (b.distance ?? Infinity) || getBusinessSearchScore(b) - getBusinessSearchScore(a);
+    }
+
+    return getBusinessSearchScore(b) - getBusinessSearchScore(a) || (a.distance ?? Infinity) - (b.distance ?? Infinity);
+  });
+}
+
+function extractRating(text: string): number | null {
+  const normalized = text.replace(/\s+/g, " ");
+  const contextualMatch = normalized.match(/([0-5][\.,]\d)\s*(?:★|estrelas?|avaliac(?:ao|oes))/i);
+  const broadMatch = normalized.match(/\b([0-5][\.,]\d)\b/);
+  const ratingText = contextualMatch?.[1] || broadMatch?.[1];
+  if (!ratingText) return null;
+  const parsed = Number(ratingText.replace(",", "."));
+  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 5 ? parsed : null;
+}
+
+function extractAddress(text: string, location: string): string {
+  const explicitMatch = text.match(/endere[cç]o[:\s]+([^\n|]+)/i);
+  if (explicitMatch?.[1]) {
+    return explicitMatch[1].trim();
+  }
+
+  const lineMatch = text
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) =>
+      /^(rua|avenida|av\.|rodovia|estrada|alameda|travessa|praca|praça)/i.test(line),
+    );
+
+  return lineMatch || location;
+}
+
+function resultMatchesBusinessName(businessName: string, result: SearchResult): boolean {
+  const haystack = normalizeText(getResultText(result));
+  const { tokens, brandTokens } = getBusinessNameTokens(businessName);
+  const overlappingBrand = brandTokens.filter((token) => haystack.includes(token));
+  const overlappingTokens = tokens.filter((token) => haystack.includes(token));
+
+  return overlappingBrand.length >= 1 || overlappingTokens.length >= 2;
+}
+
+function enrichBusinessFromResults(
+  business: any,
+  results: SearchResult[],
+  location: string,
+) {
+  const matches = results.filter((result) => resultMatchesBusinessName(business.name || "", result));
+
+  if (matches.length === 0) {
+    return business;
+  }
+
+  let website = business.website || "";
+  let phone = business.phone || "";
+  let email = business.email || "";
+  let rating = business.rating ?? null;
+  let address = business.address || location;
+
+  for (const result of matches) {
+    const resultText = getResultText(result);
+
+    if (!website && result.url && !isDirectoryOrSocialUrl(result.url)) {
+      website = getWebsiteHost(result.url);
+    }
+
+    if (!phone) {
+      const phones = extractPhones(resultText);
+      if (phones.length > 0) phone = phones[0];
+    }
+
+    if (!email) {
+      const emails = extractEmails(resultText);
+      if (emails.length > 0) email = emails[0];
+    }
+
+    if (!rating) {
+      rating = extractRating(resultText);
+    }
+
+    if (!address || address === location) {
+      address = extractAddress(resultText, location);
+    }
+  }
+
+  return {
+    ...business,
+    website,
+    phone,
+    email,
+    rating,
+    address,
+  };
 }
 
 async function firecrawlScrape(apiKey: string, url: string): Promise<ScrapePayload | null> {
@@ -320,7 +602,7 @@ serve(async (req) => {
   }
 
   try {
-    const { niches, location, radius } = await req.json();
+    const { niches, location, radius, advanced } = await req.json();
     const { user, svc } = await getAuthenticatedUserContext(req);
     const firecrawlApiKey = Deno.env.get("FIRECRAWL_API_KEY");
     const geminiApiKey = await requireUserProviderKey(
@@ -335,12 +617,17 @@ serve(async (req) => {
     }
 
     const allSearchResults: { niche: string; nicheKey: string; results: any[] }[] = [];
-    const limitPerNiche = Math.min(10, Math.ceil(15 / niches.length));
+    const advancedFilters = normalizeAdvancedFilters(advanced);
+    const geoContext = buildGeoContext(location, advancedFilters.district);
+    const queryHint = buildSearchQueryHint(advancedFilters);
+    const hasAdvancedFilters = hasAdvancedSearchFilters(advancedFilters);
+    const targetLeadVolume = Math.max(advancedFilters.limitResults, hasAdvancedFilters ? 24 : 15);
+    const limitPerNiche = Math.min(12, Math.ceil(targetLeadVolume / niches.length));
 
     const searchPromises = niches.map(async (nicheKey: string) => {
       const nicheLabel = nicheLabels[nicheKey] || nicheKey;
-      const mapsQuery = `site:google.com/maps "${nicheLabel}" "${location}"`;
-      const localQuery = `${nicheLabel} em ${location} avaliacoes telefone endereco`;
+      const mapsQuery = `site:google.com/maps "${nicheLabel}" "${geoContext}" ${queryHint}`.trim();
+      const localQuery = `${nicheLabel} em ${geoContext} ${queryHint} avaliacoes telefone endereco`.trim();
 
       const [mapsResults, localResults] = await Promise.all([
         firecrawlSearch(firecrawlApiKey, mapsQuery, limitPerNiche),
@@ -350,12 +637,12 @@ serve(async (req) => {
       let combined = deduplicateResults([...mapsResults, ...localResults]);
 
       if (combined.length < 3) {
-        const fallbackQuery = `"${nicheLabel}" perto de "${location}" site contato`;
+        const fallbackQuery = `"${nicheLabel}" perto de "${geoContext}" ${queryHint} site contato`.trim();
         const fallbackResults = await firecrawlSearch(firecrawlApiKey, fallbackQuery, limitPerNiche);
         combined = deduplicateResults([...combined, ...fallbackResults]);
       }
 
-      return { niche: nicheLabel, nicheKey, results: combined };
+      return { niche: nicheLabel, nicheKey, results: combined as SearchResult[] };
     });
 
     const results = await Promise.all(searchPromises);
@@ -391,13 +678,19 @@ REGRAS CRITICAS:
 - Priorize dados do Google Maps quando disponiveis.
 - Telefones: use formato brasileiro com DDD. Se nao houver, devolva string vazia.
 - Websites: use apenas o site proprio da empresa. Nao use URLs do Google, Instagram, Facebook ou diretorios.
-- Enderecos: se faltar, use "${location}" como fallback.
+- Enderecos: se faltar, use "${geoContext}" como fallback.
 - Rating: extraia a nota se disponivel. Se nao houver, use null.
 - Email: extraia se estiver visivel. Se nao houver, use string vazia.
 - Nao repita empresas duplicadas.
 - distance deve ser um numero entre 0.5 e ${radius}.
 - category deve ser a key em ingles fornecida nos resultados.
 - Cada empresa deve ter id unico no formato niche-N.
+${advancedFilters.minRating === "4_plus" ? "- Priorize empresas com rating minimo de 4.0." : ""}
+${advancedFilters.minRating === "4_5_plus" ? "- Priorize empresas com rating minimo de 4.5." : ""}
+${advancedFilters.websiteMode === "with_site" ? "- Priorize empresas com site proprio identificado." : ""}
+${advancedFilters.websiteMode === "without_site" ? "- Priorize empresas sem site proprio identificado." : ""}
+${advancedFilters.requirePhone ? "- Priorize empresas com telefone identificado." : ""}
+${advancedFilters.requireEmail ? "- Priorize empresas com email identificado." : ""}
 
 FORMATO JSON ARRAY:
 [
@@ -416,8 +709,9 @@ FORMATO JSON ARRAY:
 
 Responda apenas com JSON array.`;
 
-    const userPrompt = `Extraia todas as empresas reais dos seguintes resultados de busca para "${location}" (raio ${radius}km).
+    const userPrompt = `Extraia todas as empresas reais dos seguintes resultados de busca para "${geoContext}" (raio ${radius}km).
 Priorize dados do Google Maps quando disponiveis.
+${advancedFilters.queryHint ? `Use "${advancedFilters.queryHint}" como criterio adicional de relevancia.\n` : ""}${advancedFilters.district ? `Priorize especificamente a regiao "${advancedFilters.district}".\n` : ""}${advancedFilters.websiteMode === "with_site" ? "Prefira empresas com site proprio.\n" : ""}${advancedFilters.websiteMode === "without_site" ? "Prefira empresas sem site proprio identificado.\n" : ""}${advancedFilters.requirePhone ? "Prefira empresas com telefone.\n" : ""}${advancedFilters.requireEmail ? "Prefira empresas com email.\n" : ""}
 
 ${searchContext}`;
 
@@ -429,32 +723,51 @@ ${searchContext}`;
       { temperature: 0.2, maxOutputTokens: 4000 },
     );
 
-    businesses = businesses.map((business: any) => ({
-      ...business,
-      website:
-        business.website &&
-        business.website.trim() &&
-        !business.website.includes("google.com") &&
-        !business.website.includes("facebook.com/") &&
-        !business.website.includes("instagram.com/")
-          ? business.website.replace(/^https?:\/\//, "")
-          : "",
-      phone: business.phone || "",
-      email: business.email || "",
-      address: business.address || location,
-      onlinePresence: buildOnlinePresenceSnapshot(
-        business.website &&
+    const allRawResults = allSearchResults.flatMap((item) => item.results);
+
+    businesses = businesses.map((business: any) => {
+      const normalizedBusiness = {
+        ...business,
+        website:
+          business.website &&
           business.website.trim() &&
-          !business.website.includes("google.com") &&
-          !business.website.includes("facebook.com/") &&
-          !business.website.includes("instagram.com/")
-          ? business.website.replace(/^https?:\/\//, "")
-          : "",
-        null,
-        business.email || "",
-        business.phone || "",
-      ),
-    }));
+          !isDirectoryOrSocialUrl(business.website)
+            ? getWebsiteHost(business.website)
+            : "",
+        phone: business.phone || "",
+        email: business.email || "",
+        address: business.address || geoContext,
+      };
+
+      const enriched = enrichBusinessFromResults(normalizedBusiness, allRawResults, geoContext);
+
+      return {
+        ...enriched,
+        onlinePresence: buildOnlinePresenceSnapshot(
+          enriched.website || "",
+          null,
+          enriched.email || "",
+          enriched.phone || "",
+        ),
+      };
+    });
+
+    const targetedBusinesses = businesses.filter(
+      (business: any) => !business.website || !business.phone || !business.rating || business.address === geoContext,
+    );
+
+    for (let index = 0; index < targetedBusinesses.length; index += 4) {
+      const batch = targetedBusinesses.slice(index, index + 4);
+
+      await Promise.all(
+        batch.map(async (business: any) => {
+          const exactQuery = `"${business.name}" "${geoContext}" ${queryHint} site telefone email endereco avaliacao`.trim();
+          const exactResults = (await firecrawlSearch(firecrawlApiKey, exactQuery, 5)) as SearchResult[];
+          const enriched = enrichBusinessFromResults(business, exactResults, geoContext);
+          Object.assign(business, enriched);
+        }),
+      );
+    }
 
     const businessesWithWebsite = businesses.filter((business) => business.website);
     const batchSize = 5;
@@ -491,7 +804,12 @@ ${searchContext}`;
       );
     }
 
-    return new Response(JSON.stringify({ businesses }), {
+    const filteredBusinesses = sortBusinessesForSearch(
+      businesses.filter((business) => matchesAdvancedFilters(business, advancedFilters)),
+      advancedFilters.initialSort,
+    ).slice(0, advancedFilters.limitResults);
+
+    return new Response(JSON.stringify({ businesses: filteredBusinesses }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

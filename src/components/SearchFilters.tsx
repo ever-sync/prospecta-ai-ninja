@@ -1,11 +1,18 @@
-import { useMemo, useState } from "react";
-import { MapPin, Plus, Radar, Search, Target } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertCircle, ChevronDown, History, MapPin, Plus, Radar, Search, Target, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { SearchFilters as Filters, AVAILABLE_NICHES } from "@/types/business";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
+import {
+  DEFAULT_SEARCH_ADVANCED_FILTERS,
+  SearchAdvancedFilters,
+  SearchFilters as Filters,
+  AVAILABLE_NICHES,
+} from "@/types/business";
 import { cn } from "@/lib/utils";
 
 interface SearchFiltersProps {
@@ -14,6 +21,15 @@ interface SearchFiltersProps {
   hasSearched?: boolean;
   totalResults?: number;
 }
+
+const LAST_SEARCH_STORAGE_KEY = "envpro:last-search-filters";
+
+const RADIUS_PRESETS = [
+  { label: "Foco local", value: 3, helper: "Ideal para rua, quarteirao ou um polo comercial bem proximo." },
+  { label: "Bairro", value: 8, helper: "Bom para recortes de bairro com volume util sem diluir demais." },
+  { label: "Cidade", value: 15, helper: "Equilibrio entre cobertura e relevancia em centros urbanos." },
+  { label: "Regional", value: 30, helper: "Busca ampla para testar mercado ou cidades muito espalhadas." },
+] as const;
 
 export const SearchFilters = ({
   onSearch,
@@ -25,6 +41,46 @@ export const SearchFilters = ({
   const [customNiche, setCustomNiche] = useState("");
   const [location, setLocation] = useState("");
   const [radius, setRadius] = useState(5);
+  const [hasSavedSearch, setHasSavedSearch] = useState(false);
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<SearchAdvancedFilters>(DEFAULT_SEARCH_ADVANCED_FILTERS);
+
+  const nicheLabelMap = useMemo(
+    () => new Map(AVAILABLE_NICHES.map((niche) => [niche.value, niche.label])),
+    [],
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const rawSavedSearch = window.localStorage.getItem(LAST_SEARCH_STORAGE_KEY);
+      if (!rawSavedSearch) return;
+
+      const savedSearch = JSON.parse(rawSavedSearch) as Partial<Filters>;
+      if (!Array.isArray(savedSearch.niches) || typeof savedSearch.location !== "string" || typeof savedSearch.radius !== "number") {
+        return;
+      }
+
+      setSelectedNiches(savedSearch.niches.filter((item): item is string => typeof item === "string"));
+      setLocation(savedSearch.location);
+      setRadius(savedSearch.radius);
+      setAdvancedFilters({
+        ...DEFAULT_SEARCH_ADVANCED_FILTERS,
+        ...(savedSearch.advanced || {}),
+      });
+      setHasSavedSearch(true);
+    } catch (error) {
+      console.error("Error loading saved search filters:", error);
+    }
+  }, []);
+
+  const updateAdvancedFilter = <K extends keyof SearchAdvancedFilters>(
+    key: K,
+    value: SearchAdvancedFilters[K],
+  ) => {
+    setAdvancedFilters((prev) => ({ ...prev, [key]: value }));
+  };
 
   const toggleNiche = (value: string) => {
     setSelectedNiches((prev) =>
@@ -34,26 +90,121 @@ export const SearchFilters = ({
 
   const addCustomNiche = () => {
     const trimmed = customNiche.trim();
-    if (trimmed && !selectedNiches.includes(trimmed)) {
-      setSelectedNiches((prev) => [...prev, trimmed]);
+    if (!trimmed) return;
+
+    const matchedNiche = AVAILABLE_NICHES.find(
+      (niche) =>
+        niche.value.toLowerCase() === trimmed.toLowerCase() || niche.label.toLowerCase() === trimmed.toLowerCase(),
+    );
+
+    const nicheValue = matchedNiche?.value ?? trimmed;
+    if (selectedNiches.includes(nicheValue)) {
       setCustomNiche("");
+      return;
     }
+
+    setSelectedNiches((prev) => [...prev, nicheValue]);
+    setCustomNiche("");
+  };
+
+  const applySavedSearch = () => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const rawSavedSearch = window.localStorage.getItem(LAST_SEARCH_STORAGE_KEY);
+      if (!rawSavedSearch) return;
+
+      const savedSearch = JSON.parse(rawSavedSearch) as Partial<Filters>;
+      if (!Array.isArray(savedSearch.niches) || typeof savedSearch.location !== "string" || typeof savedSearch.radius !== "number") {
+        return;
+      }
+
+      setSelectedNiches(savedSearch.niches.filter((item): item is string => typeof item === "string"));
+      setLocation(savedSearch.location);
+      setRadius(savedSearch.radius);
+      setAdvancedFilters({
+        ...DEFAULT_SEARCH_ADVANCED_FILTERS,
+        ...(savedSearch.advanced || {}),
+      });
+    } catch (error) {
+      console.error("Error applying saved search filters:", error);
+    }
+  };
+
+  const persistSearch = () => {
+    if (typeof window === "undefined") return;
+
+    window.localStorage.setItem(
+      LAST_SEARCH_STORAGE_KEY,
+      JSON.stringify({
+        niches: selectedNiches,
+        location: location.trim(),
+        radius,
+        advanced: advancedFilters,
+      }),
+    );
+    setHasSavedSearch(true);
   };
 
   const handleSearch = () => {
     if (selectedNiches.length === 0 || !location.trim()) return;
-    onSearch({ niches: selectedNiches, location: location.trim(), radius });
+    persistSearch();
+    onSearch({ niches: selectedNiches, location: location.trim(), radius, advanced: advancedFilters });
   };
 
   const canSearch = selectedNiches.length > 0 && location.trim().length > 0;
+  const filteredAvailableNiches = useMemo(() => {
+    const searchTerm = customNiche.trim().toLowerCase();
+
+    return AVAILABLE_NICHES.filter((niche) => {
+      if (selectedNiches.includes(niche.value)) return false;
+      if (!searchTerm) return true;
+
+      return (
+        niche.label.toLowerCase().includes(searchTerm) || niche.value.toLowerCase().includes(searchTerm)
+      );
+    });
+  }, [customNiche, selectedNiches]);
+
+  const selectedNicheLabels = useMemo(
+    () => selectedNiches.map((niche) => nicheLabelMap.get(niche) ?? niche),
+    [nicheLabelMap, selectedNiches],
+  );
+
+  const expectedDepthPerNiche = useMemo(() => {
+    if (selectedNiches.length === 0) return 0;
+    return Math.min(10, Math.ceil(15 / selectedNiches.length));
+  }, [selectedNiches.length]);
+
+  const activeRadiusPreset = useMemo(() => {
+    return (
+      RADIUS_PRESETS.reduce((closest, preset) =>
+        Math.abs(preset.value - radius) < Math.abs(closest.value - radius) ? preset : closest,
+      ) ?? RADIUS_PRESETS[0]
+    );
+  }, [radius]);
+
+  const isSearchTooBroad = selectedNiches.length > 3;
+  const activeAdvancedFilterCount = useMemo(() => {
+    return [
+      advancedFilters.district.trim().length > 0,
+      advancedFilters.queryHint.trim().length > 0,
+      advancedFilters.minRating !== "any",
+      advancedFilters.websiteMode !== "any",
+      advancedFilters.requirePhone,
+      advancedFilters.requireEmail,
+      advancedFilters.limitResults !== DEFAULT_SEARCH_ADVANCED_FILTERS.limitResults,
+      advancedFilters.initialSort !== DEFAULT_SEARCH_ADVANCED_FILTERS.initialSort,
+    ].filter(Boolean).length;
+  }, [advancedFilters]);
 
   const searchSummary = useMemo(() => {
     if (!canSearch) {
       return "Defina nicho, localizacao e raio para montar uma varredura consultiva.";
     }
 
-    return `${selectedNiches.length} nicho(s) em ${location.trim()} com varredura de ${radius} km.`;
-  }, [canSearch, location, radius, selectedNiches.length]);
+    return `${selectedNiches.length} nicho(s) em ${location.trim()} com varredura de ${radius} km, estimativa de ate ${expectedDepthPerNiche} resultado(s) por nicho${activeAdvancedFilterCount > 0 ? ` e ${activeAdvancedFilterCount} filtro(s) avancado(s)` : ""}.`;
+  }, [activeAdvancedFilterCount, canSearch, expectedDepthPerNiche, location, radius, selectedNiches.length]);
 
   return (
     <div className="space-y-6">
@@ -70,7 +221,7 @@ export const SearchFilters = ({
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="mt-5 grid grid-cols-2 gap-3">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
             <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Nicho</p>
             <p className="mt-2 text-sm font-medium text-white/90">
@@ -87,11 +238,30 @@ export const SearchFilters = ({
             <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Raio</p>
             <p className="mt-2 text-sm font-medium text-white/90">{radius} km de cobertura</p>
           </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Profundidade</p>
+            <p className="mt-2 text-sm font-medium text-white/90">
+              {selectedNiches.length > 0 ? `Ate ${expectedDepthPerNiche} por nicho` : "Defina o recorte"}
+            </p>
+          </div>
         </div>
 
         <div className="mt-4 rounded-2xl border border-[#f24d62]/20 bg-[#EF3333]/10 px-4 py-3">
           <p className="text-sm leading-relaxed text-white/85">{searchSummary}</p>
         </div>
+
+        {hasSavedSearch ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={applySavedSearch}
+            className="mt-3 h-9 rounded-xl px-3 text-white/80 hover:bg-white/8 hover:text-white"
+          >
+            <History className="mr-2 h-4 w-4" />
+            Reaplicar ultima busca
+          </Button>
+        ) : null}
 
         {hasSearched ? (
           <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
@@ -114,7 +284,7 @@ export const SearchFilters = ({
 
         <div className="flex gap-2">
           <Input
-            placeholder="Digite um nicho personalizado..."
+            placeholder="Busque ou crie um nicho..."
             value={customNiche}
             onChange={(e) => setCustomNiche(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomNiche())}
@@ -131,8 +301,31 @@ export const SearchFilters = ({
           </Button>
         </div>
 
+        <p className="text-xs leading-relaxed text-[#7c7c83]">
+          Selecione poucos nichos por vez para aprofundar melhor cada recorte.
+        </p>
+
+        {selectedNiches.length > 0 ? (
+          <div className="rounded-2xl border border-[#ececf0] bg-[#fafafc] p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8d8d95]">Recorte ativo</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {selectedNiches.map((niche) => (
+                <Badge
+                  key={niche}
+                  variant="outline"
+                  className="cursor-pointer rounded-full border border-[#ef3333]/45 bg-[#fff2f4] px-3 py-1.5 text-xs text-[#8f2434]"
+                  onClick={() => toggleNiche(niche)}
+                >
+                  {nicheLabelMap.get(niche) ?? niche}
+                  <X className="ml-1.5 h-3 w-3" />
+                </Badge>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap gap-2">
-          {AVAILABLE_NICHES.map((niche) => (
+          {filteredAvailableNiches.map((niche) => (
             <Badge
               key={niche.value}
               variant="outline"
@@ -147,20 +340,13 @@ export const SearchFilters = ({
               {niche.label}
             </Badge>
           ))}
-
-          {selectedNiches
-            .filter((n) => !AVAILABLE_NICHES.some((item) => item.value === n))
-            .map((niche) => (
-              <Badge
-                key={niche}
-                variant="outline"
-                className="cursor-pointer rounded-full border border-[#ef3333]/45 bg-[#fff2f4] px-3 py-1.5 text-xs text-[#8f2434]"
-                onClick={() => toggleNiche(niche)}
-              >
-                {niche} x
-              </Badge>
-            ))}
         </div>
+
+        {customNiche.trim() && filteredAvailableNiches.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#e5d5d8] bg-[#fff8f9] px-4 py-3 text-sm text-[#7a2a38]">
+            Nenhum nicho padrao encontrado. Clique no botao <strong>+</strong> para criar esse recorte personalizado.
+          </div>
+        ) : null}
       </div>
 
       <div className="space-y-3">
@@ -175,7 +361,209 @@ export const SearchFilters = ({
           onChange={(e) => setLocation(e.target.value)}
           className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
         />
+        <p className="text-xs leading-relaxed text-[#7c7c83]">
+          Use cidade + UF para cobertura ampla, ou bairro / avenida para uma varredura mais cirurgica.
+        </p>
       </div>
+
+      <Collapsible open={showAdvancedSearch} onOpenChange={setShowAdvancedSearch}>
+        <div className="rounded-[24px] border border-[#ececf0] bg-[#fcfcfd] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a8a92]">Busca avancada</p>
+              <p className="mt-1 text-sm text-[#66666d]">
+                Abra mais campos para deixar a coleta mais criteriosa.
+              </p>
+            </div>
+            <CollapsibleTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-xl border-[#e6e6eb] bg-white px-3 hover:bg-[#fff8f9]"
+              >
+                {activeAdvancedFilterCount > 0 ? `${activeAdvancedFilterCount} ativo(s)` : "Configurar"}
+                <ChevronDown
+                  className={cn(
+                    "ml-2 h-4 w-4 transition-transform duration-200",
+                    showAdvancedSearch ? "rotate-180" : "rotate-0",
+                  )}
+                />
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+
+          <CollapsibleContent className="mt-4 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="district" className="text-sm font-medium text-[#1A1A1A]">
+                  Bairro ou regiao
+                </Label>
+                <Input
+                  id="district"
+                  placeholder="Ex: Vila Ema, Centro, Zona Sul"
+                  value={advancedFilters.district}
+                  onChange={(e) => updateAdvancedFilter("district", e.target.value)}
+                  className="h-11 rounded-xl border-[#e6e6eb] bg-white focus-visible:ring-[#ef3333]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="queryHint" className="text-sm font-medium text-[#1A1A1A]">
+                  Palavra-chave extra
+                </Label>
+                <Input
+                  id="queryHint"
+                  placeholder="Ex: premium, ortodontia, delivery"
+                  value={advancedFilters.queryHint}
+                  onChange={(e) => updateAdvancedFilter("queryHint", e.target.value)}
+                  className="h-11 rounded-xl border-[#e6e6eb] bg-white focus-visible:ring-[#ef3333]"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-[#1A1A1A]">Nota minima</Label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "any", label: "Qualquer nota" },
+                  { value: "4_plus", label: "4.0+" },
+                  { value: "4_5_plus", label: "4.5+" },
+                ].map((option) => (
+                  <Badge
+                    key={option.value}
+                    variant="outline"
+                    className={cn(
+                      "cursor-pointer rounded-full border px-3 py-1.5 text-xs transition-all duration-200",
+                      advancedFilters.minRating === option.value
+                        ? "border-[#ef3333]/45 bg-[#fff2f4] text-[#8f2434]"
+                        : "border-[#e6e6eb] bg-white text-[#6f6f76] hover:border-[#ef3333]/35 hover:bg-[#fff8f9]",
+                    )}
+                    onClick={() =>
+                      updateAdvancedFilter("minRating", option.value as SearchAdvancedFilters["minRating"])
+                    }
+                  >
+                    {option.label}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-[#1A1A1A]">Presenca de site</Label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "any", label: "Tanto faz" },
+                  { value: "with_site", label: "Com site" },
+                  { value: "without_site", label: "Sem site" },
+                ].map((option) => (
+                  <Badge
+                    key={option.value}
+                    variant="outline"
+                    className={cn(
+                      "cursor-pointer rounded-full border px-3 py-1.5 text-xs transition-all duration-200",
+                      advancedFilters.websiteMode === option.value
+                        ? "border-[#ef3333]/45 bg-[#fff2f4] text-[#8f2434]"
+                        : "border-[#e6e6eb] bg-white text-[#6f6f76] hover:border-[#ef3333]/35 hover:bg-[#fff8f9]",
+                    )}
+                    onClick={() =>
+                      updateAdvancedFilter("websiteMode", option.value as SearchAdvancedFilters["websiteMode"])
+                    }
+                  >
+                    {option.label}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-[#ececf0] bg-white p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-[#1A1A1A]">Limite de resultados</p>
+                    <p className="mt-1 text-xs leading-relaxed text-[#7c7c83]">
+                      Controle o tamanho do lote retornado nessa busca.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-[#fff2f4] px-2.5 py-1 text-xs font-semibold text-[#8f2434]">
+                    {advancedFilters.limitResults}
+                  </span>
+                </div>
+                <Slider
+                  value={[advancedFilters.limitResults]}
+                  onValueChange={(value) => updateAdvancedFilter("limitResults", value[0])}
+                  min={5}
+                  max={50}
+                  step={5}
+                  className="mt-4 py-2"
+                />
+                <div className="mt-2 flex justify-between text-xs text-[#7c7c83]">
+                  <span>Curto</span>
+                  <span>Lote maior</span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#ececf0] bg-white p-3">
+                <p className="text-sm font-medium text-[#1A1A1A]">Ordenacao inicial</p>
+                <p className="mt-1 text-xs leading-relaxed text-[#7c7c83]">
+                  Define como os leads chegam ordenados na primeira leitura.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[
+                    { value: "score_desc", label: "Maior oportunidade" },
+                    { value: "rating_desc", label: "Melhor rating" },
+                    { value: "distance_asc", label: "Mais proximos" },
+                  ].map((option) => (
+                    <Badge
+                      key={option.value}
+                      variant="outline"
+                      className={cn(
+                        "cursor-pointer rounded-full border px-3 py-1.5 text-xs transition-all duration-200",
+                        advancedFilters.initialSort === option.value
+                          ? "border-[#ef3333]/45 bg-[#fff2f4] text-[#8f2434]"
+                          : "border-[#e6e6eb] bg-white text-[#6f6f76] hover:border-[#ef3333]/35 hover:bg-[#fff8f9]",
+                      )}
+                      onClick={() =>
+                        updateAdvancedFilter("initialSort", option.value as SearchAdvancedFilters["initialSort"])
+                      }
+                    >
+                      {option.label}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                {
+                  key: "requirePhone" as const,
+                  label: "Exigir telefone",
+                  helper: "Filtra resultados sem telefone identificado.",
+                },
+                {
+                  key: "requireEmail" as const,
+                  label: "Exigir email",
+                  helper: "Mantem apenas leads com email visivel.",
+                },
+              ].map((item) => (
+                <div key={item.key} className="rounded-2xl border border-[#ececf0] bg-white p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-[#1A1A1A]">{item.label}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-[#7c7c83]">{item.helper}</p>
+                    </div>
+                    <Switch
+                      checked={advancedFilters[item.key]}
+                      onCheckedChange={(checked) => updateAdvancedFilter(item.key, checked)}
+                      className="data-[state=checked]:bg-[#EF3333]"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
 
       <div className="space-y-3">
         <Label className="flex items-center justify-between text-sm font-medium text-[#1A1A1A]">
@@ -196,6 +584,143 @@ export const SearchFilters = ({
         <div className="flex justify-between text-xs text-[#7c7c83]">
           <span>Foco local</span>
           <span>Busca expandida</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {RADIUS_PRESETS.map((preset) => (
+            <Badge
+              key={preset.label}
+              variant="outline"
+              className={cn(
+                "cursor-pointer rounded-full border px-3 py-1.5 text-xs transition-all duration-200",
+                Math.abs(radius - preset.value) <= 1
+                  ? "border-[#ef3333]/45 bg-[#fff2f4] text-[#8f2434]"
+                  : "border-[#e6e6eb] bg-white text-[#6f6f76] hover:border-[#ef3333]/35 hover:bg-[#fff8f9]",
+              )}
+              onClick={() => setRadius(preset.value)}
+            >
+              {preset.label}
+            </Badge>
+          ))}
+        </div>
+        <p className="text-xs leading-relaxed text-[#7c7c83]">{activeRadiusPreset.helper}</p>
+      </div>
+
+      <div className="rounded-[24px] border border-[#ececf0] bg-[#fafafc] p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a8a92]">Diagnostico do recorte</p>
+            <h4 className="mt-1 text-base font-semibold text-[#1A1A1A]">Antes de iniciar a varredura</h4>
+          </div>
+          <div className="rounded-2xl bg-white p-2 text-[#EF3333] shadow-[0_10px_20px_rgba(20,20,24,0.05)]">
+            <Search className="h-4 w-4" />
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {selectedNicheLabels.length > 0 ? (
+            selectedNicheLabels.map((label) => (
+              <Badge key={label} variant="outline" className="rounded-full border-[#e6e6eb] bg-white px-3 py-1.5 text-xs text-[#57575f]">
+                {label}
+              </Badge>
+            ))
+          ) : (
+            <Badge variant="outline" className="rounded-full border-dashed border-[#d8d8de] bg-white px-3 py-1.5 text-xs text-[#8d8d95]">
+              Nenhum nicho selecionado
+            </Badge>
+          )}
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-[#ececf0] bg-white p-3">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Cobertura</p>
+            <p className="mt-1 text-sm font-semibold text-[#1A1A1A]">{radius} km</p>
+            <p className="mt-1 text-xs text-[#7c7c83]">{activeRadiusPreset.label}</p>
+          </div>
+          <div className="rounded-2xl border border-[#ececf0] bg-white p-3">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Base</p>
+            <p className="mt-1 text-sm font-semibold text-[#1A1A1A]">{location.trim() || "Nao definida"}</p>
+            <p className="mt-1 text-xs text-[#7c7c83]">
+              {advancedFilters.district.trim() ? `${advancedFilters.district.trim()}, ${location.trim()}` : "Termo principal da busca"}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-[#ececf0] bg-white p-3">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Profundidade</p>
+            <p className="mt-1 text-sm font-semibold text-[#1A1A1A]">
+              {selectedNiches.length > 0 ? `Ate ${expectedDepthPerNiche}/nicho` : "Aguardando nicho"}
+            </p>
+            <p className="mt-1 text-xs text-[#7c7c83]">Estimativa baseada na coleta atual</p>
+          </div>
+        </div>
+
+        {activeAdvancedFilterCount > 0 ? (
+          <div className="mt-4 rounded-2xl border border-[#ececf0] bg-white p-3">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Filtros avancados ativos</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {advancedFilters.district.trim() ? (
+                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
+                  Bairro: {advancedFilters.district.trim()}
+                </Badge>
+              ) : null}
+              {advancedFilters.queryHint.trim() ? (
+                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
+                  Palavra: {advancedFilters.queryHint.trim()}
+                </Badge>
+              ) : null}
+              {advancedFilters.minRating !== "any" ? (
+                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
+                  Nota: {advancedFilters.minRating === "4_plus" ? "4.0+" : "4.5+"}
+                </Badge>
+              ) : null}
+              {advancedFilters.websiteMode === "with_site" ? (
+                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
+                  Com site
+                </Badge>
+              ) : null}
+              {advancedFilters.websiteMode === "without_site" ? (
+                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
+                  Sem site
+                </Badge>
+              ) : null}
+              {advancedFilters.requirePhone ? (
+                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
+                  Com telefone
+                </Badge>
+              ) : null}
+              {advancedFilters.requireEmail ? (
+                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
+                  Com email
+                </Badge>
+              ) : null}
+              {advancedFilters.limitResults !== DEFAULT_SEARCH_ADVANCED_FILTERS.limitResults ? (
+                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
+                  Limite: {advancedFilters.limitResults}
+                </Badge>
+              ) : null}
+              {advancedFilters.initialSort !== DEFAULT_SEARCH_ADVANCED_FILTERS.initialSort ? (
+                <Badge variant="outline" className="rounded-full border-[#e6e6eb] bg-[#fafafc] px-3 py-1.5 text-xs text-[#57575f]">
+                  Ordem: {advancedFilters.initialSort === "rating_desc" ? "rating" : "distancia"}
+                </Badge>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        <div
+          className={cn(
+            "mt-4 rounded-2xl border px-4 py-3 text-sm leading-relaxed",
+            isSearchTooBroad
+              ? "border-[#f2d4d8] bg-[#fff5f6] text-[#7a2a38]"
+              : "border-[#e8eaef] bg-white text-[#5d5d65]",
+          )}
+        >
+          {isSearchTooBroad ? (
+            <span className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#EF3333]" />
+              Com muitos nichos no mesmo scan, a coleta tende a ficar mais superficial. Se quiser mais densidade, rode em lotes menores.
+            </span>
+          ) : (
+            "Recorte equilibrado. Esse formato costuma gerar uma leitura mais util para abordagem consultiva."
+          )}
         </div>
       </div>
 

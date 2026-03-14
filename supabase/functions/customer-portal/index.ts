@@ -52,7 +52,7 @@ serve(async (req) => {
       });
     }
 
-    const origin = req.headers.get("origin") || "https://prospecta-ai-ninja.lovable.app";
+    const origin = req.headers.get("origin") || "https://envpro.com.br";
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customers.data[0].id,
       return_url: `${origin}/settings?tab=faturamento`,

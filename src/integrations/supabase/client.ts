@@ -4,13 +4,45 @@ import type { Database } from './types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+export const AUTH_PERSISTENCE_KEY = 'envpro.auth.persist';
+
+const getPersistencePreference = () => {
+  if (typeof window === 'undefined') return true;
+  return window.localStorage.getItem(AUTH_PERSISTENCE_KEY) !== '0';
+};
+
+export const setAuthPersistencePreference = (persist: boolean) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(AUTH_PERSISTENCE_KEY, persist ? '1' : '0');
+};
+
+export const getAuthPersistencePreference = () => getPersistencePreference();
+
+const authStorage = {
+  getItem: (key: string) => {
+    if (typeof window === 'undefined') return null;
+    return window.localStorage.getItem(key) ?? window.sessionStorage.getItem(key);
+  },
+  setItem: (key: string, value: string) => {
+    if (typeof window === 'undefined') return;
+    const targetStorage = getPersistencePreference() ? window.localStorage : window.sessionStorage;
+    const secondaryStorage = getPersistencePreference() ? window.sessionStorage : window.localStorage;
+    secondaryStorage.removeItem(key);
+    targetStorage.setItem(key, value);
+  },
+  removeItem: (key: string) => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.removeItem(key);
+    window.sessionStorage.removeItem(key);
+  },
+ };
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
+    storage: authStorage,
     persistSession: true,
     autoRefreshToken: true,
   }

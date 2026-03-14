@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -7,6 +7,7 @@ import {
   Filter,
   Radar,
   Search,
+  SlidersHorizontal,
   Target,
   Telescope,
   WandSparkles,
@@ -18,13 +19,14 @@ import { ResultsTable } from "@/components/ResultsTable";
 import { BusinessAnalysisPanel } from "@/components/BusinessAnalysisPanel";
 import { AnalysisProgressModal, AnalysisItem } from "@/components/AnalysisProgressModal";
 import { PipelineSelectDialog } from "@/components/PipelineSelectDialog";
+import { SearchRefinementPanel } from "@/components/SearchRefinementPanel";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Business,
   DEFAULT_SEARCH_REFINEMENT_FILTERS,
@@ -114,20 +116,11 @@ const Index = () => {
   const [analysisItems, setAnalysisItems] = useState<AnalysisItem[]>([]);
   const [showProgress, setShowProgress] = useState(false);
   const [showPipelineDialog, setShowPipelineDialog] = useState(false);
-  const [isDesktopPanel, setIsDesktopPanel] = useState(() =>
-    typeof window !== "undefined" ? window.innerWidth >= 1280 : true
-  );
+  const [showRefinementDialog, setShowRefinementDialog] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const { canUse, getRemainingUsage } = useSubscription();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const onResize = () => setIsDesktopPanel(window.innerWidth >= 1280);
-    onResize();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
 
   const handleSearch = async (filters: Filters) => {
     setIsLoading(true);
@@ -396,6 +389,14 @@ const Index = () => {
     () => filteredBusinesses.filter((business) => selectedIds.has(business.id)),
     [filteredBusinesses, selectedIds]
   );
+  const activeRefinementCount = useMemo(
+    () =>
+      Object.entries(refinementFilters).filter(
+        ([key, value]) =>
+          !((key === "sortBy" && value === "score_desc") || (key !== "sortBy" && value === "all")),
+      ).length,
+    [refinementFilters],
+  );
 
   const topLead = filteredBusinesses[0] || null;
   const hotLeadCount = filteredBusinesses.filter((business) => business.signalSummary?.priorityTone === "high").length;
@@ -419,11 +420,6 @@ const Index = () => {
 
     setSelectedIds(new Set(filteredBusinesses.map((business) => business.id)));
   };
-
-  const mainPanelClass = cn(
-    "grid gap-5",
-    selectedBusiness ? "xl:grid-cols-[minmax(0,1.1fr)_380px]" : "xl:grid-cols-1"
-  );
 
   return (
     <div className="space-y-4 p-2 pb-28 lg:space-y-5 lg:p-4 lg:pb-6">
@@ -455,6 +451,40 @@ const Index = () => {
         }}
         onCancel={() => setShowPipelineDialog(false)}
       />
+
+      <Dialog open={showRefinementDialog} onOpenChange={setShowRefinementDialog}>
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto rounded-[28px] border-[#ececf0] bg-white p-0">
+          <DialogHeader className="border-b border-[#ececf0] px-6 py-5">
+            <DialogTitle>Refinar leads</DialogTitle>
+            <DialogDescription>
+              Aplique filtros de dor digital, contato e autoridade para limpar a lista de oportunidades.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-5">
+            <SearchRefinementPanel
+              hasSearched={hasSearched}
+              filteredResults={filteredBusinesses.length}
+              refinementFilters={refinementFilters}
+              onRefinementChange={updateRefinementFilters}
+              onClearRefinements={clearRefinements}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedBusiness} onOpenChange={(open) => !open && setSelectedBusiness(null)}>
+        <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto border-0 bg-transparent p-0 shadow-none [&>button]:hidden">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{selectedBusiness?.name || "Lead intelligence"}</DialogTitle>
+            <DialogDescription>
+              Leia o contexto completo do lead antes de enviar para analise e proposta.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedBusiness ? (
+            <BusinessAnalysisPanel business={selectedBusiness} onClose={() => setSelectedBusiness(null)} />
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <section className="overflow-hidden rounded-[32px] border border-[#1c1c22] bg-[#111115] text-white shadow-[0_24px_60px_rgba(12,12,18,0.22)]">
         <div className="relative overflow-hidden px-5 py-6 lg:px-8 lg:py-8">
@@ -505,10 +535,6 @@ const Index = () => {
               isLoading={isLoading}
               hasSearched={hasSearched}
               totalResults={businesses.length}
-              filteredResults={filteredBusinesses.length}
-              refinementFilters={refinementFilters}
-              onRefinementChange={updateRefinementFilters}
-              onClearRefinements={clearRefinements}
             />
           </Card>
 
@@ -558,6 +584,21 @@ const Index = () => {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  onClick={() => setShowRefinementDialog(true)}
+                  variant="outline"
+                  size="sm"
+                  className="h-9 rounded-xl gap-2 border-[#e6e6eb] bg-white hover:bg-[#f8f8fa]"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Filtrar
+                  {activeRefinementCount > 0 ? (
+                    <span className="rounded-full bg-[#111115] px-2 py-0.5 text-[11px] font-semibold text-white">
+                      {activeRefinementCount}
+                    </span>
+                  ) : null}
+                </Button>
+
                 <div className="flex items-center gap-1 rounded-xl border border-[#e7e7eb] bg-[#f9f9fa] p-1">
                   {contactFilterOptions.map((option) => (
                     <Button
@@ -631,67 +672,43 @@ const Index = () => {
               </div>
             </Card>
           ) : (
-            <div className={mainPanelClass}>
-              <div className="space-y-5">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Card className="rounded-[24px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-                    <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Radar quente</p>
-                    <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{hotLeadCount}</p>
-                    <p className="mt-1 text-sm text-[#66666d]">Leads com janela clara para entrar na fila premium.</p>
-                  </Card>
-                  <Card className="rounded-[24px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-                    <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Filtro ativo</p>
-                    <p className="mt-2 text-3xl font-semibold capitalize text-[#1A1A1A]">{contactFilter}</p>
-                    <p className="mt-1 text-sm text-[#66666d]">Vista atual de contatos para triagem.</p>
-                  </Card>
-                  <Card className="rounded-[24px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-                    <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Melhor lead</p>
-                    <p className="mt-2 line-clamp-1 text-lg font-semibold text-[#1A1A1A]">
-                      {topLead?.name || "Nenhum"}
-                    </p>
-                    <p className="mt-1 text-sm text-[#66666d]">
-                      {topLead?.signalSummary?.priorityLabel || "Sem prioridade calculada"}
-                    </p>
-                  </Card>
-                </div>
-
-                <Card className="overflow-hidden rounded-[28px] border border-[#ececf0] bg-white p-4 shadow-[0_12px_28px_rgba(20,20,24,0.05)] lg:p-5">
-                  <ResultsTable
-                    businesses={filteredBusinesses}
-                    onSelectBusiness={setSelectedBusiness}
-                    selectedIds={selectedIds}
-                    onToggleSelected={toggleSelected}
-                    onToggleAll={toggleAll}
-                    activeBusinessId={selectedBusiness?.id}
-                  />
+            <div className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card className="rounded-[24px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Radar quente</p>
+                  <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{hotLeadCount}</p>
+                  <p className="mt-1 text-sm text-[#66666d]">Leads com janela clara para entrar na fila premium.</p>
+                </Card>
+                <Card className="rounded-[24px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Filtro ativo</p>
+                  <p className="mt-2 text-3xl font-semibold capitalize text-[#1A1A1A]">{contactFilter}</p>
+                  <p className="mt-1 text-sm text-[#66666d]">Vista atual de contatos para triagem.</p>
+                </Card>
+                <Card className="rounded-[24px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Melhor lead</p>
+                  <p className="mt-2 line-clamp-1 text-lg font-semibold text-[#1A1A1A]">
+                    {topLead?.name || "Nenhum"}
+                  </p>
+                  <p className="mt-1 text-sm text-[#66666d]">
+                    {topLead?.signalSummary?.priorityLabel || "Sem prioridade calculada"}
+                  </p>
                 </Card>
               </div>
 
-              {selectedBusiness ? (
-                <div className="hidden xl:block">
-                  <div className="sticky top-20">
-                    <BusinessAnalysisPanel business={selectedBusiness} onClose={() => setSelectedBusiness(null)} />
-                  </div>
-                </div>
-              ) : null}
+              <Card className="overflow-hidden rounded-[28px] border border-[#ececf0] bg-white p-4 shadow-[0_12px_28px_rgba(20,20,24,0.05)] lg:p-5">
+                <ResultsTable
+                  businesses={filteredBusinesses}
+                  onSelectBusiness={setSelectedBusiness}
+                  selectedIds={selectedIds}
+                  onToggleSelected={toggleSelected}
+                  onToggleAll={toggleAll}
+                  activeBusinessId={selectedBusiness?.id}
+                />
+              </Card>
             </div>
           )}
         </section>
       </div>
-
-      <Drawer open={!isDesktopPanel && !!selectedBusiness} onOpenChange={(open) => !open && setSelectedBusiness(null)}>
-        <DrawerContent className="max-h-[88vh] rounded-t-[28px] border-[#ececf0] bg-[#f8f8fa] xl:hidden">
-          <DrawerHeader className="px-4 pb-1 pt-3 text-left">
-            <DrawerTitle>Lead intelligence</DrawerTitle>
-            <DrawerDescription>Leia o contexto do lead antes de enviar para a fila de analise.</DrawerDescription>
-          </DrawerHeader>
-          <div className="overflow-y-auto px-4 pb-5">
-            {selectedBusiness ? (
-              <BusinessAnalysisPanel business={selectedBusiness} onClose={() => setSelectedBusiness(null)} />
-            ) : null}
-          </div>
-        </DrawerContent>
-      </Drawer>
 
       {selectedIds.size > 0 ? (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#ececf0] bg-white/95 px-3 py-3 backdrop-blur sm:px-4 lg:bottom-4 lg:left-[max(1rem,calc((100vw-1600px)/2+1rem))] lg:right-4 lg:rounded-[24px] lg:border lg:shadow-[0_24px_50px_rgba(12,12,18,0.12)] xl:left-[calc((100vw-1600px)/2+392px)]">

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
 export interface SubscriptionData {
   plan: string;
@@ -65,7 +66,7 @@ export const useSubscription = () => {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('check-subscription');
+      const { data, error } = await invokeEdgeFunction<SubscriptionData>('check-subscription');
       if (error) throw error;
       setSubscription(data);
     } catch (err) {
@@ -108,7 +109,7 @@ export const useSubscription = () => {
   const startCheckout = async (planId: string) => {
     const plan = plans.find(p => p.id === planId);
     if (!plan?.stripe_price_id) throw new Error('Plan has no Stripe price');
-    const { data, error } = await supabase.functions.invoke('create-checkout', {
+    const { data, error } = await invokeEdgeFunction<{ url?: string }>('create-checkout', {
       body: { price_id: plan.stripe_price_id },
     });
     if (error) throw error;
@@ -116,7 +117,7 @@ export const useSubscription = () => {
   };
 
   const openCustomerPortal = async () => {
-    const { data, error } = await supabase.functions.invoke('customer-portal');
+    const { data, error } = await invokeEdgeFunction<{ url?: string }>('customer-portal');
     if (error) throw error;
     if (data?.url) window.open(data.url, '_blank');
   };

@@ -22,6 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ApproachSuggestion } from "@/components/ApproachSuggestion";
 import { deriveLeadSignalSummary } from "@/lib/lead-scoring";
+import { invokeEdgeFunction } from "@/lib/invoke-edge-function";
 
 interface BusinessAnalysisPanelProps {
   business: Business;
@@ -83,7 +84,7 @@ export const BusinessAnalysisPanel = ({ business, onClose }: BusinessAnalysisPan
     setLoading(mode);
 
     try {
-      const { data, error } = await supabase.functions.invoke("analyze-business", {
+      const { data, error } = await invokeEdgeFunction<{ result?: any; error?: string }>("analyze-business", {
         body: { business, mode },
       });
 

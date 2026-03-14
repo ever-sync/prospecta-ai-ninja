@@ -33,6 +33,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { deriveLeadSignalSummary } from "@/lib/lead-scoring";
+import { invokeEdgeFunction } from "@/lib/invoke-edge-function";
 
 type ProposalResponseMode = "buttons" | "form";
 
@@ -81,7 +82,7 @@ const Index = () => {
     setSelectedIds(new Set());
 
     try {
-      const { data, error } = await supabase.functions.invoke("search-businesses", {
+      const { data, error } = await invokeEdgeFunction<{ businesses?: Business[]; error?: string }>("search-businesses", {
         body: { niches: filters.niches, location: filters.location, radius: filters.radius },
       });
 
@@ -183,7 +184,7 @@ const Index = () => {
       );
 
       try {
-        const { data: analyzeResult, error: analyzeError } = await supabase.functions.invoke(
+        const { data: analyzeResult, error: analyzeError } = await invokeEdgeFunction<{ analysis?: any; error?: string }>(
           "deep-analyze",
           {
             body: { business, dna, profile },
@@ -222,7 +223,7 @@ const Index = () => {
 
         if (insertError || !insertedRow) throw new Error(insertError?.message || "Insert failed");
 
-        const { data: genResult, error: genError } = await supabase.functions.invoke(
+        const { data: genResult, error: genError } = await invokeEdgeFunction<{ html?: string; error?: string }>(
           "generate-presentation",
           {
             body: {

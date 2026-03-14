@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
 interface Campaign {
   id: string;
@@ -481,7 +482,7 @@ const Campaigns = () => {
     const campaign = previewCampaign;
 
     if (campaign.channel === 'email') {
-      const { data, error } = await supabase.functions.invoke('send-campaign-emails', {
+      const { data, error } = await invokeEdgeFunction<{ sent?: number }>('send-campaign-emails', {
         body: { campaign_id: campaign.id },
       });
       if (error) {
@@ -491,7 +492,7 @@ const Campaigns = () => {
       }
       toast({ title: 'Emails enviados!', description: `${data?.sent || 0} email(s) enviado(s)` });
     } else if (campaign.channel === 'whatsapp') {
-      const { data: optimizeData, error: optimizeError } = await supabase.functions.invoke('whatsapp-optimize-variants', {
+      const { data: optimizeData, error: optimizeError } = await invokeEdgeFunction<{ groups_promoted?: number }>('whatsapp-optimize-variants', {
         body: { mode: 'auto' },
       });
       if (optimizeError) {
@@ -505,7 +506,7 @@ const Campaigns = () => {
 
       let handledByApi = false;
       if (previewLeads.length > HYBRID_API_THRESHOLD) {
-        const { data: apiData, error: apiError } = await supabase.functions.invoke('whatsapp-send-batch', {
+        const { data: apiData, error: apiError } = await invokeEdgeFunction<any>('whatsapp-send-batch', {
           body: { campaign_id: campaign.id, threshold: HYBRID_API_THRESHOLD },
         });
 
@@ -658,7 +659,7 @@ const Campaigns = () => {
   };
 
   const handleRunFollowup = async (campaignId: string) => {
-    const { data, error } = await supabase.functions.invoke('whatsapp-send-batch', {
+    const { data, error } = await invokeEdgeFunction<any>('whatsapp-send-batch', {
       body: { campaign_id: campaignId, send_followups: true },
     });
     if (error) {

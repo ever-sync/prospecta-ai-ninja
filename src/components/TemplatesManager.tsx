@@ -15,6 +15,7 @@ import FormBuilder, { defaultFormSchema, type FormSchema } from '@/components/Fo
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
 interface Template {
   id: string;
@@ -285,7 +286,7 @@ const TemplatesManager = () => {
 
   const handleOptimizeVariants = async () => {
     setOptimizing(true);
-    const { data, error } = await supabase.functions.invoke('whatsapp-optimize-variants', {
+    const { data, error } = await invokeEdgeFunction<{ groups_promoted?: number }>('whatsapp-optimize-variants', {
       body: { mode: 'manual' },
     });
     if (error) {

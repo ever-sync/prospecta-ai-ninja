@@ -14,6 +14,7 @@ import { AdminCharts, type PeriodDays } from '@/components/admin/AdminCharts';
 import PlanManager from '@/components/admin/PlanManager';
 import ApiUsageMonitor from '@/components/admin/ApiUsageMonitor';
 import SystemEmailsManager from '@/components/admin/SystemEmailsManager';
+import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
 interface AdminStats {
   totals: {
@@ -117,18 +118,18 @@ const Admin = () => {
     if (!isInitial) setChartLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('admin-stats', { body: { days } });
-      if (error) throw error;
-      setStats(data);
-    } catch (err) {
-      if (isUnauthorizedFunctionsError(err)) {
-        if (isInitial) setLoading(false);
-        setChartLoading(false);
-        toast({ title: 'Sessao sem permissao para estatisticas', variant: 'destructive' });
-        return;
+      if (error) {
+        console.error('[Admin] Stats function error:', error);
+        throw error;
       }
-
-      console.error('Failed to fetch admin stats:', err);
-      toast({ title: 'Erro ao carregar estatísticas', variant: 'destructive' });
+      setStats(data);
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Erro desconhecido';
+      toast({ 
+        title: 'Erro ao carregar estatísticas', 
+        description: `O servidor retornou: ${errorMsg}`,
+        variant: 'destructive' 
+      });
     } finally {
       if (isInitial) setLoading(false);
       setChartLoading(false);
@@ -142,9 +143,9 @@ const Admin = () => {
         setLoading(false);
         return;
       }
-      const { data: roleData, error: roleError } = await supabase
+      const { data: roleData } = await supabase
         .from('user_roles').select('role').eq('user_id', user.id).in('role', ['admin', 'moderator']);
-      console.log('[Admin] role check:', { userId: user.id, roleData, roleError });
+      
       if (!roleData || roleData.length === 0) { setIsAdmin(false); setLoading(false); return; }
       setIsAdmin(true);
       fetchStats(period, true);

@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
 type PresentationRow = {
   id: string;
@@ -111,7 +112,7 @@ const Presentations = () => {
         supabase.from('client_logos').select('company_name, logo_url').eq('user_id', user.id),
       ]);
 
-      const { data: genData, error: genError } = await supabase.functions.invoke('generate-presentation', {
+      const { data: genData, error: genError } = await invokeEdgeFunction<{ html: string }>('generate-presentation', {
         body: {
           analysis: p.analysis_data,
           business: {

@@ -34,16 +34,27 @@ serve(async (req) => {
     if (!authHeader) throw new Error("No authorization header");
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !userData.user) throw new Error("Unauthorized");
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) {
+      console.error("[AdminApiUsage] User verification failed:", userError);
+      return new Response(JSON.stringify({ 
+        error: "Unauthorized", 
+        details: userError?.message,
+        hint: "Token might be invalid or expired"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
 
     const { data: roleData } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", userData.user.id)
+      .eq("user_id", user.id)
       .in("role", ["admin", "moderator"]);
 
     if (!roleData || roleData.length === 0) {
+      console.error("[AdminApiUsage] Forbidden: User does not have required role", { userId: user.id });
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 403,

@@ -51,28 +51,20 @@ serve(async (req) => {
       });
     }
 
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
     const svc = createClient(supabaseUrl, serviceKey, {
       auth: { persistSession: false },
     });
 
-    let days = 30;
-    try {
-      const body = await req.json();
-      if (body?.days && [7, 30, 90].includes(body.days)) days = body.days;
-    } catch {
-      // Default period stays 30 days.
-    }
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await svc.auth.getUser(token);
 
-    const {
-      data: { user },
-      error: authError,
-    } = await userClient.auth.getUser();
-
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    if (userError || !user) {
+      console.error("[AdminStats] User verification failed:", userError);
+      return new Response(JSON.stringify({ 
+        error: "Unauthorized", 
+        details: userError?.message,
+        hint: "Token might be invalid or expired" 
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
       });
@@ -85,10 +77,19 @@ serve(async (req) => {
       .in("role", ["admin", "moderator"]);
 
     if (!roleData || roleData.length === 0) {
+      console.error("[AdminStats] Forbidden: User does not have required role", { userId: user.id });
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 403,
       });
+    }
+
+    let days = 30;
+    try {
+      const body = await req.json();
+      if (body?.days && [7, 30, 90].includes(body.days)) days = body.days;
+    } catch {
+      // Default period stays 30 days.
     }
 
     const { count: totalUsers } = await svc.from("profiles").select("id", { count: "exact", head: true });

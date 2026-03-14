@@ -6,8 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 import { AlertCircle, DollarSign, Zap, Flame, Mail, Brain } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
 type PeriodDays = 7 | 30 | 90;
 
@@ -54,7 +54,7 @@ const ApiUsageMonitor = () => {
   const fetchUsage = useCallback(async (days: PeriodDays) => {
     setLoading(true);
     try {
-      const { data: result, error } = await supabase.functions.invoke('admin-api-usage', {
+      const { data: result, error } = await invokeEdgeFunction<ApiUsageData>('admin-api-usage', {
         body: { days },
       });
       if (error) throw error;

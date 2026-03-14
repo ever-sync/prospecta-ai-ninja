@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
 type FirecrawlResponse<T = any> = {
   success: boolean;
@@ -8,7 +8,7 @@ type FirecrawlResponse<T = any> = {
 
 export const firecrawlApi = {
   async scrape(url: string, options?: { formats?: string[]; onlyMainContent?: boolean }): Promise<FirecrawlResponse> {
-    const { data, error } = await supabase.functions.invoke('firecrawl-scrape', {
+    const { data, error } = await invokeEdgeFunction('firecrawl-scrape', {
       body: { url, options },
     });
     if (error) return { success: false, error: error.message };

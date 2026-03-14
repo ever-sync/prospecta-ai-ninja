@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Business } from '@/types/business';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
 interface ApproachSuggestionProps {
   business: Business;
@@ -23,7 +24,7 @@ export const ApproachSuggestion = ({ business, onClose, embedded }: ApproachSugg
     setSuggestion(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('generate-approach', {
+      const { data, error } = await invokeEdgeFunction<{ suggestion?: string; error?: string }>('generate-approach', {
         body: { business },
       });
 

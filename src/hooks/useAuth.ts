@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { getSignUpRedirectUrl } from '@/lib/auth-redirects';
 
 type SignUpPayload = {
   companyName: string;
@@ -40,6 +41,7 @@ export const useAuth = () => {
       email: email.trim().toLowerCase(),
       password,
       options: {
+        emailRedirectTo: getSignUpRedirectUrl(),
         data: {
           company_name: companyName,
           document_number: documentNumber,

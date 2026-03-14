@@ -33,6 +33,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
+import { getEmailChangeRedirectUrl } from '@/lib/auth-redirects';
 import { formatBrazilPhone, formatCpfCnpj, validateBrazilPhone } from '@/lib/br-utils';
 
 const fieldClass = 'h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]';
@@ -272,7 +273,7 @@ const Settings = () => {
     setSendingAccessEmailChange(true);
     const { error } = await supabase.auth.updateUser(
       { email: pendingAccessEmail.trim().toLowerCase() },
-      { emailRedirectTo: `${window.location.origin}/settings?tab=empresa` }
+      { emailRedirectTo: getEmailChangeRedirectUrl() }
     );
 
     if (error) {

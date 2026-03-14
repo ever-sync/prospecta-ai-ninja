@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { BRAND } from '@/config/brand';
 import { supabase } from '@/integrations/supabase/client';
+import { getPasswordResetRedirectUrl } from '@/lib/auth-redirects';
 import loginLogo from '@/logos/ligth.svg';
 import loginSideImage from '@/logos/imglogin.jpg';
 
@@ -23,7 +24,7 @@ const ForgotPassword = () => {
   const [requestSent, setRequestSent] = useState(false);
   const [isVerifyingLink, setIsVerifyingLink] = useState(false);
 
-  const redirectUrl = useMemo(() => `${window.location.origin}/esqueci-minha-senha`, []);
+  const redirectUrl = useMemo(() => getPasswordResetRedirectUrl(), []);
 
   useEffect(() => {
     const readRecoveryParams = () => {

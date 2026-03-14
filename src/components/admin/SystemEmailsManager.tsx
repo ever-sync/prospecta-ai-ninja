@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Pencil, Send, ExternalLink } from 'lucide-react';
+import { getEdgeFunctionErrorMessage, invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
 interface EmailTemplate {
   id: string;
@@ -88,12 +89,13 @@ export default function SystemEmailsManager() {
   const handleSendTest = async (tpl: EmailTemplate) => {
     if (!user?.email) return;
     setSending(tpl.id);
-    const { error } = await supabase.functions.invoke('send-system-email', {
+    const { error } = await invokeEdgeFunction('send-system-email', {
       body: { type: tpl.type, user_email: user.email, variables: { email: user.email } },
     });
     setSending(null);
     if (error) {
-      toast({ title: 'Erro ao enviar teste', description: error.message, variant: 'destructive' });
+      const message = await getEdgeFunctionErrorMessage(error);
+      toast({ title: 'Erro ao enviar teste', description: message, variant: 'destructive' });
     } else {
       toast({ title: 'Email de teste enviado!', description: `Enviado para ${user.email}` });
     }

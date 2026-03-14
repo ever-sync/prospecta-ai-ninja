@@ -13,10 +13,19 @@ Deno.serve(async (req) => {
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
+  const SYSTEM_EMAIL_FROM = Deno.env.get('SYSTEM_EMAIL_FROM') || 'envPRO <onboarding@resend.dev>';
+  const APP_BASE_URL = Deno.env.get('APP_BASE_URL') || 'https://envpro.com.br';
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('Supabase secrets are not configured');
+    }
+    if (!RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY is not configured');
+    }
+
     const { type, user_email, variables = {} } = await req.json() as {
       type: string;
       user_email: string;
@@ -48,7 +57,7 @@ Deno.serve(async (req) => {
 
     // Add default variables
     const allVars: Record<string, string> = {
-      link_dashboard: `${SUPABASE_URL.replace('.supabase.co', '').replace('https://', 'https://').replace('supabase.co', 'vercel.app')}`,
+      link_dashboard: APP_BASE_URL,
       ...variables,
     };
 
@@ -67,7 +76,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'envPRO <noreply@prospecta.ai>',
+        from: SYSTEM_EMAIL_FROM,
         to: [user_email],
         subject,
         html,
@@ -78,8 +87,13 @@ Deno.serve(async (req) => {
 
     if (!resendRes.ok) {
       console.error('Resend error:', resendData);
+      const resendMessage =
+        resendData?.message ||
+        resendData?.error ||
+        resendData?.name ||
+        'Failed to send email';
       return new Response(
-        JSON.stringify({ error: 'Failed to send email', details: resendData }),
+        JSON.stringify({ error: resendMessage, details: resendData }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
@@ -91,7 +105,7 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error('Unexpected error:', err);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: err instanceof Error ? err.message : 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }

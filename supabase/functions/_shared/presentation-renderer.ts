@@ -190,15 +190,15 @@ const renderFallbackCard = (
   body: string,
   tokens: TemplateTokens,
 ) => `
-  <div style="border:1px solid ${tokens.border}; border-radius:28px; background:${tokens.surfaceMuted}; padding:24px; box-shadow:${tokens.shadow}; min-height:280px;">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+  <div class="v2-fallback-card" style="border:1px solid ${tokens.border}; border-radius:28px; background:${tokens.surfaceMuted}; padding:24px; box-shadow:${tokens.shadow}; min-height:280px;">
+    <div class="v2-fallback-head" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
       <div>
         <p style="margin:0; font-size:12px; text-transform:uppercase; letter-spacing:0.16em; color:${tokens.muted};">Fallback visual</p>
         <h3 style="margin:8px 0 0; font-size:26px; line-height:1.2; color:${tokens.text};">${escapeHtml(title)}</h3>
       </div>
       <div style="width:58px; height:58px; border-radius:18px; background:${tokens.accentSoft}; display:flex; align-items:center; justify-content:center; color:${tokens.accent}; font-size:28px;">▣</div>
     </div>
-    <div style="display:grid; gap:10px; margin-top:22px;">
+    <div class="v2-fallback-meta" style="display:grid; gap:10px; margin-top:22px;">
       ${meta
         .filter(Boolean)
         .map(
@@ -218,13 +218,13 @@ const renderProofLogos = (logos: PresentationClientLogo[], tokens: TemplateToken
   if (valid.length === 0) return "";
 
   return `
-    <div style="display:flex; flex-wrap:wrap; gap:14px; margin-top:24px;">
+    <div class="v2-logos-grid" style="display:flex; flex-wrap:wrap; gap:14px; margin-top:24px;">
       ${valid
         .slice(0, 8)
         .map((logo) => {
           const src = ensureImageSrc(logo.logo_url);
           return `
-            <div style="display:flex; align-items:center; justify-content:center; min-width:120px; min-height:68px; padding:16px 18px; border:1px solid ${tokens.border}; border-radius:18px; background:${tokens.surfaceMuted};">
+            <div class="v2-logo-card" style="display:flex; align-items:center; justify-content:center; min-width:120px; min-height:68px; padding:16px 18px; border:1px solid ${tokens.border}; border-radius:18px; background:${tokens.surfaceMuted};">
               <img src="${src}" alt="${escapeHtml(logo.company_name || "Cliente")}" style="max-height:34px; max-width:120px; object-fit:contain;" />
             </div>`;
         })
@@ -275,17 +275,17 @@ const renderCta = (content: PresentationContentV2, context: PresentationRenderCo
       .join("");
 
     return `
-      <section style="padding:42px 0 0;">
-        <div style="border-radius:32px; padding:34px; border:1px solid ${tokens.border}; background:${tokens.heroBackground}; box-shadow:${tokens.shadow};">
+      <section class="v2-section-spaced" style="padding:42px 0 0;">
+        <div class="v2-cta-shell" style="border-radius:32px; padding:34px; border:1px solid ${tokens.border}; background:${tokens.heroBackground}; box-shadow:${tokens.shadow};">
           <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">${escapeHtml(content.cta.title)}</p>
           <h2 style="margin:14px 0 0; font-size:34px; line-height:1.15; color:${tokens.text};">Receba uma leitura comercial sob medida</h2>
           <p style="margin:14px 0 0; color:${tokens.muted}; line-height:1.8;">${escapeHtml(content.cta.microcopy)}</p>
           <form id="presentation-cta-form" style="display:grid; gap:14px; margin-top:28px;">
-            <div style="display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));">${inputs}</div>
+            <div class="v2-form-grid" style="display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));">${inputs}</div>
             <button type="submit" style="margin-top:10px; border:none; border-radius:18px; padding:16px 20px; background:${tokens.accent}; color:#fff; font-weight:700; font-size:16px; cursor:pointer;">
               ${escapeHtml(content.cta.primaryLabel)}
             </button>
-            <div style="display:flex; flex-wrap:wrap; gap:12px; color:${tokens.muted}; font-size:13px;">
+            <div class="v2-meta-row" style="display:flex; flex-wrap:wrap; gap:12px; color:${tokens.muted}; font-size:13px;">
               <span>Leva menos de 1 minuto</span>
               <span>Sem compromisso</span>
               ${content.cta.trustLine ? `<span>${escapeHtml(content.cta.trustLine)}</span>` : ""}
@@ -323,12 +323,12 @@ const renderCta = (content: PresentationContentV2, context: PresentationRenderCo
   }
 
   return `
-    <section style="padding:42px 0 0;">
-      <div style="border-radius:32px; padding:34px; border:1px solid ${tokens.border}; background:${tokens.heroBackground}; box-shadow:${tokens.shadow};">
+    <section class="v2-section-spaced" style="padding:42px 0 0;">
+      <div class="v2-cta-shell" style="border-radius:32px; padding:34px; border:1px solid ${tokens.border}; background:${tokens.heroBackground}; box-shadow:${tokens.shadow};">
         <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">${escapeHtml(content.cta.title)}</p>
         <h2 style="margin:14px 0 0; font-size:34px; line-height:1.15; color:${tokens.text};">${escapeHtml(content.offer.summary)}</h2>
         <p style="margin:14px 0 0; color:${tokens.muted}; line-height:1.8;">${escapeHtml(content.cta.microcopy)}</p>
-        <div style="display:flex; flex-wrap:wrap; gap:14px; margin-top:28px;">
+        <div class="v2-cta-buttons" style="display:flex; flex-wrap:wrap; gap:14px; margin-top:28px;">
           <button id="presentation-accept" style="flex:1 1 260px; border:none; border-radius:18px; padding:16px 20px; background:${tokens.accent}; color:#fff; font-weight:700; font-size:16px; cursor:pointer;">
             ${escapeHtml(content.cta.primaryLabel)}
           </button>
@@ -336,7 +336,7 @@ const renderCta = (content: PresentationContentV2, context: PresentationRenderCo
             ${escapeHtml(content.cta.secondaryLabel || "Agora nao")}
           </button>
         </div>
-        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:16px; color:${tokens.muted}; font-size:13px;">
+        <div class="v2-meta-row" style="display:flex; flex-wrap:wrap; gap:12px; margin-top:16px; color:${tokens.muted}; font-size:13px;">
           <span>Resposta em menos de 10 segundos</span>
           <span>Sem compromisso</span>
           ${content.cta.trustLine ? `<span>${escapeHtml(content.cta.trustLine)}</span>` : ""}
@@ -428,11 +428,100 @@ export const renderPresentationHtml = (
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(context.business.name)} | Diagnostico consultivo</title>
+    <style>
+      * { box-sizing: border-box; }
+      img { max-width: 100%; height: auto; }
+      @media (max-width: 960px) {
+        .v2-shell { padding: 22px 16px 56px !important; }
+        .v2-header,
+        .v2-two-col,
+        .v2-split-col,
+        .v2-visual-grid,
+        .v2-score-grid,
+        .v2-offer-grid,
+        .v2-form-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .v2-header {
+          display: grid !important;
+          text-align: left !important;
+        }
+        .v2-header-lead {
+          text-align: left !important;
+        }
+        .v2-hero,
+        .v2-card,
+        .v2-cta-shell {
+          padding: 24px !important;
+          border-radius: 24px !important;
+        }
+        .v2-hero h2 {
+          font-size: 36px !important;
+        }
+        .v2-title-lg {
+          font-size: 28px !important;
+        }
+      }
+      @media (max-width: 640px) {
+        .v2-shell { padding: 16px 12px 42px !important; }
+        .v2-header {
+          padding: 16px !important;
+          gap: 14px !important;
+        }
+        .v2-header-brand {
+          align-items: flex-start !important;
+        }
+        .v2-hero,
+        .v2-card,
+        .v2-cta-shell {
+          padding: 18px !important;
+          border-radius: 20px !important;
+        }
+        .v2-section-spaced {
+          padding-top: 22px !important;
+        }
+        .v2-hero h2 {
+          font-size: 30px !important;
+          line-height: 1.06 !important;
+        }
+        .v2-title-lg {
+          font-size: 24px !important;
+        }
+        .v2-title-md {
+          font-size: 22px !important;
+        }
+        .v2-subtitle {
+          font-size: 17px !important;
+        }
+        .v2-meta-row,
+        .v2-cta-buttons,
+        .v2-fallback-head {
+          flex-direction: column !important;
+          align-items: stretch !important;
+        }
+        .v2-cta-buttons button {
+          width: 100% !important;
+          flex: 1 1 auto !important;
+        }
+        .v2-logo-card {
+          min-width: calc(50% - 8px) !important;
+        }
+        .v2-fallback-card {
+          min-height: 0 !important;
+        }
+        .v2-sticky-anchor {
+          left: 12px !important;
+          right: 12px !important;
+          bottom: 12px !important;
+          width: auto !important;
+        }
+      }
+    </style>
   </head>
   <body style="margin:0; background:${tokens.background}; color:${tokens.text}; font-family:${tokens.fontBody};">
-    <div style="max-width:1120px; margin:0 auto; padding:32px 24px 72px;">
-      <header style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:28px; padding:20px 22px; border-radius:26px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
-        <div style="display:flex; align-items:center; gap:16px;">
+    <div class="v2-shell" style="max-width:1120px; margin:0 auto; padding:32px 24px 72px;">
+      <header class="v2-header v2-card" style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:28px; padding:20px 22px; border-radius:26px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
+        <div class="v2-header-brand" style="display:flex; align-items:center; gap:16px;">
           ${
             logoUrl
               ? `<img src="${logoUrl}" alt="${escapeHtml(context.companyName)}" style="width:58px; height:58px; object-fit:contain; border-radius:18px; background:#fff; padding:8px;" />`
@@ -447,20 +536,20 @@ export const renderPresentationHtml = (
             )}</h1>
           </div>
         </div>
-        <div style="text-align:right;">
+        <div class="v2-header-lead" style="text-align:right;">
           <p style="margin:0; font-size:12px; text-transform:uppercase; letter-spacing:0.16em; color:${tokens.muted};">Lead analisado</p>
           <p style="margin:8px 0 0; font-size:20px; font-weight:700; color:${tokens.text};">${escapeHtml(context.business.name)}</p>
           <p style="margin:8px 0 0; color:${tokens.muted};">${escapeHtml(context.business.category || "Empresa analisada")}</p>
         </div>
       </header>
 
-      <section style="padding:42px; border-radius:34px; background:${tokens.heroBackground}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
+      <section class="v2-hero" style="padding:42px; border-radius:34px; background:${tokens.heroBackground}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
         <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.18em; font-size:12px;">${escapeHtml(content.hero.eyebrow)}</p>
         <h2 style="margin:16px 0 0; font-family:${tokens.fontHeading}; font-size:clamp(34px, 4vw, 58px); line-height:1.02; max-width:860px; color:${tokens.text};">${escapeHtml(
           content.hero.headline,
         )}</h2>
-        <p style="margin:18px 0 0; max-width:880px; font-size:20px; line-height:1.6; color:${tokens.muted};">${escapeHtml(content.hero.subheadline)}</p>
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-top:28px;">
+        <p class="v2-subtitle" style="margin:18px 0 0; max-width:880px; font-size:20px; line-height:1.6; color:${tokens.muted};">${escapeHtml(content.hero.subheadline)}</p>
+        <div class="v2-score-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-top:28px;">
           <div style="padding:20px 22px; border-radius:22px; background:${tokens.surface}; border:1px solid ${tokens.border};">
             <p style="margin:0; font-size:12px; text-transform:uppercase; letter-spacing:0.14em; color:${tokens.muted};">Leitura rapida</p>
             <p style="margin:10px 0 0; font-size:16px; line-height:1.7; color:${tokens.text};">${escapeHtml(content.hero.miniSummary)}</p>
@@ -472,29 +561,29 @@ export const renderPresentationHtml = (
         </div>
       </section>
 
-      <section style="display:grid; grid-template-columns:1.2fr 0.8fr; gap:24px; margin-top:28px;">
-        <article style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
+      <section class="v2-two-col" style="display:grid; grid-template-columns:1.2fr 0.8fr; gap:24px; margin-top:28px;">
+        <article class="v2-card" style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
           <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">${escapeHtml(content.executiveSummary.title)}</p>
           <ul style="display:grid; gap:16px; list-style:none; margin:22px 0 0; padding:0;">
             ${renderBulletList(content.executiveSummary.bullets, tokens)}
           </ul>
         </article>
-        <article style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
+        <article class="v2-card" style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
           <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">${escapeHtml(content.diagnosis.title)}</p>
           <p style="margin:18px 0 0; color:${tokens.text}; font-size:22px; line-height:1.35;">${escapeHtml(content.diagnosis.summary)}</p>
           <p style="margin:16px 0 0; color:${tokens.muted}; line-height:1.8;">${escapeHtml(content.diagnosis.riskStatement)}</p>
         </article>
       </section>
 
-      <section style="margin-top:28px; padding:32px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
+      <section class="v2-card" style="margin-top:28px; padding:32px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
         <div style="display:flex; align-items:end; justify-content:space-between; gap:16px; flex-wrap:wrap;">
           <div>
             <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Scorecard visual</p>
-            <h3 style="margin:10px 0 0; font-size:32px; font-family:${tokens.fontHeading}; color:${tokens.text};">Onde a oportunidade esta vazando</h3>
+            <h3 class="v2-title-lg" style="margin:10px 0 0; font-size:32px; font-family:${tokens.fontHeading}; color:${tokens.text};">Onde a oportunidade esta vazando</h3>
           </div>
           <p style="margin:0; color:${tokens.muted}; max-width:360px; line-height:1.7;">Os cards abaixo traduzem o impacto comercial da presenca digital atual em linguagem facil de decidir.</p>
         </div>
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:16px; margin-top:24px;">
+        <div class="v2-score-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:16px; margin-top:24px;">
           ${scores
             .map(
               (entry) => `
@@ -517,10 +606,10 @@ export const renderPresentationHtml = (
         </div>
       </section>
 
-      <section style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:24px; margin-top:28px;">
-        <article style="padding:28px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
+      <section class="v2-visual-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:24px; margin-top:28px;">
+        <article class="v2-card" style="padding:28px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
           <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">${escapeHtml(content.googleMapsInsight.title)}</p>
-          <h3 style="margin:12px 0 0; font-size:28px; color:${tokens.text}; font-family:${tokens.fontHeading};">Sua presenca no Google Maps</h3>
+          <h3 class="v2-title-md" style="margin:12px 0 0; font-size:28px; color:${tokens.text}; font-family:${tokens.fontHeading};">Sua presenca no Google Maps</h3>
           <div style="margin-top:20px;">
             ${
               googleScreenshot
@@ -541,9 +630,9 @@ export const renderPresentationHtml = (
           <p style="margin:14px 0 0; color:${tokens.muted}; line-height:1.8;">${escapeHtml(content.googleMapsInsight.impact)}</p>
         </article>
 
-        <article style="padding:28px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
+        <article class="v2-card" style="padding:28px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
           <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">${escapeHtml(content.websiteInsight.title)}</p>
-          <h3 style="margin:12px 0 0; font-size:28px; color:${tokens.text}; font-family:${tokens.fontHeading};">Seu site atual</h3>
+          <h3 class="v2-title-md" style="margin:12px 0 0; font-size:28px; color:${tokens.text}; font-family:${tokens.fontHeading};">Seu site atual</h3>
           <div style="margin-top:20px;">
             ${
               websiteScreenshot
@@ -566,8 +655,8 @@ export const renderPresentationHtml = (
         </article>
       </section>
 
-      <section style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:28px;">
-        <article style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
+      <section class="v2-split-col" style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:28px;">
+        <article class="v2-card" style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
           <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Oportunidades e problemas</p>
           <div style="display:grid; gap:16px; margin-top:22px;">
             ${content.opportunities
@@ -586,7 +675,7 @@ export const renderPresentationHtml = (
           </div>
         </article>
 
-        <article style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
+        <article class="v2-card" style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
           <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Como resolvemos</p>
           <div style="display:grid; gap:16px; margin-top:22px;">
             ${content.solutionMapping
@@ -603,8 +692,8 @@ export const renderPresentationHtml = (
         </article>
       </section>
 
-      <section style="display:grid; grid-template-columns:0.95fr 1.05fr; gap:24px; margin-top:28px;">
-        <article style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
+      <section class="v2-two-col" style="display:grid; grid-template-columns:0.95fr 1.05fr; gap:24px; margin-top:28px;">
+        <article class="v2-card" style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
           <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Diferenciais</p>
           <div style="display:grid; gap:14px; margin-top:22px;">
             ${content.differentials
@@ -619,18 +708,18 @@ export const renderPresentationHtml = (
           </div>
         </article>
 
-        <article style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
+        <article class="v2-card" style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
           <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Prova social</p>
-          <h3 style="margin:12px 0 0; font-size:30px; font-family:${tokens.fontHeading}; color:${tokens.text};">Motivos para confiar na execucao</h3>
+          <h3 class="v2-title-lg" style="margin:12px 0 0; font-size:30px; font-family:${tokens.fontHeading}; color:${tokens.text};">Motivos para confiar na execucao</h3>
           ${proofCards ? `<div style="display:grid; gap:16px; margin-top:22px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));">${proofCards}</div>` : ""}
           ${logosBlock}
         </article>
       </section>
 
-      <section style="margin-top:28px; padding:32px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
+      <section class="v2-card" style="margin-top:28px; padding:32px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
         <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">${escapeHtml(content.offer.title)}</p>
-        <h3 style="margin:12px 0 0; font-size:34px; color:${tokens.text}; font-family:${tokens.fontHeading};">${escapeHtml(content.offer.summary)}</h3>
-        <div style="display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); margin-top:22px;">
+        <h3 class="v2-title-lg" style="margin:12px 0 0; font-size:34px; color:${tokens.text}; font-family:${tokens.fontHeading};">${escapeHtml(content.offer.summary)}</h3>
+        <div class="v2-offer-grid" style="display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); margin-top:22px;">
           <div style="padding:20px; border-radius:20px; background:${tokens.surfaceMuted}; border:1px solid ${tokens.border};">
             <p style="margin:0; font-size:12px; text-transform:uppercase; letter-spacing:0.14em; color:${tokens.muted};">Resultado esperado</p>
             <p style="margin:12px 0 0; color:${tokens.text}; line-height:1.75;">${escapeHtml(content.offer.expectedResult)}</p>
@@ -642,8 +731,16 @@ export const renderPresentationHtml = (
         </div>
       </section>
 
-      ${renderCta(content, context, tokens)}
+      <div id="presentation-final-cta">
+        ${renderCta(content, context, tokens)}
+      </div>
     </div>
+    <a
+      href="#presentation-final-cta"
+      class="v2-sticky-anchor"
+      style="position:fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:999; display:inline-flex; align-items:center; justify-content:center; min-width:240px; padding:16px 24px; border-radius:999px; background:${tokens.accent}; color:#ffffff; text-decoration:none; font-weight:800; font-size:15px; letter-spacing:0.01em; box-shadow:0 18px 42px rgba(0,0,0,0.28); border:1px solid rgba(255,255,255,0.14);">
+      Quero Saber Mais
+    </a>
   </body>
 </html>`;
 

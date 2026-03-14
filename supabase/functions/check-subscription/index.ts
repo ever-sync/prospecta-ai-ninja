@@ -5,7 +5,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-user-auth, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 type PlanRow = {
@@ -26,7 +26,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const authHeader = req.headers.get("Authorization");
+    const authHeader = req.headers.get("x-user-auth") ?? req.headers.get("Authorization");
 
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
     if (!authHeader) {
@@ -36,9 +36,8 @@ serve(async (req) => {
       });
     }
 
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const token = authHeader.replace("Bearer ", "").trim();
+    const userClient = createClient(supabaseUrl, anonKey);
     const svc = createClient(supabaseUrl, serviceKey, {
       auth: { persistSession: false },
     });
@@ -46,7 +45,7 @@ serve(async (req) => {
     const {
       data: { user },
       error: authError,
-    } = await userClient.auth.getUser();
+    } = await userClient.auth.getUser(token);
 
     if (authError || !user?.email) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {

@@ -13,15 +13,15 @@ export const getAuthenticatedUserContext = async (req: Request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const authHeader = req.headers.get("Authorization");
+  const authHeader = req.headers.get("x-user-auth") ?? req.headers.get("Authorization");
 
   if (!authHeader) {
     throw new HttpError(401, "Unauthorized");
   }
 
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
+  const token = authHeader.replace("Bearer ", "").trim();
+
+  const userClient = createClient(supabaseUrl, anonKey);
   const svc = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false },
   });
@@ -29,7 +29,7 @@ export const getAuthenticatedUserContext = async (req: Request) => {
   const {
     data: { user },
     error,
-  } = await userClient.auth.getUser();
+  } = await userClient.auth.getUser(token);
 
   if (error || !user) {
     throw new HttpError(401, "Unauthorized");

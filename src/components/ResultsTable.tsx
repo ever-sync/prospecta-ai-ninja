@@ -1,5 +1,6 @@
 import {
   ExternalLink,
+  Globe,
   Mail,
   MapPin,
   Phone,

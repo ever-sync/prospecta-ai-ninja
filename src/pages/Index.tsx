@@ -25,7 +25,13 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { Business, ScannerSessionState, SearchFilters as Filters } from "@/types/business";
+import {
+  Business,
+  DEFAULT_SEARCH_REFINEMENT_FILTERS,
+  ScannerSessionState,
+  SearchFilters as Filters,
+  SearchRefinementFilters,
+} from "@/types/business";
 import { exportToCSV } from "@/utils/exportCSV";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -50,6 +56,51 @@ const contactFilterOptions = [
   { value: "phone", label: "Com telefone" },
 ] as const;
 
+const hasSocialPresence = (business: Business) =>
+  Object.values(business.onlinePresence?.socialLinks || {}).some(Boolean);
+
+const matchesSmartPreset = (business: Business, preset: SearchRefinementFilters["smartPreset"]) => {
+  const signal = business.signalSummary ?? deriveLeadSignalSummary(business);
+  const rating = business.rating ?? 0;
+  const hasContactForm = business.onlinePresence?.hasContactForm ?? false;
+  const hasMetaDescription = business.onlinePresence?.hasMetaDescription ?? false;
+  const contentDepth = business.onlinePresence?.contentDepth ?? "low";
+
+  switch (preset) {
+    case "attack_now":
+      return (signal.onlinePresenceTone === "critical" || !signal.hasWebsite) && (signal.hasPhone || signal.hasEmail);
+    case "consultative":
+      return signal.hasWebsite && signal.onlinePresenceScore <= 55;
+    case "premium":
+      return rating >= 4.3 && signal.onlinePresenceScore <= 55 && signal.contactCompleteness >= 2;
+    case "authority_gap":
+      return rating >= 4 && (!hasMetaDescription || contentDepth === "low" || !hasContactForm);
+    default:
+      return true;
+  }
+};
+
+const sortBusinesses = (items: Business[], sortBy: SearchRefinementFilters["sortBy"]) => {
+  return [...items].sort((a, b) => {
+    const aSignal = a.signalSummary ?? deriveLeadSignalSummary(a);
+    const bSignal = b.signalSummary ?? deriveLeadSignalSummary(b);
+
+    switch (sortBy) {
+      case "pain_desc":
+        return aSignal.onlinePresenceScore - bSignal.onlinePresenceScore || bSignal.score - aSignal.score;
+      case "rating_desc":
+        return (b.rating ?? 0) - (a.rating ?? 0) || bSignal.score - aSignal.score;
+      case "distance_asc":
+        return a.distance - b.distance || bSignal.score - aSignal.score;
+      case "contact_desc":
+        return bSignal.contactCompleteness - aSignal.contactCompleteness || bSignal.score - aSignal.score;
+      case "score_desc":
+      default:
+        return bSignal.score - aSignal.score;
+    }
+  });
+};
+
 const Index = () => {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,6 +108,9 @@ const Index = () => {
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [contactFilter, setContactFilter] = useState<"all" | "email" | "phone" | "any">("all");
+  const [refinementFilters, setRefinementFilters] = useState<SearchRefinementFilters>(
+    DEFAULT_SEARCH_REFINEMENT_FILTERS
+  );
   const [analysisItems, setAnalysisItems] = useState<AnalysisItem[]>([]);
   const [showProgress, setShowProgress] = useState(false);
   const [showPipelineDialog, setShowPipelineDialog] = useState(false);
@@ -80,6 +134,7 @@ const Index = () => {
     setHasSearched(true);
     setSelectedBusiness(null);
     setSelectedIds(new Set());
+    setRefinementFilters(DEFAULT_SEARCH_REFINEMENT_FILTERS);
 
     try {
       const { data, error } = await invokeEdgeFunction<{ businesses?: Business[]; error?: string }>("search-businesses", {
@@ -277,26 +332,65 @@ const Index = () => {
   };
 
   const filteredBusinesses = useMemo(() => {
-    const visible = businesses.filter((business) => {
-      if (contactFilter === "email") return !!business.email;
-      if (contactFilter === "phone") return !!business.phone;
-      if (contactFilter === "any") return !!business.email || !!business.phone;
+    const enriched = businesses.map((business) => {
+      const signalSummary = deriveLeadSignalSummary(business);
+      return {
+        ...business,
+        signalSummary,
+        priorityLabel: signalSummary.priorityLabel,
+        signalFlags: signalSummary.signalFlags,
+        contactCompleteness: signalSummary.contactCompleteness,
+      };
+    });
+
+    const visible = enriched.filter((business) => {
+      const signal = business.signalSummary ?? deriveLeadSignalSummary(business);
+      const hasContactForm = business.onlinePresence?.hasContactForm ?? false;
+      const contentDepth = business.onlinePresence?.contentDepth ?? "low";
+      const rating = business.rating ?? 0;
+      const socialPresence = hasSocialPresence(business);
+
+      if (contactFilter === "email" && !business.email) return false;
+      if (contactFilter === "phone" && !business.phone) return false;
+      if (contactFilter === "any" && !business.email && !business.phone) return false;
+
+      if (refinementFilters.siteStatus === "with_site" && !signal.hasWebsite) return false;
+      if (refinementFilters.siteStatus === "without_site" && signal.hasWebsite) return false;
+
+      if (refinementFilters.presenceTone !== "all" && signal.onlinePresenceTone !== refinementFilters.presenceTone) {
+        return false;
+      }
+
+      if (refinementFilters.contactQuality === "complete" && signal.contactCompleteness < 3) return false;
+      if (refinementFilters.contactQuality === "partial" && signal.contactCompleteness !== 2) return false;
+      if (refinementFilters.contactQuality === "weak" && signal.contactCompleteness > 1) return false;
+
+      if (refinementFilters.contentDepth !== "all" && contentDepth !== refinementFilters.contentDepth) return false;
+
+      if (refinementFilters.minRating === "4_plus" && rating < 4) return false;
+      if (refinementFilters.minRating === "4_5_plus" && rating < 4.5) return false;
+
+      if (refinementFilters.hasContactForm === "yes" && !hasContactForm) return false;
+      if (refinementFilters.hasContactForm === "no" && hasContactForm) return false;
+
+      if (refinementFilters.hasSocialLinks === "yes" && !socialPresence) return false;
+      if (refinementFilters.hasSocialLinks === "no" && socialPresence) return false;
+
+      if (!matchesSmartPreset(business, refinementFilters.smartPreset)) return false;
+
       return true;
     });
 
-    return visible
-      .map((business) => {
-        const signalSummary = deriveLeadSignalSummary(business);
-        return {
-          ...business,
-          signalSummary,
-          priorityLabel: signalSummary.priorityLabel,
-          signalFlags: signalSummary.signalFlags,
-          contactCompleteness: signalSummary.contactCompleteness,
-        };
-      })
-      .sort((a, b) => (b.signalSummary?.score || 0) - (a.signalSummary?.score || 0));
-  }, [businesses, contactFilter]);
+    return sortBusinesses(visible, refinementFilters.sortBy);
+  }, [businesses, contactFilter, refinementFilters]);
+
+  const updateRefinementFilters = (partial: Partial<SearchRefinementFilters>) => {
+    setRefinementFilters((current) => ({ ...current, ...partial }));
+  };
+
+  const clearRefinements = () => {
+    setRefinementFilters(DEFAULT_SEARCH_REFINEMENT_FILTERS);
+  };
 
   const selectedBusinesses = useMemo(
     () => filteredBusinesses.filter((business) => selectedIds.has(business.id)),
@@ -411,6 +505,10 @@ const Index = () => {
               isLoading={isLoading}
               hasSearched={hasSearched}
               totalResults={businesses.length}
+              filteredResults={filteredBusinesses.length}
+              refinementFilters={refinementFilters}
+              onRefinementChange={updateRefinementFilters}
+              onClearRefinements={clearRefinements}
             />
           </Card>
 

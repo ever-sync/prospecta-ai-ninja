@@ -76,6 +76,30 @@ export interface SearchFilters {
   radius: number;
 }
 
+export interface SearchRefinementFilters {
+  siteStatus: "all" | "with_site" | "without_site";
+  presenceTone: "all" | "critical" | "warning" | "healthy";
+  contactQuality: "all" | "complete" | "partial" | "weak";
+  contentDepth: "all" | "low" | "medium" | "high";
+  minRating: "all" | "4_plus" | "4_5_plus";
+  hasContactForm: "all" | "yes" | "no";
+  hasSocialLinks: "all" | "yes" | "no";
+  smartPreset: "all" | "attack_now" | "consultative" | "premium" | "authority_gap";
+  sortBy: "score_desc" | "pain_desc" | "rating_desc" | "distance_asc" | "contact_desc";
+}
+
+export const DEFAULT_SEARCH_REFINEMENT_FILTERS: SearchRefinementFilters = {
+  siteStatus: "all",
+  presenceTone: "all",
+  contactQuality: "all",
+  contentDepth: "all",
+  minRating: "all",
+  hasContactForm: "all",
+  hasSocialLinks: "all",
+  smartPreset: "all",
+  sortBy: "score_desc",
+};
+
 export const AVAILABLE_NICHES = [
   { value: "restaurant", label: "Restaurantes" },
   { value: "clinic", label: "Clinicas" },

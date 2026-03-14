@@ -1,22 +1,22 @@
 project_id = "cccakxnoptrtdzdlwyju"
 
 [functions.firecrawl-scrape]
-verify_jwt = true
+verify_jwt = false
 
 [functions.deep-analyze]
-verify_jwt = true
+verify_jwt = false
 
 [functions.generate-presentation]
-verify_jwt = true
+verify_jwt = false
 
 [functions.analyze-business]
-verify_jwt = true
+verify_jwt = false
 
 [functions.generate-approach]
-verify_jwt = true
+verify_jwt = false
 
 [functions.search-businesses]
-verify_jwt = true
+verify_jwt = false
 
 [functions.respond-presentation]
 verify_jwt = false
@@ -28,25 +28,25 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.whatsapp-send-batch]
-verify_jwt = true
+verify_jwt = false
 
 [functions.whatsapp-optimize-variants]
-verify_jwt = true
+verify_jwt = false
 
 [functions.check-subscription]
-verify_jwt = true
+verify_jwt = false
 
 [functions.customer-portal]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-checkout]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-stats]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-api-usage]
-verify_jwt = true
+verify_jwt = false
 
 [functions.whatsapp-status-webhook]
 verify_jwt = false

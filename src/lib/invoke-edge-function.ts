@@ -5,6 +5,8 @@ type InvokeOptions = {
   headers?: Record<string, string>;
 };
 
+const gatewayToken = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
 export const invokeEdgeFunction = async <T = unknown>(
   functionName: string,
   options: InvokeOptions = {},
@@ -33,7 +35,8 @@ export const invokeEdgeFunction = async <T = unknown>(
   return supabase.functions.invoke<T>(functionName, {
     ...options,
     headers: {
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${gatewayToken}`,
+      "x-user-auth": `Bearer ${session.access_token}`,
       ...options.headers,
     },
   });

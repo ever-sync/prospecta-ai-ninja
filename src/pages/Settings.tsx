@@ -117,6 +117,8 @@ const Settings = () => {
   const [showFirecrawlKey, setShowFirecrawlKey] = useState(false);
   const [validatingFirecrawl, setValidatingFirecrawl] = useState(false);
   const [firecrawlValidationStatus, setFirecrawlValidationStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
+  const [savingFirecrawlKey, setSavingFirecrawlKey] = useState(false);
+  const [showFirecrawlGuide, setShowFirecrawlGuide] = useState(false);
 
   const [apiKeys, setApiKeys] = useState<UserAiApiKey[]>([]);
   const [loadingApiKeys, setLoadingApiKeys] = useState(false);
@@ -347,6 +349,7 @@ const Settings = () => {
       setProviderApiKey('');
       if (apiProvider === 'other') setCustomProviderName('');
       await loadApiKeys();
+      window.dispatchEvent(new CustomEvent('onboarding:refetch'));
     }
     setSavingApiKey(false);
   };
@@ -375,7 +378,25 @@ const Settings = () => {
       const { data, error } = await supabase.functions.invoke('validate-firecrawl-key', {
         body: { apiKey: keyToValidate },
       });
-      if (error || !data?.valid) {
+
+      // Network/CORS error — edge function unreachable, fallback to format check
+      const isNetworkError = error && (
+        error.message?.toLowerCase().includes('failed to fetch') ||
+        error.message?.toLowerCase().includes('networkerror') ||
+        error.message?.toLowerCase().includes('cors') ||
+        !data
+      );
+
+      if (isNetworkError) {
+        const looksValid = keyToValidate.startsWith('fc-') && keyToValidate.length > 20;
+        if (looksValid) {
+          setFirecrawlValidationStatus('valid');
+          toast({ title: 'Formato aceito', description: 'Chave aceita pelo formato. A validacao online nao esta disponivel no momento.' });
+        } else {
+          setFirecrawlValidationStatus('invalid');
+          toast({ title: 'Formato invalido', description: 'A chave deve comecar com "fc-" e ter pelo menos 20 caracteres.', variant: 'destructive' });
+        }
+      } else if (error || !data?.valid) {
         setFirecrawlValidationStatus('invalid');
         toast({ title: 'Chave invalida', description: data?.error || 'Nao foi possivel validar a chave.', variant: 'destructive' });
       } else {
@@ -383,23 +404,42 @@ const Settings = () => {
         toast({ title: 'Chave valida!', description: 'Sua chave Firecrawl foi validada com sucesso.' });
       }
     } catch {
-      setFirecrawlValidationStatus('invalid');
-      toast({ title: 'Erro', description: 'Nao foi possivel conectar ao servidor de validacao.', variant: 'destructive' });
+      // Unexpected throw — fallback to format check
+      const looksValid = keyToValidate.startsWith('fc-') && keyToValidate.length > 20;
+      if (looksValid) {
+        setFirecrawlValidationStatus('valid');
+        toast({ title: 'Formato aceito', description: 'Chave aceita pelo formato. A validacao online nao esta disponivel no momento.' });
+      } else {
+        setFirecrawlValidationStatus('invalid');
+        toast({ title: 'Formato invalido', description: 'A chave deve comecar com "fc-" e ter pelo menos 20 caracteres.', variant: 'destructive' });
+      }
     }
     setValidatingFirecrawl(false);
+  };
+
+  const handleSaveFirecrawlKey = async () => {
+    if (!user) return;
+    const keyToSave = firecrawlApiKeyInput.trim();
+    if (!keyToSave) return;
+    setSavingFirecrawlKey(true);
+    const { error } = await supabase.from('profiles').update({ firecrawl_api_key: keyToSave }).eq('user_id', user.id);
+    if (error) {
+      toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
+    } else {
+      setFirecrawlApiKey(keyToSave);
+      setFirecrawlApiKeyInput('');
+      setFirecrawlValidationStatus('idle');
+      toast({ title: 'Chave Firecrawl salva!', description: 'Sua chave foi salva com sucesso.' });
+      window.dispatchEvent(new CustomEvent('onboarding:refetch'));
+    }
+    setSavingFirecrawlKey(false);
   };
 
   const handleSaveIntegrations = async () => {
     if (!user) return;
     setSavingIntegrations(true);
 
-    // If user typed a new Firecrawl key, validate it is marked valid before saving
     const newFirecrawlKey = firecrawlApiKeyInput.trim();
-    if (newFirecrawlKey && firecrawlValidationStatus !== 'valid') {
-      toast({ title: 'Valide a chave primeiro', description: 'Clique em "Validar" antes de salvar a chave Firecrawl.', variant: 'destructive' });
-      setSavingIntegrations(false);
-      return;
-    }
 
     const payload: Record<string, unknown> = {
       whatsapp_connection_type: whatsAppConnectionType,
@@ -411,6 +451,7 @@ const Settings = () => {
       campaign_sender_email: campaignSenderEmail.trim() || null,
       campaign_sender_name: campaignSenderName.trim() || null,
       proposal_link_domain: proposalLinkDomain.trim() || null,
+      elevenlabs_voice_id: voiceId.trim() || null,
     };
 
     if (newFirecrawlKey) {
@@ -427,6 +468,7 @@ const Settings = () => {
         setFirecrawlValidationStatus('idle');
       }
       toast({ title: 'Integracoes atualizadas', description: 'Configuracoes de WhatsApp, email, dominio e Firecrawl salvas.' });
+      window.dispatchEvent(new CustomEvent('onboarding:refetch'));
     }
     setSavingIntegrations(false);
   };
@@ -516,14 +558,14 @@ const Settings = () => {
             className="flex h-11 items-center gap-2 rounded-2xl text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-[#1A1A1A] data-[state=active]:shadow-[inset_0_0_0_1px_rgba(239,51,51,0.22)]"
           >
             <SlidersHorizontal className="h-4 w-4 text-[#EF3333]" />
-            Integracoes
+            Integracoes/APIs
           </TabsTrigger>
           <TabsTrigger
             value="apis"
             className="flex h-11 items-center gap-2 rounded-2xl text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-[#1A1A1A] data-[state=active]:shadow-[inset_0_0_0_1px_rgba(239,51,51,0.22)]"
           >
             <KeyRound className="h-4 w-4 text-[#EF3333]" />
-            APIs
+            Chaves IAs
           </TabsTrigger>
         </TabsList>
 
@@ -598,21 +640,6 @@ const Settings = () => {
                   </Label>
                   <Input id="settingsPhone" className={fieldClass} value={phone} onChange={(e) => setPhone(formatBrazilPhone(e.target.value))} placeholder="(11) 99999-9999" />
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="voiceId" className="flex items-center gap-2 text-sm text-[#1A1A1A]">
-                  <Mic className="h-4 w-4 text-[#EF3333]" />
-                  Voice ID do ElevenLabs
-                </Label>
-                <Input id="voiceId" className={fieldClass} value={voiceId} onChange={(e) => setVoiceId(e.target.value)} placeholder="Cole aqui o ID da sua voz clonada" />
-                <p className="text-xs text-[#6d6d75]">
-                  Clone sua voz no{' '}
-                  <a href="https://elevenlabs.io/voice-lab" target="_blank" rel="noopener noreferrer" className="text-[#b22b40] hover:underline">
-                    ElevenLabs Voice Lab
-                  </a>{' '}
-                  e cole o Voice ID aqui para enviar audios com sua voz.
-                </p>
               </div>
 
               <Button onClick={handleSave} disabled={saving} className="h-12 w-full rounded-xl gradient-primary text-primary-foreground font-semibold gap-2">
@@ -856,17 +883,35 @@ const Settings = () => {
 
               {/* Firecrawl API Key */}
               <div className="rounded-2xl border border-[#ececf0] bg-[#fafafd] p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <Flame className="h-5 w-5 text-[#EF3333]" />
-                  <div>
-                    <p className="text-sm font-semibold text-[#1A1A1A]">Firecrawl</p>
-                    <p className="text-xs text-[#6d6d75]">Chave usada para buscar e raspar sites. Obtenha a sua em firecrawl.dev.</p>
+                <div className="mb-3 flex items-start gap-2">
+                  <Flame className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#EF3333]" />
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-[#1A1A1A]">Firecrawl</p>
+                      <a
+                        href="https://firecrawl.dev"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-md border border-[#e6e6eb] bg-white px-2 py-0.5 text-[11px] font-medium text-[#356DFF] hover:bg-[#f0f4ff] transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        firecrawl.dev
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setShowFirecrawlGuide(true)}
+                        className="inline-flex items-center gap-1 rounded-md border border-[#e6e6eb] bg-white px-2 py-0.5 text-[11px] font-medium text-[#6d6d75] hover:bg-[#f5f5f7] transition-colors"
+                      >
+                        Como obter minha chave?
+                      </button>
+                      {firecrawlApiKey && (
+                        <span className="ml-auto rounded-full border border-[#d1f0dd] bg-[#f0faf4] px-2 py-0.5 text-[10px] font-semibold text-[#2d7a4a]">
+                          Configurada
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-xs text-[#6d6d75]">Chave usada para buscar e raspar sites de prospects automaticamente.</p>
                   </div>
-                  {firecrawlApiKey && (
-                    <span className="ml-auto rounded-full border border-[#d1f0dd] bg-[#f0faf4] px-2 py-0.5 text-[10px] font-semibold text-[#2d7a4a]">
-                      Configurada
-                    </span>
-                  )}
                 </div>
 
                 {firecrawlApiKey && (
@@ -897,6 +942,7 @@ const Settings = () => {
                         setFirecrawlValidationStatus('idle');
                       }}
                       placeholder={firecrawlApiKey ? 'Nova chave para substituir a atual' : 'Cole sua chave Firecrawl aqui'}
+                      onPaste={() => setFirecrawlValidationStatus('idle')}
                     />
                     <button
                       type="button"
@@ -923,11 +969,19 @@ const Settings = () => {
                     )}
                     Validar
                   </Button>
+                  <Button
+                    className="h-11 rounded-xl bg-[#EF3333] gap-1.5 text-sm text-white hover:bg-[#d42d2d]"
+                    disabled={!firecrawlApiKeyInput.trim() || savingFirecrawlKey}
+                    onClick={handleSaveFirecrawlKey}
+                  >
+                    {savingFirecrawlKey ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    Salvar
+                  </Button>
                 </div>
 
                 {firecrawlValidationStatus === 'valid' && (
                   <p className="mt-2 flex items-center gap-1 text-xs text-[#2d7a4a]">
-                    <CheckCircle2 className="h-3 w-3" /> Chave validada. Clique em "Salvar Integracoes" para confirmar.
+                    <CheckCircle2 className="h-3 w-3" /> Chave validada com sucesso.
                   </p>
                 )}
                 {firecrawlValidationStatus === 'invalid' && (
@@ -938,6 +992,49 @@ const Settings = () => {
                 {!firecrawlApiKey && firecrawlValidationStatus === 'idle' && (
                   <p className="mt-2 text-xs text-[#7b7b83]">Sem chave configurada sera usada a chave padrao do sistema.</p>
                 )}
+              </div>
+
+              {/* ElevenLabs Voice ID */}
+              <div className="rounded-2xl border border-[#ececf0] bg-[#fafafd] p-4">
+                <div className="mb-3 flex items-start gap-2">
+                  <Mic className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#EF3333]" />
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-[#1A1A1A]">ElevenLabs</p>
+                      <a
+                        href="https://elevenlabs.io"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-md border border-[#e6e6eb] bg-white px-2 py-0.5 text-[11px] font-medium text-[#356DFF] hover:bg-[#f0f4ff] transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        elevenlabs.io
+                      </a>
+                      {voiceId && (
+                        <span className="ml-auto rounded-full border border-[#d1f0dd] bg-[#f0faf4] px-2 py-0.5 text-[10px] font-semibold text-[#2d7a4a]">
+                          Configurado
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-xs text-[#6d6d75]">Voice ID para enviar audios com sua voz clonada nas propostas.</p>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Input
+                    id="voiceId"
+                    className={fieldClass}
+                    value={voiceId}
+                    onChange={(e) => setVoiceId(e.target.value)}
+                    placeholder="Cole aqui o ID da sua voz clonada"
+                  />
+                  <p className="text-xs text-[#6d6d75]">
+                    Clone sua voz no{' '}
+                    <a href="https://elevenlabs.io/voice-lab" target="_blank" rel="noopener noreferrer" className="text-[#b22b40] hover:underline">
+                      ElevenLabs Voice Lab
+                    </a>{' '}
+                    e cole o Voice ID aqui.
+                  </p>
+                </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1119,6 +1216,119 @@ const Settings = () => {
             </Button>
             <Button type="button" className="rounded-xl gradient-primary text-primary-foreground" onClick={handleRequestEmailChange} disabled={sendingAccessEmailChange}>
               {sendingAccessEmailChange ? 'Enviando...' : 'Enviar verificacao'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Firecrawl Guide Modal */}
+      <Dialog open={showFirecrawlGuide} onOpenChange={setShowFirecrawlGuide}>
+        <DialogContent className="sm:max-w-lg rounded-[22px] border border-[#ececf0] bg-white p-0 overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center gap-3 border-b border-[#f0f0f3] px-6 py-5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EF3333]/10">
+              <Flame className="h-5 w-5 text-[#EF3333]" />
+            </div>
+            <div>
+              <DialogTitle className="text-base font-semibold text-[#1A1A1A]">
+                Como obter sua chave Firecrawl
+              </DialogTitle>
+              <DialogDescription className="text-xs text-[#6d6d75]">
+                Siga os passos abaixo para criar sua conta e copiar a chave.
+              </DialogDescription>
+            </div>
+          </div>
+
+          {/* Steps */}
+          <div className="px-6 py-5">
+            <ol className="space-y-4">
+              {[
+                {
+                  step: 1,
+                  title: 'Acesse o site do Firecrawl',
+                  description: (
+                    <>
+                      Abra{' '}
+                      <a
+                        href="https://firecrawl.dev"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-0.5 font-medium text-[#356DFF] underline-offset-2 hover:underline"
+                      >
+                        firecrawl.dev <ExternalLink className="h-3 w-3" />
+                      </a>{' '}
+                      no navegador e clique em <strong>Get Started</strong> ou <strong>Sign Up</strong>.
+                    </>
+                  ),
+                },
+                {
+                  step: 2,
+                  title: 'Crie sua conta gratuitamente',
+                  description: 'Cadastre-se com seu email ou conta Google. O plano gratuito ja inclui creditos suficientes para comecar.',
+                },
+                {
+                  step: 3,
+                  title: 'Acesse o painel da API',
+                  description: (
+                    <>
+                      Apos entrar, va no menu lateral e clique em <strong>API Keys</strong> ou acesse diretamente{' '}
+                      <a
+                        href="https://www.firecrawl.dev/app/api-keys"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-0.5 font-medium text-[#356DFF] underline-offset-2 hover:underline"
+                      >
+                        firecrawl.dev/app/api-keys <ExternalLink className="h-3 w-3" />
+                      </a>.
+                    </>
+                  ),
+                },
+                {
+                  step: 4,
+                  title: 'Gere uma nova chave',
+                  description: 'Clique em "Create new key", de um nome para identificar (ex: "Prospecta") e confirme.',
+                },
+                {
+                  step: 5,
+                  title: 'Copie e cole aqui',
+                  description: 'Copie a chave gerada (comeca com "fc-..."), volte para esta pagina, cole no campo acima e clique em Validar.',
+                },
+              ].map(({ step, title, description }) => (
+                <li key={step} className="flex gap-4">
+                  <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#EF3333] text-xs font-bold text-white">
+                    {step}
+                  </div>
+                  <div className="pt-0.5">
+                    <p className="text-sm font-semibold text-[#1A1A1A]">{title}</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-[#6d6d75]">{description}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+
+            <div className="mt-5 rounded-xl border border-[#e6f0ff] bg-[#f0f6ff] p-3">
+              <p className="text-xs text-[#356DFF]">
+                <strong>Dica:</strong> O plano gratuito do Firecrawl oferece 500 credits/mes — suficiente para centenas de buscas. Para uso intenso, considere o plano pago.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="border-t border-[#f0f0f3] px-6 py-4">
+            <a
+              href="https://firecrawl.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#356DFF] px-4 text-sm font-medium text-[#356DFF] hover:bg-[#f0f6ff] transition-colors"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Abrir Firecrawl
+            </a>
+            <Button
+              type="button"
+              className="h-9 rounded-xl bg-[#EF3333] text-sm font-medium text-white hover:bg-[#d42d2d]"
+              onClick={() => setShowFirecrawlGuide(false)}
+            >
+              Entendido
             </Button>
           </DialogFooter>
         </DialogContent>

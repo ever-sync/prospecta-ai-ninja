@@ -184,6 +184,7 @@ const DNAFormTab = () => {
       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'DNA salvo!', description: 'As informacoes da sua empresa foram atualizadas.' });
+      window.dispatchEvent(new CustomEvent('onboarding:refetch'));
     }
     setSaving(false);
   };

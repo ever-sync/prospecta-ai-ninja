@@ -274,16 +274,19 @@ Retorne apenas JSON valido no schema:
 
 Regras:
 - Estrutura fixa, sem HTML.
-- Copy em portugues do Brasil.
+- Copy em PORTUGUES DO BRASIL IMPECAVEL (CRITICO): Use gramatica e ortografia perfeitas. Preste atencao redobrada em plurais, concordancia nominal/verbal e conjugacao de verbos. Use acentuacao correta (isso e mandatorio). Nao escreva palavras com erros de digitacao (typos).
 - Tom consultivo com agressividade comercial moderada.
 - Seja claro, objetivo e vendavel.
 - Priorize impacto comercial, nao auditoria tecnica fria.
 - Use DNA, servicos e analise para personalizar.
-- Nao invente depoimentos nem numeros especificos se nao existirem.
+- REGRAS ANTI-ALUCINACAO (CRITICO): 
+  1. Nao invente depoimentos nem numeros especificos se nao existirem.
+  2. Nao invente dores, vulnerabilidades ou nomes de concorrentes do Lead que nao estejam citados na secao ANALISE.
+  3. Se a ANALISE for contiver poucos dados ou sites "genericos", crie uma narrativa baseada nas dores *padrao do mercado local*, e nao em defeitos imaginarios da empresa.
 - Use no maximo 4 bullets no resumo executivo.
-- Gere de 3 a 5 oportunidades.
-- Gere de 2 a 4 solutionMapping.
-- Gere de 2 a 4 differentials.
+- Gere de 3 a 5 oportunidades baseadas apenas no que realmente foi encontrado de ruim.
+- Gere de 2 a 4 solutionMapping ligando problemas reais com servicos do DNA.
+- Gere de 2 a 4 differentials do vendedor.
 - Gere de 1 a 3 proof cards.`;
 
     const userPrompt = `EMPRESA VENDEDORA:

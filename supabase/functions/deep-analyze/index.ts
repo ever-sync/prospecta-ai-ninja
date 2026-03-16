@@ -113,6 +113,13 @@ Deno.serve(async (req) => {
       : "";
 
     const systemPrompt = `Voce e um analista de marketing digital especializado em auditoria de presenca online de empresas.
+Sua tarefa inclui analisar o HTML e identificar se o site possui scripts de rastreamento de anuncios (ex: Facebook Pixel, Google Ads/Tag Manager, LinkedIn Insight, TikTok Pixel).
+REGRAS ANTI-ALUCINACAO E QUALIDADE (CRITICO):
+1. Baseie-se ESTRITAMENTE no HTML Parcial e no Markdown fornecidos.
+2. NAO INVENTE dados, metricas, vulnerabilidades ou forcas que nao estejam evidentes no texto raspado.
+3. Se o site for genérico e não tiver informações suficientes, limite-se ao que existe e diga que as informações são escassas. É preferível retornar "N/A" ou listas vazias a inventar dados falsos.
+4. Escreva respostas em PORTUGUES DO BRASIL IMPECAVEL. Use gramatica correta, acentuacao perfeita e revise plurais e concordancias. Nao cometa erros de digitacao.
+
 Retorne apenas JSON com esta estrutura:
 {
   "scores": { "seo": 0, "speed": 0, "layout": 0, "security": 0, "overall": 0 },
@@ -134,13 +141,19 @@ Retorne apenas JSON com esta estrutura:
     "strengths": ["..."],
     "weaknesses": ["..."]
   },
+  "marketing_signals": {
+    "has_facebook_pixel": false,
+    "has_google_ads": false,
+    "has_linkedin_insight": false,
+    "detected_tags": ["..."]
+  },
   "recommendations": [
     { "title": "...", "description": "...", "priority": "alta", "category": "SEO" }
   ],
   "summary": "..."
 }`;
 
-    const userPrompt = `Analise a seguinte empresa:
+    const userPrompt = `Analise a seguinte empresa de forma rigorosa as regras anti-alucinacao:
 
 EMPRESA-ALVO:
 - Nome: ${business.name}
@@ -152,13 +165,13 @@ EMPRESA-ALVO:
 ${business.onlinePresence ? `- Presenca online: ${business.onlinePresence.label} (${business.onlinePresence.score}/100)` : ""}
 ${business.onlinePresence?.weaknesses?.length ? `- Fraquezas percebidas: ${business.onlinePresence.weaknesses.join(", ")}` : ""}
 
-CONTEUDO DO SITE (HTML parcial):
+CONTEUDO DO SITE BRUTO (HTML parcial da home):
 ${htmlSnippet}
 
-CONTEUDO DO SITE (Markdown):
+CONTEUDO DO SITE EXTRAIDO (Markdown):
 ${markdownContent}
 
-METADADOS:
+METADADOS EXTRAIDOS:
 - Title: ${metadata.title || "N/A"}
 - Description: ${metadata.description || "N/A"}
 - Language: ${metadata.language || "N/A"}
@@ -167,7 +180,7 @@ ${dnaContext}
 DNA COMPLETO:
 ${JSON.stringify(dna || {}, null, 2)}
 
-Retorne uma analise tecnica e comercial.`;
+Retorne uma analise tecnica e comercial RESTRITA aos dados acima.`;
 
     const analysis = await callLLMJson<any>(
       llm,

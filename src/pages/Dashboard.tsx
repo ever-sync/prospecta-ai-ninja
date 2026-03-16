@@ -11,6 +11,7 @@ import {
   Send,
   TrendingUp,
   Workflow,
+  Bot,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, XAxis, YAxis } from 'recharts';
@@ -199,6 +200,7 @@ const Dashboard = () => {
   const [conversionEvents, setConversionEvents] = useState<ConversionEventRow[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [presentationViews, setPresentationViews] = useState<PresentationViewRow[]>([]);
+  const [robotResults, setRobotResults] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -254,6 +256,14 @@ const Dashboard = () => {
         setCampaignPresentations(((campaignPresentationsRes.data as CampaignPresentationRow[] | null) || []));
         setConversionEvents(((conversionEventsRes.data as ConversionEventRow[] | null) || []));
         setPresentationViews(((presentationViewsRes.data as PresentationViewRow[] | null) || []));
+        const { data: robotTasks } = await (supabase as any)
+          .from('robot_tasks')
+          .select('*')
+          .eq('status', 'completed')
+          .gte('completed_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+          .order('completed_at', { ascending: false });
+
+        setRobotResults(robotTasks || []);
       } catch (error) {
         console.error('Dashboard load error:', error);
         setPresentations([]);
@@ -730,6 +740,33 @@ const Dashboard = () => {
           </div>
         </div>
       </motion.section>
+
+      {robotResults.length > 0 && (
+        <motion.section 
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="rounded-[28px] border border-amber-100 bg-[#FFFBEB] p-6 shadow-sm flex flex-col md:flex-row gap-6 items-center"
+        >
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-200">
+            <Bot className="h-7 w-7" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-amber-900 flex items-center gap-2">
+              Vítimas da Madrugada Identificadas
+              <Badge className="bg-amber-200 text-amber-900 border-none hover:bg-amber-200">Novo!</Badge>
+            </h2>
+            <p className="text-amber-800/80 mt-1">
+              O Robô Noturno encontrou <strong>{robotResults.reduce((acc, task) => acc + (task.results?.length || 0), 0)} leads</strong> com feridas expostas enquanto você dormia.
+            </p>
+          </div>
+          <Button 
+            onClick={() => navigate('/robots')}
+            className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl px-6 h-11 border-none shadow-md shadow-amber-200"
+          >
+            Ver Vítimas <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </motion.section>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {statCards.map((card, index) => (

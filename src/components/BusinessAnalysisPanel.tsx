@@ -9,6 +9,7 @@ import {
   Globe,
   Loader2,
   MapPin,
+  Megaphone,
   Phone,
   RefreshCw,
   Sparkles,
@@ -94,6 +95,12 @@ interface HeavyAnalysisData {
   has_website?: boolean;
   website_screenshot?: string | null;
   google_maps_screenshot?: string | null;
+  marketing_signals?: {
+    has_facebook_pixel?: boolean;
+    has_google_ads?: boolean;
+    has_linkedin_insight?: boolean;
+    detected_tags?: string[];
+  };
 }
 
 type AnalysisCache = {
@@ -605,6 +612,67 @@ export const BusinessAnalysisPanel = ({
                 </div>
               </div>
 
+              <div className="rounded-[24px] border border-[#ececf0] bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Megaphone className="h-4 w-4 text-[#EF3333]" />
+                    <p className="text-sm font-semibold text-[#1A1A1A]">Inteligencia de Trafego (Pixels e Scripts)</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-col gap-4 sm:flex-row">
+                  <div className="flex-1">
+                    <p className="text-sm text-[#66666d] mb-3">Sinais tecnicos identificados no site do lead indicativos de campanhas ativas.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: "Facebook Pixel", ok: cache.heavy.marketing_signals?.has_facebook_pixel },
+                        { label: "Google Ads / GTAG", ok: cache.heavy.marketing_signals?.has_google_ads },
+                        { label: "LinkedIn Insight", ok: cache.heavy.marketing_signals?.has_linkedin_insight },
+                      ].map((item) => (
+                        <Badge
+                          key={item.label}
+                          className={
+                            item.ok
+                              ? "rounded-full border border-[#cfe6d7] bg-[#f3fbf5] text-[#21603a]"
+                              : "rounded-full border border-[#ececf0] bg-[#fafafc] text-[#8d8d95]"
+                          }
+                        >
+                          {item.ok ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <X className="mr-1 h-3.5 w-3.5" />}
+                          {item.label}
+                        </Badge>
+                      ))}
+                    </div>
+                    {cache.heavy.marketing_signals?.detected_tags && cache.heavy.marketing_signals.detected_tags.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8d8d95] mb-2">Tags Encontradas:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {cache.heavy.marketing_signals.detected_tags.map(tag => (
+                            <span key={tag} className="text-xs bg-[#f4f4f5] text-[#3f3f46] px-2 py-1 rounded-md border border-[#e4e4e7]">{tag}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2 sm:min-w-[240px]">
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start text-xs border-[#ececf0]"
+                      onClick={() => window.open(`https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=BR&q=${encodeURIComponent(business.name)}&sort_data[direction]=desc&sort_data[mode]=relevancy_monthly_grouped&search_type=keyword_unordered&media_type=all`, '_blank')}
+                    >
+                      <Globe className="mr-2 h-3.5 w-3.5" />
+                      Pesquisar na FB Ad Library
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start text-xs border-[#ececf0]"
+                      onClick={() => window.open(`https://adstransparency.google.com/?region=BR&domain=${business.website ? encodeURIComponent(business.website) : ''}`, '_blank')}
+                    >
+                      <Globe className="mr-2 h-3.5 w-3.5" />
+                      Pesquisar no Google Ads
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="rounded-[24px] border border-[#ececf0] bg-white p-4">
                   <p className="text-sm font-semibold text-[#1A1A1A]">Forcas percebidas</p>
@@ -674,7 +742,7 @@ export const BusinessAnalysisPanel = ({
         </TabsContent>
 
         <TabsContent value="approach" className="mt-5">
-          <ApproachSuggestion business={business} onClose={() => undefined} embedded />
+          <ApproachSuggestion business={business} analysis={cache.heavy} onClose={() => undefined} embedded />
         </TabsContent>
 
         <TabsContent value="competitors" className="mt-5">

@@ -21,6 +21,7 @@ import {
   XCircle,
   FileText,
   Eye,
+  Bot,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +37,7 @@ import { useState, useEffect, type ElementType } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import sidebarExpandedLogo from '@/logos/dark.svg';
 import sidebarCollapsedLogo from '@/logos/favicon.svg';
+import OnboardingChecklist from '@/components/OnboardingChecklist';
 
 const SIDEBAR_STORAGE_KEY = 'prospecta.sidebar.collapsed';
 
@@ -44,6 +46,7 @@ const menuItems = [
   { path: '/crm', label: 'CRM', icon: Users },
   { path: '/dna', label: 'DNA', icon: Fingerprint },
   { path: '/search', label: 'Scanner', icon: SearchIcon },
+  { path: '/robots', label: 'Robos', icon: Bot },
   { path: '/presentations', label: 'Apresentacoes', icon: FileBarChart },
   { path: '/campaigns', label: 'Campanhas', icon: Send },
   { path: '/templates', label: 'Templates', icon: FileStack },
@@ -601,9 +604,20 @@ export const AppLayout = () => {
                         <p className="text-sm font-semibold text-[#1A1A1A]">Notificacoes</p>
                         <p className="mt-0.5 text-xs text-[#7a7a82]">Propostas, respostas e envios recentes da plataforma.</p>
                       </div>
-                      <Badge className="rounded-full border-[#f2d4d8] bg-[#fff5f6] text-[#b23246]">
-                        {notifications.length}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge className="rounded-full border-[#f2d4d8] bg-[#fff5f6] text-[#b23246]">
+                          {notifications.length}
+                        </Badge>
+                        {notifications.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setNotifications([])}
+                            className="rounded-lg px-2 py-1 text-[11px] font-medium text-[#9a9aa1] transition-colors hover:bg-[#f5f5f7] hover:text-[#EF3333]"
+                          >
+                            Limpar
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -689,6 +703,7 @@ export const AppLayout = () => {
           </main>
         </div>
 
+        <OnboardingChecklist />
       </div>
     </div>
   );

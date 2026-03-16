@@ -19,6 +19,11 @@ import {
   Trash2,
   Bot,
   ShieldCheck,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  XCircle,
+  Flame,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,7 +61,7 @@ type UserAiApiKey = {
 
 const API_PROVIDER_OPTIONS: Array<{ value: ApiProvider; label: string }> = [
   { value: 'gemini', label: 'Gemini' },
-  { value: 'claude_code', label: 'Claude Code' },
+  { value: 'claude_code', label: 'Claude (Anthropic)' },
   { value: 'groq', label: 'Groq' },
   { value: 'openai', label: 'OpenAI' },
   { value: 'other', label: 'Outro' },
@@ -107,6 +112,11 @@ const Settings = () => {
   const [campaignSenderEmail, setCampaignSenderEmail] = useState('');
   const [campaignSenderName, setCampaignSenderName] = useState('');
   const [proposalLinkDomain, setProposalLinkDomain] = useState('');
+  const [firecrawlApiKey, setFirecrawlApiKey] = useState('');
+  const [firecrawlApiKeyInput, setFirecrawlApiKeyInput] = useState('');
+  const [showFirecrawlKey, setShowFirecrawlKey] = useState(false);
+  const [validatingFirecrawl, setValidatingFirecrawl] = useState(false);
+  const [firecrawlValidationStatus, setFirecrawlValidationStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
 
   const [apiKeys, setApiKeys] = useState<UserAiApiKey[]>([]);
   const [loadingApiKeys, setLoadingApiKeys] = useState(false);
@@ -149,6 +159,8 @@ const Settings = () => {
           setCampaignSenderEmail(data.campaign_sender_email || '');
           setCampaignSenderName(data.campaign_sender_name || '');
           setProposalLinkDomain(data.proposal_link_domain || '');
+          setFirecrawlApiKey(data.firecrawl_api_key || '');
+          setFirecrawlApiKeyInput('');
         }
       });
   }, [user]);
@@ -351,10 +363,45 @@ const Settings = () => {
     setDeletingApiKeyId(null);
   };
 
+  const handleValidateFirecrawlKey = async () => {
+    const keyToValidate = firecrawlApiKeyInput.trim();
+    if (!keyToValidate) {
+      toast({ title: 'Campo vazio', description: 'Informe a chave Firecrawl antes de validar.', variant: 'destructive' });
+      return;
+    }
+    setValidatingFirecrawl(true);
+    setFirecrawlValidationStatus('idle');
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-firecrawl-key', {
+        body: { apiKey: keyToValidate },
+      });
+      if (error || !data?.valid) {
+        setFirecrawlValidationStatus('invalid');
+        toast({ title: 'Chave invalida', description: data?.error || 'Nao foi possivel validar a chave.', variant: 'destructive' });
+      } else {
+        setFirecrawlValidationStatus('valid');
+        toast({ title: 'Chave valida!', description: 'Sua chave Firecrawl foi validada com sucesso.' });
+      }
+    } catch {
+      setFirecrawlValidationStatus('invalid');
+      toast({ title: 'Erro', description: 'Nao foi possivel conectar ao servidor de validacao.', variant: 'destructive' });
+    }
+    setValidatingFirecrawl(false);
+  };
+
   const handleSaveIntegrations = async () => {
     if (!user) return;
     setSavingIntegrations(true);
-    const payload = {
+
+    // If user typed a new Firecrawl key, validate it is marked valid before saving
+    const newFirecrawlKey = firecrawlApiKeyInput.trim();
+    if (newFirecrawlKey && firecrawlValidationStatus !== 'valid') {
+      toast({ title: 'Valide a chave primeiro', description: 'Clique em "Validar" antes de salvar a chave Firecrawl.', variant: 'destructive' });
+      setSavingIntegrations(false);
+      return;
+    }
+
+    const payload: Record<string, unknown> = {
       whatsapp_connection_type: whatsAppConnectionType,
       whatsapp_official_access_token: officialAccessToken.trim() || null,
       whatsapp_official_phone_number_id: officialPhoneNumberId.trim() || null,
@@ -366,13 +413,35 @@ const Settings = () => {
       proposal_link_domain: proposalLinkDomain.trim() || null,
     };
 
+    if (newFirecrawlKey) {
+      payload.firecrawl_api_key = newFirecrawlKey;
+    }
+
     const { error } = await supabase.from('profiles').update(payload).eq('user_id', user.id);
     if (error) {
       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Integracoes atualizadas', description: 'Configuracoes de WhatsApp, email e dominio salvas.' });
+      if (newFirecrawlKey) {
+        setFirecrawlApiKey(newFirecrawlKey);
+        setFirecrawlApiKeyInput('');
+        setFirecrawlValidationStatus('idle');
+      }
+      toast({ title: 'Integracoes atualizadas', description: 'Configuracoes de WhatsApp, email, dominio e Firecrawl salvas.' });
     }
     setSavingIntegrations(false);
+  };
+
+  const handleRemoveFirecrawlKey = async () => {
+    if (!user) return;
+    const { error } = await supabase.from('profiles').update({ firecrawl_api_key: null }).eq('user_id', user.id);
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      setFirecrawlApiKey('');
+      setFirecrawlApiKeyInput('');
+      setFirecrawlValidationStatus('idle');
+      toast({ title: 'Chave removida', description: 'Chave Firecrawl removida. Sera usada a chave do sistema.' });
+    }
   };
 
   const handleUpgrade = async (planId: string) => {
@@ -556,6 +625,14 @@ const Settings = () => {
 
         <TabsContent value="faturamento" className="mt-0">
           <div className="space-y-5">
+            {/* Pricing model notice */}
+            <div className="rounded-2xl border border-[#f2d4d8] bg-[#fff5f6] px-5 py-4">
+              <p className="text-sm font-semibold text-[#7f2432]">Modelo de custo transparente</p>
+              <p className="mt-1 text-sm text-[#9b4458] leading-relaxed">
+                A plataforma custa <span className="font-bold">R$ 79,90/mes</span>. As APIs de IA (Gemini, etc.) e o Firecrawl sao contratados separadamente, diretamente com cada provedor. Voce tem controle total sobre esses gastos — a plataforma nao cobra margem sobre eles.
+              </p>
+            </div>
+
             <Card className={cardClass}>
               <h3 className="mb-4 flex items-center gap-2 font-semibold text-[#1A1A1A]">
                 <BarChart3 className="h-5 w-5 text-[#EF3333]" />
@@ -662,7 +739,7 @@ const Settings = () => {
             <div className="space-y-6">
               <div>
                 <h3 className="mb-1 font-semibold text-[#1A1A1A]">Integracoes</h3>
-                <p className="text-sm text-[#6d6d75]">Conecte WhatsApp oficial ou nao oficial, e configure email remetente e dominio dos links das propostas.</p>
+                <p className="text-sm text-[#6d6d75]">Conecte WhatsApp, configure email remetente, dominio das propostas e sua chave Firecrawl para raspagem de sites.</p>
               </div>
 
               <div className="rounded-2xl border border-[#ececf0] bg-[#fafafd] p-4">
@@ -777,7 +854,93 @@ const Settings = () => {
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              {/* Firecrawl API Key */}
+              <div className="rounded-2xl border border-[#ececf0] bg-[#fafafd] p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <Flame className="h-5 w-5 text-[#EF3333]" />
+                  <div>
+                    <p className="text-sm font-semibold text-[#1A1A1A]">Firecrawl</p>
+                    <p className="text-xs text-[#6d6d75]">Chave usada para buscar e raspar sites. Obtenha a sua em firecrawl.dev.</p>
+                  </div>
+                  {firecrawlApiKey && (
+                    <span className="ml-auto rounded-full border border-[#d1f0dd] bg-[#f0faf4] px-2 py-0.5 text-[10px] font-semibold text-[#2d7a4a]">
+                      Configurada
+                    </span>
+                  )}
+                </div>
+
+                {firecrawlApiKey && (
+                  <div className="mb-3 flex items-center justify-between rounded-xl border border-[#ececf0] bg-white px-3 py-2">
+                    <p className="text-xs text-[#6d6d75]">
+                      Chave atual: <span className="font-mono">{maskApiKey(firecrawlApiKey)}</span>
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 rounded-lg text-xs text-[#b2374b] hover:bg-[#fff3f5]"
+                      onClick={handleRemoveFirecrawlKey}
+                    >
+                      <Trash2 className="mr-1 h-3 w-3" />
+                      Remover
+                    </Button>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type={showFirecrawlKey ? 'text' : 'password'}
+                      className={`${fieldClass} pr-10`}
+                      value={firecrawlApiKeyInput}
+                      onChange={(e) => {
+                        setFirecrawlApiKeyInput(e.target.value);
+                        setFirecrawlValidationStatus('idle');
+                      }}
+                      placeholder={firecrawlApiKey ? 'Nova chave para substituir a atual' : 'Cole sua chave Firecrawl aqui'}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9b9ba3] hover:text-[#1A1A1A]"
+                      onClick={() => setShowFirecrawlKey((v) => !v)}
+                    >
+                      {showFirecrawlKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="h-11 rounded-xl border-[#e6e6eb] gap-1.5 text-sm"
+                    disabled={!firecrawlApiKeyInput.trim() || validatingFirecrawl}
+                    onClick={handleValidateFirecrawlKey}
+                  >
+                    {validatingFirecrawl ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : firecrawlValidationStatus === 'valid' ? (
+                      <CheckCircle2 className="h-4 w-4 text-[#2d7a4a]" />
+                    ) : firecrawlValidationStatus === 'invalid' ? (
+                      <XCircle className="h-4 w-4 text-[#b2374b]" />
+                    ) : (
+                      <ShieldCheck className="h-4 w-4" />
+                    )}
+                    Validar
+                  </Button>
+                </div>
+
+                {firecrawlValidationStatus === 'valid' && (
+                  <p className="mt-2 flex items-center gap-1 text-xs text-[#2d7a4a]">
+                    <CheckCircle2 className="h-3 w-3" /> Chave validada. Clique em "Salvar Integracoes" para confirmar.
+                  </p>
+                )}
+                {firecrawlValidationStatus === 'invalid' && (
+                  <p className="mt-2 flex items-center gap-1 text-xs text-[#b2374b]">
+                    <XCircle className="h-3 w-3" /> Chave invalida. Verifique e tente novamente.
+                  </p>
+                )}
+                {!firecrawlApiKey && firecrawlValidationStatus === 'idle' && (
+                  <p className="mt-2 text-xs text-[#7b7b83]">Sem chave configurada sera usada a chave padrao do sistema.</p>
+                )}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-white p-3">
                   <div className="flex items-center gap-3">
                     <MessageCircle className="h-5 w-5 text-[#EF3333]" />
@@ -798,6 +961,18 @@ const Settings = () => {
                   </div>
                   <span className="text-xs font-medium text-[#9b2a3d]">Configuravel</span>
                 </div>
+                <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-white p-3">
+                  <div className="flex items-center gap-3">
+                    <Flame className="h-5 w-5 text-[#EF3333]" />
+                    <div>
+                      <p className="text-sm font-medium text-[#1A1A1A]">Firecrawl</p>
+                      <p className="text-xs text-[#6d6d75]">{firecrawlApiKey ? maskApiKey(firecrawlApiKey) : 'Chave do sistema'}</p>
+                    </div>
+                  </div>
+                  <span className={`text-xs font-medium ${firecrawlApiKey ? 'text-[#2d7a4a]' : 'text-[#7b7b83]'}`}>
+                    {firecrawlApiKey ? 'Propria' : 'Padrao'}
+                  </span>
+                </div>
               </div>
             </div>
           </Card>
@@ -812,7 +987,7 @@ const Settings = () => {
                     <Bot className="h-5 w-5 text-[#EF3333]" />
                     Chaves de API de IA
                   </h3>
-                  <p className="mt-1 text-sm text-[#6d6d75]">Conecte ate 2 provedores de IA para usar suas proprias chaves. O consumo de Firecrawl permanece na infraestrutura da envPRO.</p>
+                  <p className="mt-1 text-sm text-[#6d6d75]">Conecte ate 2 provedores de IA. O custo das APIs e cobrado diretamente pelos provedores — voce tem controle total. Configure sua chave Firecrawl na aba Integracoes.</p>
                 </div>
                 <Badge variant="outline" className="rounded-full border-[#f2d4d8] bg-[#fff3f5] text-[#9b2a3d]">
                   {apiKeys.length}/{MAX_AI_KEYS} conectadas
@@ -870,7 +1045,7 @@ const Settings = () => {
                     {savingApiKey ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     {providerAlreadyConnected ? 'Atualizar chave' : 'Salvar chave'}
                   </Button>
-                  <p className="text-xs text-[#7b7b83]">As chaves ficam vinculadas apenas ao seu usuario. Aqui o cliente cadastra somente a chave de IA.</p>
+                  <p className="text-xs text-[#7b7b83]">As chaves ficam vinculadas apenas ao seu usuario. O gasto com tokens e cobrado diretamente pelo provedor de IA.</p>
                 </div>
               </div>
 

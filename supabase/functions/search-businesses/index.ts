@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
-import { callGeminiJson } from "../_shared/gemini.ts";
-import { requireUserProviderKey } from "../_shared/user-provider-keys.ts";
+import { firecrawlScrapeRequest, firecrawlSearchRequest, resolveFirecrawlApiKey } from "../_shared/firecrawl.ts";
+import { callLLMJson, resolveUserLLM } from "../_shared/llm.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -83,29 +83,13 @@ const genericBusinessTokens = new Set([
 ]);
 
 async function firecrawlSearch(apiKey: string, query: string, limit: number): Promise<any[]> {
-  const response = await fetch("https://api.firecrawl.dev/v1/search", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const data = await firecrawlSearchRequest<{ data?: any[] }>(apiKey, {
       query,
       limit,
       lang: "pt-BR",
       country: "BR",
       scrapeOptions: { formats: ["markdown"] },
-    }),
   });
-
-  const data = await response.json();
-  if (!response.ok) {
-    if (response.status === 402) {
-      throw new HttpError(402, "Creditos Firecrawl insuficientes.");
-    }
-    console.error("Firecrawl search error:", data);
-    return [];
-  }
   return data.data || [];
 }
 
@@ -349,31 +333,19 @@ function enrichBusinessFromResults(
 
 async function firecrawlScrape(apiKey: string, url: string): Promise<ScrapePayload | null> {
   try {
-    const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const data = await firecrawlScrapeRequest<any>(apiKey, {
         url: normalizeWebsite(url),
         formats: ["markdown", "html", "links"],
         onlyMainContent: false,
-      }),
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = await response.json();
+      });
     return {
       markdown: data.data?.markdown || data.markdown || "",
       html: data.data?.html || data.html || "",
       metadata: data.data?.metadata || data.metadata || {},
       links: data.data?.links || data.links || [],
     };
-  } catch {
+  } catch (error) {
+    console.error("Firecrawl scrape error:", error);
     return null;
   }
 }
@@ -604,17 +576,10 @@ serve(async (req) => {
   try {
     const { niches, location, radius, advanced } = await req.json();
     const { user, svc } = await getAuthenticatedUserContext(req);
-    const firecrawlApiKey = Deno.env.get("FIRECRAWL_API_KEY");
-    const geminiApiKey = await requireUserProviderKey(
-      svc,
-      user.id,
-      "gemini",
-      "Configure sua chave Gemini em Configuracoes > APIs.",
-    );
-
-    if (!firecrawlApiKey) {
-      throw new HttpError(500, "FIRECRAWL_API_KEY nao configurada no projeto.");
-    }
+    const [firecrawlApiKey, llm] = await Promise.all([
+      resolveFirecrawlApiKey(svc, user.id),
+      resolveUserLLM(svc, user.id),
+    ]);
 
     const allSearchResults: { niche: string; nicheKey: string; results: any[] }[] = [];
     const advancedFilters = normalizeAdvancedFilters(advanced);
@@ -715,9 +680,8 @@ ${advancedFilters.queryHint ? `Use "${advancedFilters.queryHint}" como criterio 
 
 ${searchContext}`;
 
-    let businesses = await callGeminiJson<any[]>(
-      geminiApiKey,
-      "gemini-2.5-flash",
+    let businesses = await callLLMJson<any[]>(
+      llm,
       systemPrompt,
       userPrompt,
       { temperature: 0.2, maxOutputTokens: 4000 },

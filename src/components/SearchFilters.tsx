@@ -287,7 +287,7 @@ export const SearchFilters = ({
           </div>
 
           <CollapsibleContent className="mt-4 space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="district" className="text-sm font-medium text-[#1A1A1A]">
                   Bairro ou regiao
@@ -369,7 +369,7 @@ export const SearchFilters = ({
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded-2xl border border-[#ececf0] bg-white p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -401,7 +401,7 @@ export const SearchFilters = ({
                 <p className="mt-1 text-xs leading-relaxed text-[#7c7c83]">
                   Define como os leads chegam ordenados na primeira leitura.
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {[
                     { value: "score_desc", label: "Maior oportunidade" },
                     { value: "rating_desc", label: "Melhor rating" },
@@ -411,7 +411,7 @@ export const SearchFilters = ({
                       key={option.value}
                       variant="outline"
                       className={cn(
-                        "cursor-pointer rounded-full border px-3 py-1.5 text-xs transition-all duration-200",
+                        "cursor-pointer rounded-2xl border px-3 py-2 text-left text-xs transition-all duration-200",
                         advancedFilters.initialSort === option.value
                           ? "border-[#ef3333]/45 bg-[#fff2f4] text-[#8f2434]"
                           : "border-[#e6e6eb] bg-white text-[#6f6f76] hover:border-[#ef3333]/35 hover:bg-[#fff8f9]",
@@ -427,7 +427,7 @@ export const SearchFilters = ({
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               {[
                 {
                   key: "requirePhone" as const,

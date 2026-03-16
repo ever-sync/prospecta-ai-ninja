@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
-import { callGeminiText } from "../_shared/gemini.ts";
-import { requireUserProviderKey } from "../_shared/user-provider-keys.ts";
+import { callLLMText, resolveUserLLM } from "../_shared/llm.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,12 +15,7 @@ serve(async (req) => {
   try {
     const { business } = await req.json();
     const { user, svc } = await getAuthenticatedUserContext(req);
-    const geminiApiKey = await requireUserProviderKey(
-      svc,
-      user.id,
-      "gemini",
-      "Configure sua chave Gemini em Configuracoes > APIs.",
-    );
+    const llm = await resolveUserLLM(svc, user.id);
 
     const categoryLabels: Record<string, string> = {
       restaurant: "Restaurante",
@@ -62,9 +56,8 @@ ${business.onlinePresence?.weaknesses?.length ? `Fraquezas percebidas: ${busines
 
 Considere o segmento e crie uma abordagem personalizada destacando como podemos ajudar este negocio.`;
 
-    const suggestion = await callGeminiText(
-      geminiApiKey,
-      "gemini-2.5-flash",
+    const suggestion = await callLLMText(
+      llm,
       systemPrompt,
       userPrompt,
       { temperature: 0.7, maxOutputTokens: 600 },

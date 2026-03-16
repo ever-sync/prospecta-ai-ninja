@@ -53,27 +53,27 @@ const ANALYSIS_PROVIDER_META: Record<ApiProvider, { label: string; supported: bo
   gemini: {
     label: 'Gemini',
     supported: true,
-    summary: 'Boa velocidade e custo eficiente para a analise atual. Hoje e o provider conectado ao motor completo de analise e geracao.',
+    summary: 'Rapido e custo eficiente. Modelo: gemini-2.5-flash. Recomendado para a maioria dos casos.',
   },
   openai: {
     label: 'OpenAI',
-    supported: false,
-    summary: 'Costuma entregar boa consistencia e qualidade, mas ainda nao esta roteado nesta etapa da analise.',
+    supported: true,
+    summary: 'Alta consistencia e qualidade. Modelo: gpt-4o-mini. Bom para apresentacoes mais elaboradas.',
   },
   groq: {
     label: 'Groq',
-    supported: false,
-    summary: 'Tende a ter baixa latencia, mas ainda nao esta roteado nesta etapa da analise.',
+    supported: true,
+    summary: 'Latencia muito baixa. Modelo: llama-3.3-70b-versatile. Ideal para analises rapidas.',
   },
   claude_code: {
-    label: 'Claude Code',
-    supported: false,
-    summary: 'Pode ter boa leitura contextual, mas ainda nao esta roteado nesta etapa da analise.',
+    label: 'Claude (Anthropic)',
+    supported: true,
+    summary: 'Excelente leitura contextual e redacao. Modelo: claude-3-5-haiku. Indicado para textos de abordagem.',
   },
   other: {
     label: 'Outro',
     supported: false,
-    summary: 'Provider personalizado detectado. Ainda nao existe roteamento desta etapa para provedores customizados.',
+    summary: 'Provider personalizado. Formato de API desconhecido — nao suportado nesta etapa.',
   },
 };
 

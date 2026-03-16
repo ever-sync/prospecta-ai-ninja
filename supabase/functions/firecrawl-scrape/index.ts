@@ -1,4 +1,5 @@
 import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
+import { firecrawlScrapeRequest, resolveFirecrawlApiKey } from "../_shared/firecrawl.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,40 +22,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    await getAuthenticatedUserContext(req);
-    const apiKey = Deno.env.get("FIRECRAWL_API_KEY");
-
-    if (!apiKey) {
-      throw new HttpError(500, "FIRECRAWL_API_KEY nao configurada no projeto.");
-    }
+    const { user, svc } = await getAuthenticatedUserContext(req);
+    const apiKey = await resolveFirecrawlApiKey(svc, user.id);
 
     let formattedUrl = url.trim();
     if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const data = await firecrawlScrapeRequest<any>(apiKey, {
         url: formattedUrl,
         formats: options?.formats || ["markdown", "html"],
         onlyMainContent: options?.onlyMainContent ?? false,
         waitFor: options?.waitFor,
-      }),
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return new Response(
-        JSON.stringify({ success: false, error: data.error || `Request failed with status ${response.status}` }),
-        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

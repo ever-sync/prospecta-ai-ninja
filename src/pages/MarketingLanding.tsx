@@ -311,33 +311,46 @@ const MarketingLanding = () => {
           <div className="flex flex-col items-center gap-16 lg:flex-row">
             <div className="flex-1">
               <h2 className="mb-8 text-4xl font-bold lg:text-5xl">
-                Traga sua propria chave.
+                Um preco unico.
                 <br />
-                Pague pelo que usar.
+                Sem surpresas.
               </h2>
               <p className="mb-8 text-lg leading-relaxed text-white/60">
-                Sem taxa escondida. Voce conecta sua propria API Key e mantem o controle do custo enquanto a {BRAND.name}
-                cuida da inteligencia operacional.
+                A plataforma custa R$ 79,90/mes. Voce conecta suas proprias chaves de IA (Gemini, etc.) e Firecrawl —
+                esses custos ficam direto com os provedores, sem margem da {BRAND.name}.
               </p>
               <div className="space-y-4">
                 <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                   <CheckCircle2 className="h-6 w-6 text-[#ef3333]" />
-                  <span className="text-lg font-medium">Integracao com OpenAI e Gemini</span>
+                  <span className="text-lg font-medium">Plataforma completa por R$ 79,90/mes</span>
                 </div>
                 <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                   <CheckCircle2 className="h-6 w-6 text-[#ef3333]" />
-                  <span className="text-lg font-medium">Custo previsivel por scanner</span>
+                  <span className="text-lg font-medium">APIs de IA e Firecrawl: custo direto com o provedor</span>
+                </div>
+                <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <CheckCircle2 className="h-6 w-6 text-[#ef3333]" />
+                  <span className="text-lg font-medium">Sem taxa sobre uso. Voce controla o gasto de API</span>
                 </div>
               </div>
             </div>
 
             <div className="lg:w-[400px]">
               <Card className="rounded-[40px] border-none bg-white p-10 text-[#1A1A1A] shadow-2xl">
-                <div className="mb-4 text-sm font-bold uppercase tracking-widest text-[#ef3333]">Plano Agency</div>
-                <div className="mb-6 text-5xl font-bold">Em breve</div>
-                <p className="mb-8 text-[#66666d]">Entre na lista de espera para ser o primeiro a voar com o foguete {BRAND.name}.</p>
-                <Button className="h-14 w-full rounded-full bg-[#ef3333] text-lg font-bold text-white hover:bg-[#d42c2c]">
-                  Quero garantir minha vaga
+                <div className="mb-4 text-sm font-bold uppercase tracking-widest text-[#ef3333]">Acesso Completo</div>
+                <div className="mb-1 flex items-end gap-2">
+                  <span className="text-5xl font-bold">R$ 79</span>
+                  <span className="mb-2 text-2xl font-bold text-[#66666d]">,90</span>
+                </div>
+                <p className="mb-1 text-sm text-[#66666d]">por mes · cancele quando quiser</p>
+                <p className="mb-6 mt-4 text-xs leading-5 text-[#9b9ba3]">
+                  APIs de IA (Gemini, etc.) e Firecrawl sao contratadas separadamente direto com os provedores. Voce tem controle total do gasto.
+                </p>
+                <Button
+                  onClick={() => navigate('/auth')}
+                  className="h-14 w-full rounded-full bg-[#ef3333] text-lg font-bold text-white hover:bg-[#d42c2c]"
+                >
+                  Comecar agora
                 </Button>
               </Card>
             </div>

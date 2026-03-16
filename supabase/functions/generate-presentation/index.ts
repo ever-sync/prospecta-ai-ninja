@@ -1,5 +1,5 @@
 import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
-import { callGeminiJson } from "../_shared/gemini.ts";
+import { callLLMJson, resolveUserLLM } from "../_shared/llm.ts";
 import { renderPresentationHtml } from "../_shared/presentation-renderer.ts";
 import {
   PresentationContentV2,
@@ -8,7 +8,6 @@ import {
   PresentationTemplateSkin,
   PresentationTone,
 } from "../_shared/presentation-types.ts";
-import { requireUserProviderKey } from "../_shared/user-provider-keys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -245,20 +244,8 @@ Deno.serve(async (req) => {
       formTemplateBody,
     } = await req.json();
 
-    if (provider && provider !== "gemini") {
-      return new Response(
-        JSON.stringify({ error: "A geracao de apresentacoes ainda suporta apenas Gemini nesta etapa." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
     const { user, svc } = await getAuthenticatedUserContext(req);
-    const geminiApiKey = await requireUserProviderKey(
-      svc,
-      user.id,
-      "gemini",
-      "Configure sua chave Gemini em Configuracoes > APIs.",
-    );
+    const llm = await resolveUserLLM(svc, user.id, provider);
 
     const selectedTemplate = normalizeTemplate(template);
     const selectedTone = normalizeTone(tone);
@@ -343,9 +330,8 @@ Entregue uma narrativa forte, facil de ler e orientada a conversao.`;
     let generatedContent: PresentationContentV2;
 
     try {
-      const rawContent = await callGeminiJson<Partial<PresentationContentV2>>(
-        geminiApiKey,
-        "gemini-2.5-flash",
+      const rawContent = await callLLMJson<Partial<PresentationContentV2>>(
+        llm,
         systemPrompt,
         userPrompt,
         { temperature: 0.45, maxOutputTokens: 4096 },

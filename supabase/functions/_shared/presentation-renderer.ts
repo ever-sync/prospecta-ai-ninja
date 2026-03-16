@@ -3,6 +3,7 @@ import {
   PresentationContentV2,
   PresentationRenderContext,
   PresentationRenderResult,
+  PresentationSocialProof,
   PresentationTemplateSkin,
 } from "./presentation-types.ts";
 
@@ -50,6 +51,17 @@ const ensureImageSrc = (value: unknown) => {
     return `data:image/png;base64,${trimmed}`;
   }
   return null;
+};
+
+const getInitials = (value: unknown) => {
+  const parts = String(value || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (parts.length === 0) return "EP";
+  return parts.map((part) => part[0]?.toUpperCase() || "").join("");
 };
 
 const scoreToColor = (score: number, tokens: TemplateTokens) => {
@@ -230,6 +242,147 @@ const renderProofLogos = (logos: PresentationClientLogo[], tokens: TemplateToken
         })
         .join("")}
     </div>
+  `;
+};
+
+const renderTestimonialsCarousel = (
+  testimonials: PresentationSocialProof[],
+  tokens: TemplateTokens,
+) => {
+  const valid = testimonials
+    .filter((item) => String(item?.testimonial || "").trim())
+    .slice(0, 6);
+
+  if (valid.length === 0) return "";
+
+  const avatarCluster = valid
+    .slice(0, 3)
+    .map((item, index) => {
+      const image = ensureImageSrc(item.image_url);
+      const label = escapeHtml(item.name || item.company || "Cliente");
+      const commonStyle =
+        `width:52px;height:52px;border-radius:999px;border:3px solid ${tokens.surface};box-shadow:${tokens.shadow};background:${tokens.surfaceMuted};display:flex;align-items:center;justify-content:center;font-weight:800;color:${tokens.text};overflow:hidden;margin-left:${index === 0 ? 0 : -14}px;`;
+
+      if (image) {
+        return `<img src="${image}" alt="${label}" style="${commonStyle} object-fit:cover;" />`;
+      }
+
+      return `<div aria-label="${label}" style="${commonStyle}">${escapeHtml(getInitials(item.name || item.company || "Cliente"))}</div>`;
+    })
+    .join("");
+
+  const slides = valid
+    .map((item, index) => {
+      const image = ensureImageSrc(item.image_url);
+      const author = escapeHtml(item.name || item.company || "Cliente");
+      const company = item.company ? escapeHtml(item.company) : "";
+      const testimonial = escapeHtml(String(item.testimonial || "").trim());
+      const avatar = image
+        ? `<img src="${image}" alt="${author}" style="width:64px;height:64px;border-radius:999px;object-fit:cover;border:3px solid ${tokens.surface};box-shadow:${tokens.shadow};" />`
+        : `<div style="width:64px;height:64px;border-radius:999px;border:3px solid ${tokens.surface};background:${tokens.accentSoft};display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:${tokens.accent};">${escapeHtml(getInitials(item.name || item.company || "Cliente"))}</div>`;
+
+      return `
+        <article
+          class="v2-testimonial-slide${index === 0 ? " is-active" : ""}"
+          data-testimonial-slide
+          style="display:${index === 0 ? "block" : "none"};"
+        >
+          <div style="position:absolute; top:22px; right:28px; color:${tokens.accent}; font-size:58px; line-height:1; opacity:0.18;">"</div>
+          <p style="margin:0; padding-right:34px; text-align:center; font-size:clamp(24px, 3vw, 32px); line-height:1.55; color:${tokens.text}; font-family:${tokens.fontHeading};">
+            "${testimonial}"
+          </p>
+          <div class="v2-testimonial-author" style="display:flex; align-items:center; justify-content:center; gap:16px; margin-top:28px; flex-wrap:wrap;">
+            ${avatar}
+            <div style="text-align:left;">
+              <strong style="display:block; font-size:17px; color:${tokens.text};">${author}</strong>
+              ${company ? `<span style="display:block; margin-top:4px; font-size:14px; color:${tokens.muted};">${company}</span>` : ""}
+            </div>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  const dots = valid
+    .map(
+      (_, index) => `
+        <button
+          type="button"
+          class="v2-testimonial-dot${index === 0 ? " is-active" : ""}"
+          data-testimonial-dot="${index}"
+          aria-label="Ir para depoimento ${index + 1}"
+          style="width:10px;height:10px;border-radius:999px;border:none;padding:0;cursor:pointer;background:${index === 0 ? tokens.accent : tokens.border};"
+        ></button>`,
+    )
+    .join("");
+
+  const helperText = valid.length > 1
+    ? `${valid.length}+ depoimentos reais cadastrados`
+    : "Depoimento real cadastrado";
+
+  return `
+    <div
+      class="v2-testimonial-carousel"
+      data-testimonial-carousel
+      style="position:relative; margin-top:22px; padding:34px 28px 26px; border-radius:34px; border:1px solid ${tokens.border}; background:${tokens.surface}; box-shadow:${tokens.shadow}; overflow:hidden;"
+    >
+      <div style="position:absolute; inset:auto auto 0 -40px; width:180px; height:180px; border-radius:999px; background:${tokens.accentSoft}; filter:blur(16px); opacity:0.6;"></div>
+      <div style="position:relative; z-index:1;">
+        ${slides}
+        <div class="v2-testimonial-footer" style="display:flex; align-items:center; justify-content:center; gap:18px; margin-top:28px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center;">${avatarCluster}</div>
+          <strong style="font-size:16px; color:${tokens.accent};">${escapeHtml(helperText)}</strong>
+        </div>
+        ${
+          valid.length > 1
+            ? `<div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-top:18px;">${dots}</div>`
+            : ""
+        }
+      </div>
+    </div>
+    <script>
+      (function () {
+        const carousels = document.querySelectorAll("[data-testimonial-carousel]");
+        carousels.forEach(function (carousel) {
+          const slides = Array.from(carousel.querySelectorAll("[data-testimonial-slide]"));
+          const dots = Array.from(carousel.querySelectorAll("[data-testimonial-dot]"));
+          if (slides.length <= 1) return;
+          let activeIndex = 0;
+          let timerId;
+
+          const showSlide = function (index) {
+            activeIndex = index;
+            slides.forEach(function (slide, slideIndex) {
+              const isActive = slideIndex === index;
+              slide.style.display = isActive ? "block" : "none";
+              slide.classList.toggle("is-active", isActive);
+            });
+            dots.forEach(function (dot, dotIndex) {
+              const isActive = dotIndex === index;
+              dot.classList.toggle("is-active", isActive);
+              dot.style.background = isActive ? "${tokens.accent}" : "${tokens.border}";
+            });
+          };
+
+          const schedule = function () {
+            clearInterval(timerId);
+            timerId = setInterval(function () {
+              showSlide((activeIndex + 1) % slides.length);
+            }, 4800);
+          };
+
+          dots.forEach(function (dot, index) {
+            dot.addEventListener("click", function () {
+              showSlide(index);
+              schedule();
+            });
+          });
+
+          showSlide(0);
+          schedule();
+        });
+      })();
+    </script>
   `;
 };
 
@@ -421,6 +574,7 @@ export const renderPresentationHtml = (
     : "";
 
   const logosBlock = renderProofLogos(context.clientLogos, tokens);
+  const testimonialsBlock = renderTestimonialsCarousel(context.testimonials, tokens);
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -505,6 +659,15 @@ export const renderPresentationHtml = (
         }
         .v2-logo-card {
           min-width: calc(50% - 8px) !important;
+        }
+        .v2-testimonial-carousel {
+          padding: 22px 18px 20px !important;
+          border-radius: 24px !important;
+        }
+        .v2-testimonial-footer,
+        .v2-testimonial-author {
+          flex-direction: column !important;
+          text-align: center !important;
         }
         .v2-fallback-card {
           min-height: 0 !important;
@@ -711,6 +874,7 @@ export const renderPresentationHtml = (
         <article class="v2-card" style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
           <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Prova social</p>
           <h3 class="v2-title-lg" style="margin:12px 0 0; font-size:30px; font-family:${tokens.fontHeading}; color:${tokens.text};">Motivos para confiar na execucao</h3>
+          ${testimonialsBlock}
           ${proofCards ? `<div style="display:grid; gap:16px; margin-top:22px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));">${proofCards}</div>` : ""}
           ${logosBlock}
         </article>

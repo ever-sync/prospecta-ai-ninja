@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
-import { callGeminiJson } from "../_shared/gemini.ts";
-import { requireUserProviderKey } from "../_shared/user-provider-keys.ts";
+import { callLLMJson, resolveUserLLM } from "../_shared/llm.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -99,12 +98,7 @@ serve(async (req) => {
   try {
     const { business, mode } = await req.json();
     const { user, svc } = await getAuthenticatedUserContext(req);
-    const geminiApiKey = await requireUserProviderKey(
-      svc,
-      user.id,
-      "gemini",
-      "Configure sua chave Gemini em Configuracoes > APIs.",
-    );
+    const llm = await resolveUserLLM(svc, user.id);
 
     if (!["competitors", "score", "profile"].includes(mode)) {
       throw new Error("Modo invalido. Use: competitors, score, profile");
@@ -123,9 +117,8 @@ ${business.rating ? `Avaliacao: ${business.rating}/5` : ""}
 ${business.distance ? `Distancia: ${business.distance} km` : ""}
 ${business.onlinePresence ? `Presenca online: ${business.onlinePresence.label} (${business.onlinePresence.score}/100)` : ""}`;
 
-    const result = await callGeminiJson<Record<string, unknown>>(
-      geminiApiKey,
-      "gemini-2.5-flash",
+    const result = await callLLMJson<Record<string, unknown>>(
+      llm,
       getSystemPrompt(mode),
       userPrompt,
       { temperature: 0.7, maxOutputTokens: 1000 },

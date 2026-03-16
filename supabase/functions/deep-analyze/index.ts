@@ -1,6 +1,6 @@
 import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
-import { callGeminiJson } from "../_shared/gemini.ts";
-import { requireUserProviderKey } from "../_shared/user-provider-keys.ts";
+import { callLLMJson, resolveUserLLM } from "../_shared/llm.ts";
+import { firecrawlScrapeRequest, resolveFirecrawlApiKey } from "../_shared/firecrawl.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,25 +24,12 @@ const normalizeWebsite = (url: string) => {
 };
 
 const firecrawlScrape = async (apiKey: string, url: string, formats: string[], waitFor?: number) => {
-  const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  return await firecrawlScrapeRequest<any>(apiKey, {
       url,
       formats,
       onlyMainContent: false,
       ...(waitFor ? { waitFor } : {}),
-    }),
   });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  return await response.json();
 };
 
 Deno.serve(async (req) => {
@@ -60,29 +47,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (provider && provider !== "gemini") {
-      return new Response(
-        JSON.stringify({ error: "O fluxo de analise atual suporta apenas Gemini nesta etapa." }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
     const { user, svc } = await getAuthenticatedUserContext(req);
-    const geminiApiKey = await requireUserProviderKey(
-      svc,
-      user.id,
-      "gemini",
-      "Configure sua chave Gemini em Configuracoes > APIs.",
-    );
-    const firecrawlApiKey = Deno.env.get("FIRECRAWL_API_KEY");
+    const [llm, firecrawlApiKey] = await Promise.all([
+      resolveUserLLM(svc, user.id, provider),
+      resolveFirecrawlApiKey(svc, user.id),
+    ]);
 
     let scrapedContent: ScrapedContent | null = null;
     let websiteCaptureError: string | null = null;
     let googleMapsCaptureError: string | null = null;
-    if (business.website && firecrawlApiKey) {
+    if (business.website) {
       try {
         const scrapeData = await firecrawlScrape(
           firecrawlApiKey,
@@ -104,7 +78,7 @@ Deno.serve(async (req) => {
     }
 
     let googleMapsScreenshot: string | null = null;
-    if (business.name && firecrawlApiKey) {
+    if (business.name) {
       try {
         const searchQuery = encodeURIComponent(`${business.name} ${business.address || ""}`);
         const mapsUrl = `https://www.google.com/maps/search/${searchQuery}`;
@@ -195,9 +169,8 @@ ${JSON.stringify(dna || {}, null, 2)}
 
 Retorne uma analise tecnica e comercial.`;
 
-    const analysis = await callGeminiJson<any>(
-      geminiApiKey,
-      "gemini-2.5-flash",
+    const analysis = await callLLMJson<any>(
+      llm,
       systemPrompt,
       userPrompt,
       { temperature: 0.3, maxOutputTokens: 2500 },

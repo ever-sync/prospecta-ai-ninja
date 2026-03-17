@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { HttpError, getAuthenticatedUserContext } from "../_shared/auth.ts";
-import { firecrawlScrapeRequest, firecrawlSearchRequest, resolveFirecrawlApiKey } from "../_shared/firecrawl.ts";
+import { firecrawlSearchRequest, resolveFirecrawlApiKey } from "../_shared/firecrawl.ts";
 import { callLLMJson, resolveUserLLM } from "../_shared/llm.ts";
 
 const corsHeaders = {
@@ -21,13 +21,6 @@ const nicheLabels: Record<string, string> = {
   hotel: "Hoteis",
   school: "Escolas",
   real_estate: "Imobiliarias",
-};
-
-type ScrapePayload = {
-  markdown: string;
-  html: string;
-  metadata: Record<string, any>;
-  links: string[];
 };
 
 type SearchResult = {
@@ -331,24 +324,6 @@ function enrichBusinessFromResults(
   };
 }
 
-async function firecrawlScrape(apiKey: string, url: string): Promise<ScrapePayload | null> {
-  try {
-    const data = await firecrawlScrapeRequest<any>(apiKey, {
-        url: normalizeWebsite(url),
-        formats: ["markdown", "html", "links"],
-        onlyMainContent: false,
-      });
-    return {
-      markdown: data.data?.markdown || data.markdown || "",
-      html: data.data?.html || data.html || "",
-      metadata: data.data?.metadata || data.metadata || {},
-      links: data.data?.links || data.links || [],
-    };
-  } catch (error) {
-    console.error("Firecrawl scrape error:", error);
-    return null;
-  }
-}
 
 function extractEmails(text: string): string[] {
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
@@ -407,7 +382,7 @@ function deduplicateResults(results: any[]): any[] {
 
 function buildOnlinePresenceSnapshot(
   website: string,
-  scrape: ScrapePayload | null,
+  _scrape: null,
   fallbackEmail: string,
   fallbackPhone: string,
 ) {
@@ -418,153 +393,47 @@ function buildOnlinePresenceSnapshot(
       label: "Presenca critica",
       summary: "Nao possui site proprio. A empresa depende quase toda de reputacao local e canais de terceiros.",
       strengths: fallbackPhone || fallbackEmail ? ["Existe um canal de contato direto."] : [],
-      weaknesses: [
-        "Nao possui site proprio",
-        "Baixa autoridade fora do Google",
-        "Narrativa comercial pouco controlada",
-      ],
+      weaknesses: ["Nao possui site proprio", "Baixa autoridade fora do Google"],
       emailsFound: fallbackEmail ? [fallbackEmail] : [],
       phonesFound: fallbackPhone ? [fallbackPhone] : [],
       socialLinks: {},
       hasContactForm: false,
-      hasTitle: false,
-      hasMetaDescription: false,
       hasHttps: false,
-      contentDepth: "low",
     };
   }
 
-  if (!scrape) {
-    return {
-      score: fallbackEmail && fallbackPhone ? 48 : 38,
-      classification: fallbackEmail || fallbackPhone ? "average" : "weak",
-      label: fallbackEmail || fallbackPhone ? "Presenca mediana" : "Presenca fraca",
-      summary: "Site encontrado, mas a leitura do conteudo ainda esta incompleta.",
-      strengths: ["Site proprio detectado."],
-      weaknesses: ["Auditoria detalhada do site pendente"],
-      emailsFound: fallbackEmail ? [fallbackEmail] : [],
-      phonesFound: fallbackPhone ? [fallbackPhone] : [],
-      socialLinks: {},
-      hasContactForm: false,
-      hasTitle: false,
-      hasMetaDescription: false,
-      hasHttps: website.startsWith("https://"),
-      contentDepth: "low",
-    };
-  }
-
-  const textBlob = `${scrape.markdown}\n${scrape.html}\n${scrape.links.join("\n")}`;
-  const emailsFound = extractEmails(textBlob);
-  const phonesFound = extractPhones(textBlob);
-  const socialLinks = extractSocialLinks(textBlob);
-  const hasTitle = Boolean(scrape.metadata?.title);
-  const hasMetaDescription = Boolean(scrape.metadata?.description);
-  const hasHttps = normalizeWebsite(website).startsWith("https://");
-  const hasContactForm = detectContactForm(textBlob);
-  const contentLength = scrape.markdown.length;
-  const contentDepth = contentLength > 2500 ? "high" : contentLength > 900 ? "medium" : "low";
-
-  const strengths: string[] = [];
+  let score = 28;
+  const strengths: string[] = ["Site proprio detectado."];
   const weaknesses: string[] = [];
-  let score = 18;
 
-  if (hasTitle) {
-    score += 12;
-    strengths.push("Titulo principal detectado");
-  } else {
-    weaknesses.push("Sem titulo SEO claro");
-  }
+  if (fallbackEmail) { score += 10; strengths.push("Email de contato encontrado"); }
+  else weaknesses.push("Email dificil de encontrar");
 
-  if (hasMetaDescription) {
-    score += 10;
-    strengths.push("Meta description presente");
-  } else {
-    weaknesses.push("Sem meta description visivel");
-  }
+  if (fallbackPhone) { score += 10; strengths.push("Telefone visivel"); }
+  else weaknesses.push("Telefone pouco visivel");
 
-  if (hasHttps) {
-    score += 8;
-    strengths.push("Site com HTTPS");
-  } else {
-    weaknesses.push("HTTPS ausente ou incerto");
-  }
-
-  if (emailsFound.length > 0 || fallbackEmail) {
-    score += 10;
-    strengths.push("Email de contato encontrado");
-  } else {
-    weaknesses.push("Email dificil de encontrar");
-  }
-
-  if (phonesFound.length > 0 || fallbackPhone) {
-    score += 10;
-    strengths.push("Telefone visivel");
-  } else {
-    weaknesses.push("Telefone pouco visivel");
-  }
-
-  if (hasContactForm) {
-    score += 8;
-    strengths.push("Fluxo de contato ou orcamento encontrado");
-  } else {
-    weaknesses.push("Sem fluxo claro de conversao");
-  }
-
-  if (Object.keys(socialLinks).length >= 2) {
-    score += 10;
-    strengths.push("Presenca social conectada");
-  } else if (Object.keys(socialLinks).length === 1) {
-    score += 5;
-    strengths.push("Tem ao menos uma rede social conectada");
-  } else {
-    weaknesses.push("Pouca prova de onipresenca digital");
-  }
-
-  if (contentDepth === "high") {
-    score += 16;
-    strengths.push("Site com conteudo robusto");
-  } else if (contentDepth === "medium") {
-    score += 10;
-    strengths.push("Site com conteudo suficiente para leitura consultiva");
-  } else {
-    weaknesses.push("Site raso ou pouco explicativo");
-  }
+  if (website.startsWith("https://")) { score += 8; strengths.push("Site com HTTPS"); }
+  else weaknesses.push("HTTPS ausente ou incerto");
 
   score = Math.max(0, Math.min(score, 100));
-
-  const classification =
-    score <= 25 ? "critical" : score <= 45 ? "weak" : score <= 70 ? "average" : "strong";
-  const label =
-    classification === "critical"
-      ? "Presenca critica"
-      : classification === "weak"
-        ? "Presenca fraca"
-        : classification === "average"
-          ? "Presenca mediana"
-          : "Presenca consistente";
+  const classification = score <= 25 ? "critical" : score <= 45 ? "weak" : score <= 70 ? "average" : "strong";
+  const label = classification === "critical" ? "Presenca critica"
+    : classification === "weak" ? "Presenca fraca"
+    : classification === "average" ? "Presenca mediana"
+    : "Presenca consistente";
 
   return {
     score,
     classification,
     label,
-    summary:
-      classification === "critical"
-        ? "A empresa tem uma presenca online muito fragil e facil de atacar com auditoria consultiva."
-        : classification === "weak"
-          ? "A base existe, mas a experiencia digital ainda transmite pouca autoridade."
-          : classification === "average"
-            ? "Existe estrutura digital minima, com espaco claro para melhorar conversao e clareza."
-            : "A empresa parece mais bem estruturada online e exige abordagem mais estrategica.",
+    summary: "Site encontrado. Presenca pode ser auditada para identificar oportunidades de melhoria.",
     strengths,
     weaknesses,
-    emailsFound: [...new Set([fallbackEmail, ...emailsFound].filter(Boolean))],
-    phonesFound: [...new Set([fallbackPhone, ...phonesFound].filter(Boolean))],
-    socialLinks,
-    hasContactForm,
-    hasTitle,
-    hasMetaDescription,
-    hasHttps,
-    contentDepth,
+    emailsFound: fallbackEmail ? [fallbackEmail] : [],
+    phonesFound: fallbackPhone ? [fallbackPhone] : [],
+    socialLinks: {},
+    hasContactForm: false,
+    hasHttps: website.startsWith("https://"),
   };
 }
 
@@ -592,27 +461,17 @@ serve(async (req) => {
     const searchPromises = niches.map(async (nicheKey: string) => {
       const nicheLabel = nicheLabels[nicheKey] || nicheKey;
 
-      // Query 1: diretórios brasileiros conhecidos por listar empresas locais
-      const directoryQuery = `${nicheLabel} ${geoContext} ${queryHint} site:apontador.com OR site:guiamais.com.br OR site:yelp.com.br OR site:telelistas.net`.trim();
-      // Query 2: busca local ampla com dados de contato
-      const localQuery = `${nicheLabel} em ${geoContext} ${queryHint} telefone endereço contato`.trim();
-      // Query 3: busca por nome do negócio com dados estruturados
-      const structuredQuery = `"${nicheLabel}" "${geoContext}" avaliações CNPJ endereço horário ${queryHint}`.trim();
+      // Query 1: diretórios brasileiros + dados de contato
+      const directoryQuery = `${nicheLabel} ${geoContext} ${queryHint} site:apontador.com OR site:guiamais.com.br OR site:telelistas.net telefone endereço`.trim();
+      // Query 2: busca local com avaliações
+      const localQuery = `${nicheLabel} em ${geoContext} ${queryHint} avaliações contato endereço`.trim();
 
-      const [directoryResults, localResults, structuredResults] = await Promise.all([
+      const [directoryResults, localResults] = await Promise.all([
         firecrawlSearch(firecrawlApiKey, directoryQuery, limitPerNiche),
         firecrawlSearch(firecrawlApiKey, localQuery, limitPerNiche),
-        firecrawlSearch(firecrawlApiKey, structuredQuery, Math.ceil(limitPerNiche / 2)),
       ]);
 
-      let combined = deduplicateResults([...directoryResults, ...localResults, ...structuredResults]);
-
-      if (combined.length < 3) {
-        const fallbackQuery = `${nicheLabel} ${geoContext} site instagram site facebook contato telefone ${queryHint}`.trim();
-        const fallbackResults = await firecrawlSearch(firecrawlApiKey, fallbackQuery, limitPerNiche);
-        combined = deduplicateResults([...combined, ...fallbackResults]);
-      }
-
+      const combined = deduplicateResults([...directoryResults, ...localResults]);
       return { niche: nicheLabel, nicheKey, results: combined as SearchResult[] };
     });
 
@@ -722,57 +581,16 @@ ${searchContext}`;
       };
     });
 
-    const targetedBusinesses = businesses.filter(
-      (business: any) => !business.website || !business.phone || !business.rating || business.address === geoContext,
-    );
-
-    for (let index = 0; index < targetedBusinesses.length; index += 4) {
-      const batch = targetedBusinesses.slice(index, index + 4);
-
-      await Promise.all(
-        batch.map(async (business: any) => {
-          const exactQuery = `"${business.name}" "${geoContext}" ${queryHint} site telefone email endereco avaliacao`.trim();
-          const exactResults = (await firecrawlSearch(firecrawlApiKey, exactQuery, 5)) as SearchResult[];
-          const enriched = enrichBusinessFromResults(business, exactResults, geoContext);
-          Object.assign(business, enriched);
-        }),
-      );
-    }
-
-    const businessesWithWebsite = businesses.filter((business) => business.website);
-    const batchSize = 5;
-
-    for (let index = 0; index < businessesWithWebsite.length; index += batchSize) {
-      const batch = businessesWithWebsite.slice(index, index + batchSize);
-
-      await Promise.all(
-        batch.map(async (business: any) => {
-          const scrape = await firecrawlScrape(firecrawlApiKey, business.website);
-          const textBlob = scrape ? `${scrape.markdown}\n${scrape.html}` : "";
-
-          if (scrape && !business.email) {
-            const emails = extractEmails(textBlob);
-            if (emails.length > 0) {
-              business.email = emails[0];
-            }
-          }
-
-          if (scrape && !business.phone) {
-            const phones = extractPhones(textBlob);
-            if (phones.length > 0) {
-              business.phone = phones[0];
-            }
-          }
-
-          business.onlinePresence = buildOnlinePresenceSnapshot(
-            business.website,
-            scrape,
-            business.email || "",
-            business.phone || "",
-          );
-        }),
-      );
-    }
+    // Build online presence snapshot from search data only (no scraping to avoid timeouts)
+    businesses = businesses.map((business: any) => ({
+      ...business,
+      onlinePresence: buildOnlinePresenceSnapshot(
+        business.website || "",
+        null,
+        business.email || "",
+        business.phone || "",
+      ),
+    }));
 
     const filteredBusinesses = sortBusinessesForSearch(
       businesses.filter((business) => matchesAdvancedFilters(business, advancedFilters)),

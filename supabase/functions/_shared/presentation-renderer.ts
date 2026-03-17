@@ -71,8 +71,8 @@ const scoreToColor = (score: number, tokens: TemplateTokens) => {
 };
 
 const scoreToLabel = (score: number) => {
-  if (score < 40) return "Critico";
-  if (score < 70) return "Atencao";
+  if (score < 40) return "Precisa melhorar";
+  if (score < 70) return "Pode melhorar";
   return "Bom";
 };
 
@@ -177,11 +177,11 @@ const getTokens = (
 const scoreEntries = (analysis: Record<string, any>) => {
   const scores = analysis?.scores || {};
   return [
-    { key: "SEO", value: Number(scores.seo || 0), description: "Capacidade de ser encontrado e ranquear." },
-    { key: "Velocidade", value: Number(scores.speed || 0), description: "Tempo de resposta e fluidez da experiencia." },
-    { key: "UX", value: Number(scores.layout || 0), description: "Clareza, navegacao e confianca para converter." },
-    { key: "Seguranca", value: Number(scores.security || 0), description: "Sinais de confianca e integridade tecnica." },
-    { key: "Score geral", value: Number(scores.overall || 0), description: "Leitura consolidada do risco comercial atual." },
+    { key: "Aparece no Google", value: Number(scores.seo || 0), description: "Quantas pessoas conseguem encontrar esse negocio quando pesquisam no Google." },
+    { key: "Velocidade do site", value: Number(scores.speed || 0), description: "Se o site abre rapido ou faz o cliente desistir antes de ver o que o negocio oferece." },
+    { key: "Facilidade de uso", value: Number(scores.layout || 0), description: "Se o site e facil de entender e convence quem visita a entrar em contato." },
+    { key: "Passa confianca", value: Number(scores.security || 0), description: "Se o site da seguranca para quem acessa — fundamental para o cliente nao ir embora." },
+    { key: "Nota geral", value: Number(scores.overall || 0), description: "Como o negocio esta se saindo no ambiente digital como um todo." },
   ];
 };
 
@@ -581,7 +581,7 @@ export const renderPresentationHtml = (
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(context.business.name)} | Diagnostico consultivo</title>
+    <title>Analise para ${escapeHtml(context.business.name)} | ${escapeHtml(context.companyName)}</title>
     <style>
       * { box-sizing: border-box; }
       img { max-width: 100%; height: auto; }
@@ -693,7 +693,7 @@ export const renderPresentationHtml = (
                 )}</div>`
           }
           <div>
-            <p style="margin:0; color:${tokens.accent}; font-size:12px; text-transform:uppercase; letter-spacing:0.18em;">Diagnostico consultivo</p>
+            <p style="margin:0; color:${tokens.accent}; font-size:12px; text-transform:uppercase; letter-spacing:0.18em;">Analise do negocio</p>
             <h1 style="margin:8px 0 0; font-family:${tokens.fontHeading}; font-size:28px; line-height:1.1; color:${tokens.text};">${escapeHtml(
               context.companyName,
             )}</h1>
@@ -726,25 +726,38 @@ export const renderPresentationHtml = (
 
       <section class="v2-two-col" style="display:grid; grid-template-columns:1.2fr 0.8fr; gap:24px; margin-top:28px;">
         <article class="v2-card" style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
-          <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">${escapeHtml(content.executiveSummary.title)}</p>
+          <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">A situacao da empresa</p>
           <ul style="display:grid; gap:16px; list-style:none; margin:22px 0 0; padding:0;">
             ${renderBulletList(content.executiveSummary.bullets, tokens)}
           </ul>
         </article>
         <article class="v2-card" style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
-          <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">${escapeHtml(content.diagnosis.title)}</p>
+          <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">O que esta acontecendo</p>
           <p style="margin:18px 0 0; color:${tokens.text}; font-size:22px; line-height:1.35;">${escapeHtml(content.diagnosis.summary)}</p>
           <p style="margin:16px 0 0; color:${tokens.muted}; line-height:1.8;">${escapeHtml(content.diagnosis.riskStatement)}</p>
         </article>
       </section>
 
+      ${Array.isArray(content.pontosFortes) && content.pontosFortes.length > 0 ? `
+      <section class="v2-card" style="margin-top:28px; padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
+        <p style="margin:0; color:${tokens.success}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Pontos positivos</p>
+        <h3 class="v2-title-md" style="margin:10px 0 0; font-size:26px; font-family:${tokens.fontHeading}; color:${tokens.text};">O que ja esta funcionando bem</h3>
+        <ul style="display:grid; gap:14px; list-style:none; margin:20px 0 0; padding:0;">
+          ${content.pontosFortes.map((item) => `
+            <li style="display:flex; gap:12px; align-items:flex-start;">
+              <span style="display:inline-flex; margin-top:4px; flex:none; width:22px; height:22px; border-radius:999px; background:${tokens.success}; align-items:center; justify-content:center; color:#fff; font-size:13px; font-weight:700;">✓</span>
+              <span style="color:${tokens.muted}; line-height:1.7;">${escapeHtml(item)}</span>
+            </li>`).join("")}
+        </ul>
+      </section>` : ""}
+
       <section class="v2-card" style="margin-top:28px; padding:32px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
         <div style="display:flex; align-items:end; justify-content:space-between; gap:16px; flex-wrap:wrap;">
           <div>
-            <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Scorecard visual</p>
-            <h3 class="v2-title-lg" style="margin:10px 0 0; font-size:32px; font-family:${tokens.fontHeading}; color:${tokens.text};">Onde a oportunidade esta vazando</h3>
+            <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Como o negocio aparece hoje</p>
+            <h3 class="v2-title-lg" style="margin:10px 0 0; font-size:32px; font-family:${tokens.fontHeading}; color:${tokens.text};">O que encontramos no ambiente digital</h3>
           </div>
-          <p style="margin:0; color:${tokens.muted}; max-width:360px; line-height:1.7;">Os cards abaixo traduzem o impacto comercial da presenca digital atual em linguagem facil de decidir.</p>
+          <p style="margin:0; color:${tokens.muted}; max-width:360px; line-height:1.7;">Cada item abaixo mostra como o negocio esta se saindo — e o que isso significa na pratica para os clientes.</p>
         </div>
         <div class="v2-score-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:16px; margin-top:24px;">
           ${scores
@@ -772,7 +785,7 @@ export const renderPresentationHtml = (
       <section class="v2-visual-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:24px; margin-top:28px;">
         <article class="v2-card" style="padding:28px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
           <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">${escapeHtml(content.googleMapsInsight.title)}</p>
-          <h3 class="v2-title-md" style="margin:12px 0 0; font-size:28px; color:${tokens.text}; font-family:${tokens.fontHeading};">Sua presenca no Google Maps</h3>
+          <h3 class="v2-title-md" style="margin:12px 0 0; font-size:28px; color:${tokens.text}; font-family:${tokens.fontHeading};">Como o negocio aparece no Google</h3>
           <div style="margin-top:20px;">
             ${
               googleScreenshot
@@ -795,7 +808,7 @@ export const renderPresentationHtml = (
 
         <article class="v2-card" style="padding:28px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
           <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">${escapeHtml(content.websiteInsight.title)}</p>
-          <h3 class="v2-title-md" style="margin:12px 0 0; font-size:28px; color:${tokens.text}; font-family:${tokens.fontHeading};">Seu site atual</h3>
+          <h3 class="v2-title-md" style="margin:12px 0 0; font-size:28px; color:${tokens.text}; font-family:${tokens.fontHeading};">O site do negocio hoje</h3>
           <div style="margin-top:20px;">
             ${
               websiteScreenshot
@@ -818,9 +831,26 @@ export const renderPresentationHtml = (
         </article>
       </section>
 
+      ${Array.isArray(content.concorrente) && content.concorrente.length > 0 ? `
+      <section class="v2-card" style="margin-top:28px; padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
+        <p style="margin:0; color:${tokens.warning}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Atencao</p>
+        <h3 class="v2-title-md" style="margin:10px 0 0; font-size:26px; font-family:${tokens.fontHeading}; color:${tokens.text};">Onde a concorrencia esta na sua frente</h3>
+        <p style="margin:12px 0 0; color:${tokens.muted}; line-height:1.7;">Enquanto voce le isso, outros negocios do mesmo ramo estao aproveitando essas vantagens.</p>
+        <div style="display:grid; gap:14px; margin-top:22px;">
+          ${content.concorrente.map((item) => `
+            <div style="display:flex; gap:16px; align-items:flex-start; padding:18px; border-radius:20px; background:${tokens.surfaceMuted}; border:1px solid ${tokens.border};">
+              <span style="display:inline-flex; flex:none; margin-top:2px; width:28px; height:28px; border-radius:999px; background:rgba(245,158,11,0.18); align-items:center; justify-content:center; color:${tokens.warning}; font-size:16px;">⚠</span>
+              <div>
+                <p style="margin:0; color:${tokens.text}; font-weight:600; line-height:1.5;">${escapeHtml(item.vantagem)}</p>
+                <p style="margin:8px 0 0; color:${tokens.muted}; line-height:1.7; font-size:14px;">${escapeHtml(item.impacto)}</p>
+              </div>
+            </div>`).join("")}
+        </div>
+      </section>` : ""}
+
       <section class="v2-split-col" style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:28px;">
         <article class="v2-card" style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
-          <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Oportunidades e problemas</p>
+          <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">O que esta travando o crescimento</p>
           <div style="display:grid; gap:16px; margin-top:22px;">
             ${content.opportunities
               .map(
@@ -830,8 +860,8 @@ export const renderPresentationHtml = (
                       <strong style="font-size:18px; color:${tokens.text};">${index + 1}. ${escapeHtml(item.title)}</strong>
                       <span style="display:inline-flex; padding:6px 10px; border-radius:999px; background:${tokens.accentSoft}; color:${tokens.accent}; font-size:12px; font-weight:700;">${escapeHtml(item.urgency)}</span>
                     </div>
-                    <p style="margin:12px 0 0; color:${tokens.muted}; line-height:1.7;"><strong style="color:${tokens.text};">Impacto:</strong> ${escapeHtml(item.impact)}</p>
-                    <p style="margin:10px 0 0; color:${tokens.muted}; line-height:1.7;"><strong style="color:${tokens.text};">Oportunidade:</strong> ${escapeHtml(item.opportunity)}</p>
+                    <p style="margin:12px 0 0; color:${tokens.muted}; line-height:1.7;"><strong style="color:${tokens.text};">O que isso causa:</strong> ${escapeHtml(item.impact)}</p>
+                    <p style="margin:10px 0 0; color:${tokens.muted}; line-height:1.7;"><strong style="color:${tokens.text};">Como resolver:</strong> ${escapeHtml(item.opportunity)}</p>
                   </div>`,
               )
               .join("")}
@@ -839,15 +869,15 @@ export const renderPresentationHtml = (
         </article>
 
         <article class="v2-card" style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
-          <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Como resolvemos</p>
+          <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">O que podemos melhorar juntos</p>
           <div style="display:grid; gap:16px; margin-top:22px;">
             ${content.solutionMapping
               .map(
                 (item) => `
                   <div style="padding:18px; border-radius:20px; border:1px solid ${tokens.border}; background:${tokens.surfaceMuted};">
-                    <p style="margin:0; color:${tokens.muted}; line-height:1.7;"><strong style="color:${tokens.text};">Problema detectado:</strong> ${escapeHtml(item.problem)}</p>
-                    <p style="margin:10px 0 0; color:${tokens.muted}; line-height:1.7;"><strong style="color:${tokens.text};">Servico aplicado:</strong> ${escapeHtml(item.service)}</p>
-                    <p style="margin:10px 0 0; color:${tokens.muted}; line-height:1.7;"><strong style="color:${tokens.text};">Beneficio esperado:</strong> ${escapeHtml(item.benefit)}</p>
+                    <p style="margin:0; color:${tokens.muted}; line-height:1.7;"><strong style="color:${tokens.text};">Problema:</strong> ${escapeHtml(item.problem)}</p>
+                    <p style="margin:10px 0 0; color:${tokens.muted}; line-height:1.7;"><strong style="color:${tokens.text};">O que fazemos:</strong> ${escapeHtml(item.service)}</p>
+                    <p style="margin:10px 0 0; color:${tokens.muted}; line-height:1.7;"><strong style="color:${tokens.text};">O que muda para voce:</strong> ${escapeHtml(item.benefit)}</p>
                   </div>`,
               )
               .join("")}
@@ -857,7 +887,7 @@ export const renderPresentationHtml = (
 
       <section class="v2-two-col" style="display:grid; grid-template-columns:0.95fr 1.05fr; gap:24px; margin-top:28px;">
         <article class="v2-card" style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
-          <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Diferenciais</p>
+          <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Quem somos</p>
           <div style="display:grid; gap:14px; margin-top:22px;">
             ${content.differentials
               .map(
@@ -872,8 +902,8 @@ export const renderPresentationHtml = (
         </article>
 
         <article class="v2-card" style="padding:30px; border-radius:28px; background:${tokens.surface}; border:1px solid ${tokens.border}; box-shadow:${tokens.shadow};">
-          <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Prova social</p>
-          <h3 class="v2-title-lg" style="margin:12px 0 0; font-size:30px; font-family:${tokens.fontHeading}; color:${tokens.text};">Motivos para confiar na execucao</h3>
+          <p style="margin:0; color:${tokens.accent}; text-transform:uppercase; letter-spacing:0.16em; font-size:12px;">Quem ja atendemos</p>
+          <h3 class="v2-title-lg" style="margin:12px 0 0; font-size:30px; font-family:${tokens.fontHeading}; color:${tokens.text};">Negocios que ja passaram por isso com a gente</h3>
           ${testimonialsBlock}
           ${proofCards ? `<div style="display:grid; gap:16px; margin-top:22px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));">${proofCards}</div>` : ""}
           ${logosBlock}

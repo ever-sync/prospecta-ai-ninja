@@ -129,13 +129,20 @@ export type PresentationSectionCTA = {
   trustLine?: string | null;
 };
 
+export type PresentationConcorrenteCard = {
+  vantagem: string;
+  impacto: string;
+};
+
 export type PresentationContentV2 = {
   hero: PresentationSectionHero;
   executiveSummary: PresentationSectionExecutiveSummary;
   diagnosis: PresentationSectionDiagnosis;
+  pontosFortes?: string[];
   googleMapsInsight: PresentationSectionVisualInsight;
   websiteInsight: PresentationSectionVisualInsight;
   opportunities: PresentationProblemCard[];
+  concorrente?: PresentationConcorrenteCard[];
   solutionMapping: PresentationSolutionCard[];
   differentials: PresentationDifferentialCard[];
   proof: PresentationProofCard[];

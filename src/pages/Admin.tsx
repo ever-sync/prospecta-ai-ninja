@@ -14,6 +14,7 @@ import { AdminCharts, type PeriodDays } from '@/components/admin/AdminCharts';
 import PlanManager from '@/components/admin/PlanManager';
 import ApiUsageMonitor from '@/components/admin/ApiUsageMonitor';
 import SystemEmailsManager from '@/components/admin/SystemEmailsManager';
+import UsersManager from '@/components/admin/UsersManager';
 import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
 interface AdminStats {
@@ -83,7 +84,7 @@ interface AdminStats {
 }
 
 const StatCard = ({ icon: Icon, label, value, sub, color }: {
-  icon: any; label: string; value: number | string; sub?: string; color: string;
+  icon: React.ElementType; label: string; value: number | string; sub?: string; color: string;
 }) => (
   <Card>
     <CardContent className="p-6">
@@ -101,7 +102,7 @@ const StatCard = ({ icon: Icon, label, value, sub, color }: {
   </Card>
 );
 
-type AdminTab = 'dashboard' | 'custos' | 'planos' | 'emails';
+type AdminTab = 'dashboard' | 'usuarios' | 'custos' | 'planos' | 'emails';
 
 interface AdminProps {
   initialTab?: AdminTab;
@@ -130,8 +131,8 @@ const Admin = ({ initialTab = 'dashboard' }: AdminProps) => {
         throw error;
       }
       setStats(data);
-    } catch (err: any) {
-      const errorMsg = err?.message || 'Erro desconhecido';
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
       toast({ 
         title: 'Erro ao carregar estatísticas', 
         description: `O servidor retornou: ${errorMsg}`,
@@ -200,6 +201,7 @@ const Admin = ({ initialTab = 'dashboard' }: AdminProps) => {
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AdminTab)} className="space-y-6">
         <TabsList>
           <TabsTrigger value="dashboard">📊 Dashboard</TabsTrigger>
+          <TabsTrigger value="usuarios">👥 Usuários</TabsTrigger>
           <TabsTrigger value="custos">💰 Custos & APIs</TabsTrigger>
           <TabsTrigger value="planos">👑 Planos</TabsTrigger>
           <TabsTrigger value="emails">📧 Emails</TabsTrigger>
@@ -405,6 +407,10 @@ const Admin = ({ initialTab = 'dashboard' }: AdminProps) => {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="usuarios">
+          <UsersManager />
         </TabsContent>
 
         <TabsContent value="custos">

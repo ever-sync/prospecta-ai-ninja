@@ -84,92 +84,105 @@ const buildFallbackContent = (params: {
 
   return {
     hero: {
-      eyebrow: "Leitura comercial estruturada",
+      eyebrow: "Uma analise honesta do seu negocio",
       headline: overall < 40
-        ? `Hoje sua operacao digital nao sustenta a venda que ${business.name} pode fechar.`
-        : `Sua presenca digital tem base, mas ainda deixa dinheiro na mesa em ${category}.`,
-      subheadline: `${tonePrefix} Esta proposta conecta o que foi analisado com um plano objetivo para atrair, convencer e converter melhor.`,
-      miniSummary: `Encontramos sinais de ${pains[0]} e um espaco claro para posicionar ${services[0]} como alavanca de crescimento.`,
+        ? `${business.name} esta perdendo clientes que ja estao procurando pelo que voce oferece.`
+        : `${business.name} tem uma base boa, mas ainda deixa clientes escaparem sem perceber.`,
+      subheadline: `${tonePrefix} Esta analise mostra exatamente onde estao os problemas e o que podemos fazer juntos para que mais pessoas escolham voce.`,
+      miniSummary: `Encontramos pontos que precisam de atencao em ${category}. A boa noticia e que da para resolver — e e isso que vamos mostrar aqui.`,
     },
     executiveSummary: {
-      title: "Resumo executivo",
+      title: "O que encontramos",
       bullets: [
-        `A leitura da empresa ${business.name} mostra gargalos de descoberta, confianca e conversao.`,
-        `Os principais sinais indicam ${pains.slice(0, 2).join(" e ")} impactando a captacao.`,
-        `A oportunidade esta em transformar essas brechas num fluxo comercial previsivel.`,
-        `A proposta abaixo mostra onde agir primeiro e como acelerar retorno.`,
+        `${business.name} tem oportunidade real de atrair mais clientes com ajustes simples.`,
+        `O principal problema e ${pains[0]} — isso faz pessoas interessadas escolherem a concorrencia.`,
+        `Com ${services[0]}, da para virar esse jogo rapidamente.`,
       ],
     },
     diagnosis: {
-      title: "Diagnostico central",
-      summary: `A operacao atual nao comunica valor com a forca necessaria para transformar interesse em contato comercial consistente.`,
+      title: "A situacao atual",
+      summary: `Do jeito que esta hoje, o negocio nao esta aproveitando todas as pessoas que ja estao procurando pelo que ${business.name} oferece.`,
       riskStatement: overall < 40
-        ? "Continuar igual significa seguir perdendo demanda que ja esta procurando uma solucao."
-        : "Sem ajuste fino, a empresa continua atraindo menos confianca e convertendo abaixo do potencial.",
+        ? "Cada semana assim sao clientes que chegaram perto e foram embora sem ligar."
+        : "Com pequenos ajustes, da para capturar muito mais dos clientes que ja passam perto do negocio.",
     },
+    pontosFortes: [
+      `${business.name} ja tem presenca no mercado de ${category} — isso e um ponto de partida importante.`,
+      `O negocio esta em funcionamento e tem clientes, o que mostra que o produto ou servico tem valor real.`,
+    ],
     googleMapsInsight: {
-      title: "Google Maps",
-      insight: `No contexto local, visibilidade e prova social influenciam diretamente a decisao de contato.`,
-      impact: `Quando o Maps nao transmite autoridade suficiente, o lead escolhe quem parece mais seguro e mais facil de acionar.`,
+      title: "No Google",
+      insight: `Quando alguem pesquisa por ${category} na regiao, a forma como o negocio aparece influencia muito se a pessoa vai ligar ou escolher outro.`,
+      impact: `Se a aparencia no Google nao passa confianca, as pessoas escolhem quem parece mais seguro — mesmo que o seu servico seja melhor.`,
     },
     websiteInsight: {
-      title: "Site atual",
-      insight: `O site precisa reduzir friccao, clarificar proposta e sustentar melhor a decisao de compra.`,
-      impact: `Sem isso, cada clique novo vira visita pouco qualificada, curiosidade solta ou abandono antes do contato.`,
+      title: "No site",
+      insight: `O site e como a vitrine do negocio na internet. Ele precisa deixar claro o que voce faz e facilitar o contato.`,
+      impact: `Quando isso nao acontece, as pessoas visitam, ficam confusas e vao embora sem entrar em contato.`,
     },
     opportunities: [
       {
-        title: "Mensagem comercial pouco agressiva",
-        impact: "O visitante nao percebe valor rapido o bastante para agir.",
+        title: "Dificil de encontrar quando as pessoas pesquisam",
+        impact: "Quem esta procurando pelo seu servico nao te acha — e vai no concorrente.",
         urgency: "Alta",
-        opportunity: "Reposicionar a proposta com foco em dor, prova e proximo passo claro.",
+        opportunity: "Melhorar como o negocio aparece nas pesquisas do Google.",
       },
       {
-        title: "Presenca digital abaixo do potencial",
-        impact: "Parte da demanda local escolhe concorrentes mais convincentes.",
+        title: "Site nao convence as pessoas a entrar em contato",
+        impact: "A pessoa visita o site mas nao liga nem manda mensagem.",
         urgency: "Alta",
-        opportunity: "Ganhar mais descoberta e mais confianca nas primeiras impressoes.",
+        opportunity: "Deixar o site mais claro e com um caminho facil para o cliente chegar ate voce.",
       },
       {
-        title: "Conversao sem esteira clara",
-        impact: "Interesse se perde entre visita, duvida e inercia.",
+        title: "Poucos comentarios e avaliacoes visiveis",
+        impact: "Sem avaliacao, as pessoas preferem ir em quem tem mais comentarios positivos.",
         urgency: "Media",
-        opportunity: "Criar uma experiencia que leva do interesse ao contato com menos atrito.",
+        opportunity: "Aumentar a quantidade de clientes satisfeitos deixando avaliacao no Google.",
+      },
+    ],
+    concorrente: [
+      {
+        vantagem: "A concorrencia aparece primeiro quando alguem pesquisa pelo servico na regiao.",
+        impacto: "O cliente em potencial nem chega a ver o seu negocio — ja liga para o outro.",
+      },
+      {
+        vantagem: "Outros do seu ramo tem mais avaliacoes e fotos no perfil do Google.",
+        impacto: "Passam mais confianca para quem ainda nao os conhece.",
       },
     ],
     solutionMapping: services.slice(0, 3).map((service, index) => ({
       problem: pains[index] || pains[0],
       service,
-      benefit: `Aplicar ${service.toLowerCase()} para reduzir atrito, aumentar confianca e converter mais oportunidades qualificadas.`,
+      benefit: `Com ${service.toLowerCase()}, o negocio comeca a aparecer mais e a convencer melhor as pessoas que ja estao procurando.`,
     })),
     differentials: differentials.slice(0, 3).map((item) => ({
       title: item,
-      description: `Esse diferencial encurta o caminho entre diagnostico, execucao e resultado percebido pelo lead.`,
+      description: `Isso faz com que o trabalho gere resultado rapido, sem enrolacao.`,
     })),
     proof: [
       {
-        title: "Plano orientado a oportunidade perdida",
-        metric: "Leitura comercial",
-        description: "Nao entregamos auditoria fria. Entregamos um argumento de venda conectado ao contexto do lead.",
+        title: "Trabalhamos com negocios do seu segmento",
+        metric: "Experiencia",
+        description: `Ja ajudamos empresas de ${category} a aparecer mais e atrair mais clientes sem precisar de grandes investimentos.`,
       },
       {
-        title: "Execucao conectada ao DNA da sua empresa",
-        metric: "Fit comercial",
-        description: "A proposta conversa com servicos, diferenciais e posicionamento reais da sua operacao.",
+        title: "Plano feito para o seu negocio, nao um pacote generico",
+        metric: "Personalizacao",
+        description: "Cada proposta e montada com base no que encontramos — sem solucao de prateleira.",
       },
     ],
     offer: {
       title: "Proximo passo",
-      summary: `A proposta para ${business.name} e simples: corrigir os pontos que travam descoberta, confianca e conversao antes que mais demanda escape.`,
-      expectedResult: "Mais clareza comercial, mais autoridade digital e mais contatos qualificados entrando na operacao.",
-      riskOfInaction: "A empresa segue investindo energia em presenca digital que nao converte no ritmo que poderia.",
+      summary: `A ideia e simples: resolver os pontos que estao fazendo clientes de ${business.name} escolherem a concorrencia.`,
+      expectedResult: "Mais pessoas te encontrando, mais pessoas te escolhendo, mais clientes novos entrando.",
+      riskOfInaction: "Do jeito que esta, o negocio continua perdendo clientes que ja estao prontos para contratar — so que estao indo para o concorrente.",
     },
     cta: {
-      title: responseMode === "form" ? "Formulario de interesse" : "Tomada de decisao",
-      primaryLabel: responseMode === "form" ? "Enviar formulario" : "Quero receber contato",
+      title: responseMode === "form" ? "Me conta um pouco mais" : "Vamos conversar?",
+      primaryLabel: responseMode === "form" ? "Enviar" : "Quero saber mais",
       secondaryLabel: responseMode === "form" ? null : "Agora nao",
-      microcopy: "Se fizer sentido, o proximo passo e simples: responder agora para transformar essa leitura em plano de acao.",
-      trustLine: "Sem compromisso inicial",
+      microcopy: "Se fizer sentido, o proximo passo e simples: responder agora. A gente entra em contato para explicar tudo direitinho.",
+      trustLine: "Sem compromisso",
     },
   };
 };
@@ -187,6 +200,9 @@ const normalizeGeneratedContent = (
       : fallback.executiveSummary.bullets,
   },
   diagnosis: { ...fallback.diagnosis, ...(content?.diagnosis || {}) },
+  pontosFortes: Array.isArray(content?.pontosFortes) && content.pontosFortes.length > 0
+    ? content.pontosFortes.slice(0, 4).map((item) => String(item))
+    : (fallback.pontosFortes || []),
   googleMapsInsight: { ...fallback.googleMapsInsight, ...(content?.googleMapsInsight || {}) },
   websiteInsight: { ...fallback.websiteInsight, ...(content?.websiteInsight || {}) },
   opportunities: Array.isArray(content?.opportunities) && content.opportunities.length > 0
@@ -197,6 +213,12 @@ const normalizeGeneratedContent = (
         opportunity: String(item?.opportunity || fallback.opportunities[0].opportunity),
       }))
     : fallback.opportunities,
+  concorrente: Array.isArray(content?.concorrente) && content.concorrente.length > 0
+    ? content.concorrente.slice(0, 4).map((item) => ({
+        vantagem: String(item?.vantagem || "A concorrencia esta na frente em visibilidade."),
+        impacto: String(item?.impacto || "Clientes em potencial escolhem quem aparece primeiro."),
+      }))
+    : (fallback.concorrente || []),
   solutionMapping: Array.isArray(content?.solutionMapping) && content.solutionMapping.length > 0
     ? content.solutionMapping.slice(0, 4).map((item) => ({
         problem: String(item?.problem || fallback.solutionMapping[0].problem),
@@ -256,71 +278,79 @@ Deno.serve(async (req) => {
     const differentials = firstItems(dna?.differentials, ["Execucao consultiva", "Velocidade de entrega"]);
     const pains = firstItems(dna?.priority_pains, ["perda de leads", "baixa conversao"]);
 
-    const systemPrompt = `Voce cria conteudo comercial estruturado para propostas de venda.
-Retorne apenas JSON valido no schema:
+    const systemPrompt = `Voce cria apresentacoes de venda em linguagem simples para donos de pequenos negocios.
+Retorne apenas JSON valido no schema abaixo. Sem HTML, sem markdown.
+
 {
   "hero": { "eyebrow": "", "headline": "", "subheadline": "", "miniSummary": "" },
-  "executiveSummary": { "title": "", "bullets": ["", "", "", ""] },
-  "diagnosis": { "title": "", "summary": "", "riskStatement": "" },
-  "googleMapsInsight": { "title": "", "insight": "", "impact": "" },
-  "websiteInsight": { "title": "", "insight": "", "impact": "" },
+  "executiveSummary": { "title": "O que encontramos", "bullets": ["", "", ""] },
+  "diagnosis": { "title": "A situacao atual", "summary": "", "riskStatement": "" },
+  "pontosFortes": ["", ""],
+  "googleMapsInsight": { "title": "No Google", "insight": "", "impact": "" },
+  "websiteInsight": { "title": "No site", "insight": "", "impact": "" },
   "opportunities": [{ "title": "", "impact": "", "urgency": "", "opportunity": "" }],
+  "concorrente": [{ "vantagem": "", "impacto": "" }],
   "solutionMapping": [{ "problem": "", "service": "", "benefit": "" }],
   "differentials": [{ "title": "", "description": "" }],
   "proof": [{ "title": "", "metric": "", "description": "" }],
-  "offer": { "title": "", "summary": "", "expectedResult": "", "riskOfInaction": "" },
+  "offer": { "title": "Proximo passo", "summary": "", "expectedResult": "", "riskOfInaction": "" },
   "cta": { "title": "", "primaryLabel": "", "secondaryLabel": "", "microcopy": "", "trustLine": "" }
 }
 
-Regras:
-- Estrutura fixa, sem HTML.
-- Copy em PORTUGUES DO BRASIL IMPECAVEL (CRITICO): Use gramatica e ortografia perfeitas. Preste atencao redobrada em plurais, concordancia nominal/verbal e conjugacao de verbos. Use acentuacao correta (isso e mandatorio). Nao escreva palavras com erros de digitacao (typos).
-- Tom consultivo com agressividade comercial moderada.
-- Seja claro, objetivo e vendavel.
-- Priorize impacto comercial, nao auditoria tecnica fria.
-- Use DNA, servicos e analise para personalizar.
-- REGRAS ANTI-ALUCINACAO (CRITICO): 
-  1. Nao invente depoimentos nem numeros especificos se nao existirem.
-  2. Nao invente dores, vulnerabilidades ou nomes de concorrentes do Lead que nao estejam citados na secao ANALISE.
-  3. Se a ANALISE for contiver poucos dados ou sites "genericos", crie uma narrativa baseada nas dores *padrao do mercado local*, e nao em defeitos imaginarios da empresa.
-- Use no maximo 4 bullets no resumo executivo.
-- Gere de 3 a 5 oportunidades baseadas apenas no que realmente foi encontrado de ruim.
-- Gere de 2 a 4 solutionMapping ligando problemas reais com servicos do DNA.
-- Gere de 2 a 4 differentials do vendedor.
-- Gere de 1 a 3 proof cards.`;
+REGRAS DE LINGUAGEM (CRITICO):
+- Escreva como se estivesse explicando para alguem que nunca usou internet profissionalmente.
+- PROIBIDO usar qualquer termo tecnico: pixel, funil, CTR, SEO, UX, taxa de conversao, ranquear, bounce rate, landing page, lead, call to action, otimizacao, trafego pago, organico, algoritmo, engajamento, KPI, ROI, metricas, copy, inbound, outbound, remarketing, SERP, indexar, crawl.
+- Substitua termos tecnicos por linguagem do dia a dia:
+  * "SEO" -> "aparecer no Google quando alguem pesquisa"
+  * "site com baixa conversao" -> "site que nao convence as pessoas a ligar ou visitar"
+  * "trafego" -> "pessoas que visitam o site"
+  * "funil" -> "caminho que o cliente faz ate comprar"
+  * "pixel" -> (nao mencionar)
+  * "lead" -> "cliente em potencial" ou "pessoa interessada"
+- Tom direto, humano e consultivo. Nao e auditoria, e conversa de parceiro de negocio.
+- PORTUGUES DO BRASIL PERFEITO: gramatica, acentuacao, concordancia. Sem typos.
 
-    const userPrompt = `EMPRESA VENDEDORA:
-- Nome: ${companyName}
-- Servicos: ${services.join(", ")}
+REGRAS DE CONTEUDO:
+- pontosFortes: 2 a 3 frases curtas sobre o que o negocio ja faz bem (nao invente — baseie no que existir na ANALISE ou diga algo generico positivo sobre o segmento).
+- concorrente: 2 a 3 vantagens que concorrentes do mesmo segmento tipicamente tem. Nao cite nomes reais de empresas. Use "a concorrencia" ou "outros do seu ramo".
+- opportunities: 2 a 4 problemas reais encontrados, descritos em linguagem simples.
+- solutionMapping: 2 a 4 itens ligando cada problema ao servico do DNA.
+- differentials: 2 a 3 diferenciais do vendedor descritos de forma humana (quem somos).
+- proof: 1 a 2 cards de prova (cases, segmentos atendidos, resultados tipicos). Nao invente numeros.
+- ANTI-ALUCINACAO: Nao invente dados que nao estejam na ANALISE. Se faltar dado, use linguagem generica do mercado.`;
+
+    const userPrompt = `QUEM ESTA VENDENDO:
+- Nome da empresa: ${companyName}
+- O que oferece: ${services.join(", ")}
 - Diferenciais: ${differentials.join(", ")}
+- Para quem atende: ${String(dna?.target_audience || "Nao informado")}
 - Proposta de valor: ${String(dna?.value_proposition || "Nao informado")}
-- Target audience: ${String(dna?.target_audience || "Nao informado")}
-- Dores prioritarias: ${pains.join(", ")}
+- Problemas que resolve: ${pains.join(", ")}
 - Objecoes comuns: ${firstItems(dna?.common_objections, []).join(", ") || "Nao informado"}
-- Respostas a objecoes: ${String(dna?.objection_responses || "Nao informado")}
+- Como responde objecoes: ${String(dna?.objection_responses || "Nao informado")}
 - Pacotes/ofertas: ${String(dna?.offer_packages || "Nao informado")}
-- Garantia: ${String(dna?.guarantee || "Nao informado")}
-- Cases metricos: ${String(dna?.case_metrics || "Nao informado")}
+- Garantia oferecida: ${String(dna?.guarantee || "Nao informado")}
+- Resultados de clientes anteriores: ${String(dna?.case_metrics || "Nao informado")}
 
-LEAD ANALISADO:
-- Nome: ${String(business?.name || "Lead")}
-- Categoria: ${String(business?.category || "Nao informada")}
+NEGOCIO ANALISADO (o potencial cliente):
+- Nome: ${String(business?.name || "Empresa analisada")}
+- Tipo de negocio: ${String(business?.category || "Nao informado")}
 - Endereco: ${String(business?.address || "Nao informado")}
 - Site: ${String(business?.website || "Sem site")}
-- Rating: ${String(business?.rating || "N/A")}
+- Nota no Google: ${String(business?.rating || "Nao informado")}
 
-ANALISE:
+O QUE ENCONTRAMOS NA ANALISE:
 ${JSON.stringify(analysis || {}, null, 2)}
 
-MODO DE FECHAMENTO:
-- responseMode: ${selectedMode}
-- formulario: ${String(formTemplateName || "Nao informado")}
-- campos base: ${String(formTemplateBody || "Nome, WhatsApp, Email, principal desafio, objetivo")}
+COMO O CLIENTE VAI RESPONDER:
+- Modo: ${selectedMode}
+- Formulario: ${String(formTemplateName || "Nao informado")}
+- Campos: ${String(formTemplateBody || "Nome, WhatsApp, Email, principal desafio, objetivo")}
 
-INSTRUCOES EXTRAS DO USUARIO:
+INSTRUCOES ADICIONAIS:
 ${String(customInstructions || "Nenhuma")}
 
-Entregue uma narrativa forte, facil de ler e orientada a conversao.`;
+Escreva em linguagem simples, sem termos tecnicos. O dono do negocio precisa entender sem precisar pesquisar o significado das palavras.`;
 
     const fallbackContent = buildFallbackContent({
       analysis: analysis || {},

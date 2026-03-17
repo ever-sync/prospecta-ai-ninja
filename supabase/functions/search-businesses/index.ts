@@ -48,7 +48,7 @@ const DEFAULT_ADVANCED_FILTERS: Required<SearchAdvancedFilters> = {
   websiteMode: "any",
   requirePhone: false,
   requireEmail: false,
-  limitResults: 20,
+  limitResults: 40,
   initialSort: "score_desc",
 };
 
@@ -154,7 +154,7 @@ function normalizeAdvancedFilters(rawFilters: unknown): Required<SearchAdvancedF
       ? filters.initialSort
       : "score_desc";
   const rawLimit = typeof filters.limitResults === "number" ? filters.limitResults : DEFAULT_ADVANCED_FILTERS.limitResults;
-  const limitResults = Math.min(50, Math.max(5, Math.round(rawLimit / 5) * 5));
+  const limitResults = Math.min(80, Math.max(5, Math.round(rawLimit / 5) * 5));
 
   return {
     district: typeof filters.district === "string" ? filters.district.trim() : "",
@@ -455,8 +455,8 @@ serve(async (req) => {
     const geoContext = buildGeoContext(location, advancedFilters.district);
     const queryHint = buildSearchQueryHint(advancedFilters);
     const hasAdvancedFilters = hasAdvancedSearchFilters(advancedFilters);
-    const targetLeadVolume = Math.max(advancedFilters.limitResults, hasAdvancedFilters ? 30 : 25);
-    const limitPerNiche = Math.min(20, Math.ceil(targetLeadVolume / niches.length));
+    const targetLeadVolume = Math.max(advancedFilters.limitResults, hasAdvancedFilters ? 50 : 40);
+    const limitPerNiche = Math.min(30, Math.ceil(targetLeadVolume / niches.length));
 
     const searchPromises = niches.map(async (nicheKey: string) => {
       const nicheLabel = nicheLabels[nicheKey] || nicheKey;
@@ -465,13 +465,16 @@ serve(async (req) => {
       const directoryQuery = `${nicheLabel} ${geoContext} ${queryHint} site:apontador.com OR site:guiamais.com.br OR site:telelistas.net telefone endereço`.trim();
       // Query 2: busca local com avaliações
       const localQuery = `${nicheLabel} em ${geoContext} ${queryHint} avaliações contato endereço`.trim();
+      // Query 3: busca ampla com redes sociais e CNPJ
+      const broadQuery = `"${nicheLabel}" "${geoContext}" ${queryHint} instagram facebook site whatsapp CNPJ`.trim();
 
-      const [directoryResults, localResults] = await Promise.all([
+      const [directoryResults, localResults, broadResults] = await Promise.all([
         firecrawlSearch(firecrawlApiKey, directoryQuery, limitPerNiche),
         firecrawlSearch(firecrawlApiKey, localQuery, limitPerNiche),
+        firecrawlSearch(firecrawlApiKey, broadQuery, Math.ceil(limitPerNiche / 2)),
       ]);
 
-      const combined = deduplicateResults([...directoryResults, ...localResults]);
+      const combined = deduplicateResults([...directoryResults, ...localResults, ...broadResults]);
       return { niche: nicheLabel, nicheKey, results: combined as SearchResult[] };
     });
 
@@ -502,6 +505,8 @@ serve(async (req) => {
     }
 
     const systemPrompt = `Voce e um assistente especialista em extrair dados de empresas reais a partir de resultados de busca na web.
+
+OBJETIVO: Extrair o MAXIMO de empresas unicas possivel. Extraia todas que encontrar, ate ${advancedFilters.limitResults}.
 
 REGRAS CRITICAS:
 - Extraia apenas empresas reais com nome identificavel. Nao invente dados.
@@ -549,7 +554,7 @@ ${searchContext}`;
       llm,
       systemPrompt,
       userPrompt,
-      { temperature: 0.2, maxOutputTokens: 4000 },
+      { temperature: 0.2, maxOutputTokens: 8000 },
     );
 
     const allRawResults = allSearchResults.flatMap((item) => item.results);

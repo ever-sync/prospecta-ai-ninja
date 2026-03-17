@@ -14,7 +14,7 @@ import { selectFirstRow } from '@/lib/supabase/select-first-row';
 const STEP_CONFIG = [
   {
     title: 'Posicionamento',
-    subtitle: 'Defina servicos, diferenciais e proposta central.',
+    subtitle: 'Defina serviços, diferenciais e proposta central.',
   },
   {
     title: 'ICP e Dores',
@@ -22,7 +22,7 @@ const STEP_CONFIG = [
   },
   {
     title: 'Oferta Comercial',
-    subtitle: 'Organize objecoes, oferta, preco, cases e garantia.',
+    subtitle: 'Organize objeções, oferta, preço, cases e garantia.',
   },
   {
     title: 'Canais e Extras',
@@ -299,7 +299,7 @@ const DNAFormTab = () => {
               setServices,
               newService,
               setNewService,
-              'Ex: Criacao de sites',
+              'Ex: Criação de sites',
             )}
 
             {tagInput(
@@ -326,7 +326,7 @@ const DNAFormTab = () => {
               <Input
                 value={tone}
                 onChange={(e) => setTone(e.target.value)}
-                placeholder="Ex: Profissional, amigavel, tecnico..."
+                placeholder="Ex: Profissional, amigável, técnico..."
                 className={fieldClass}
               />
             </div>
@@ -336,11 +336,11 @@ const DNAFormTab = () => {
         {currentStep === 2 && (
           <div className="space-y-6">
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-foreground">Publico-Alvo</Label>
+              <Label className="text-sm font-medium text-foreground">Público-Alvo</Label>
               <Textarea
                 value={targetAudience}
                 onChange={(e) => setTargetAudience(e.target.value)}
-                placeholder="Descreva seu publico-alvo ideal..."
+                placeholder="Descreva seu público-alvo ideal..."
                 className={areaClass}
               />
             </div>
@@ -351,7 +351,7 @@ const DNAFormTab = () => {
               setIcpSegments,
               newIcpSegment,
               setNewIcpSegment,
-              'Ex: Clinicas medicas, imobiliarias, e-commerce...',
+              'Ex: Clínicas médicas, imobiliárias, e-commerce...',
             )}
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -360,7 +360,7 @@ const DNAFormTab = () => {
                 <Input
                   value={icpCompanySize}
                   onChange={(e) => setIcpCompanySize(e.target.value)}
-                  placeholder="Ex: 5 a 50 funcionarios, faturamento de 100k a 2M"
+                  placeholder="Ex: 5 a 50 funcionários, faturamento de 100k a 2M"
                   className={fieldClass}
                 />
               </div>
@@ -381,7 +381,7 @@ const DNAFormTab = () => {
               setPriorityPains,
               newPriorityPain,
               setNewPriorityPain,
-              'Ex: poucos leads qualificados, baixo retorno de anuncios...',
+              'Ex: poucos leads qualificados, baixo retorno de anúncios...',
             )}
           </div>
         )}
@@ -402,7 +402,7 @@ const DNAFormTab = () => {
               <Textarea
                 value={objectionResponses}
                 onChange={(e) => setObjectionResponses(e.target.value)}
-                placeholder="Ex: quando falar preco, mostrar ROI em 90 dias e oferecer piloto..."
+                placeholder="Ex: quando falar preço, mostrar ROI em 90 dias e oferecer piloto..."
                 className={areaClass}
               />
             </div>
@@ -412,7 +412,7 @@ const DNAFormTab = () => {
               <Textarea
                 value={offerPackages}
                 onChange={(e) => setOfferPackages(e.target.value)}
-                placeholder="Descreva seus produtos/pacotes, entregaveis e diferencas entre eles"
+                placeholder="Descreva seus produtos/pacotes, entregáveis e diferenças entre eles"
                 className={areaClass}
               />
             </div>
@@ -432,18 +432,18 @@ const DNAFormTab = () => {
                 <Input
                   value={guarantee}
                   onChange={(e) => setGuarantee(e.target.value)}
-                  placeholder="Ex: 30 dias de acompanhamento com revisao sem custo"
+                  placeholder="Ex: 30 dias de acompanhamento com revisão sem custo"
                   className={fieldClass}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-foreground">Cases e Metricas de Resultado</Label>
+              <Label className="text-sm font-medium text-foreground">Cases e Métricas de Resultado</Label>
               <Textarea
                 value={caseMetrics}
                 onChange={(e) => setCaseMetrics(e.target.value)}
-                placeholder="Ex: Clinica X: +42% leads em 60 dias, E-commerce Y: +28% conversao..."
+                placeholder="Ex: Clínica X: +42% leads em 60 dias, E-commerce Y: +28% conversão..."
                 className={areaClass}
               />
             </div>
@@ -453,11 +453,11 @@ const DNAFormTab = () => {
         {currentStep === 4 && (
           <div className="space-y-6">
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-foreground">Informacoes Adicionais</Label>
+              <Label className="text-sm font-medium text-foreground">Informações Adicionais</Label>
               <Textarea
                 value={additionalInfo}
                 onChange={(e) => setAdditionalInfo(e.target.value)}
-                placeholder="Outras informacoes relevantes sobre sua empresa..."
+                placeholder="Outras informações relevantes sobre sua empresa..."
                 className={areaClass}
               />
             </div>
@@ -471,7 +471,7 @@ const DNAFormTab = () => {
                   placeholder="https://seusite.com/portfolio"
                   className={fieldClass}
                 />
-                <p className="text-xs text-muted-foreground">O botao "Acessar Portfolio" sera exibido na apresentacao gerada.</p>
+                <p className="text-xs text-muted-foreground">O botão "Acessar Portfolio" será exibido na apresentação gerada.</p>
               </div>
 
               <div className="space-y-2">
@@ -532,7 +532,7 @@ const DNAFormTab = () => {
           <div className="flex items-center gap-2">
             {currentStep < totalSteps ? (
               <Button type="button" onClick={goToNextStep} className="h-11 rounded-xl gradient-primary text-primary-foreground">
-                Proxima etapa
+                Próxima etapa
                 <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
             ) : (

@@ -46,14 +46,14 @@ const menuItems = [
   { path: '/crm', label: 'CRM', icon: Users },
   { path: '/dna', label: 'DNA', icon: Fingerprint },
   { path: '/search', label: 'Scanner', icon: SearchIcon },
-  { path: '/robots', label: 'Robos', icon: Bot },
-  { path: '/presentations', label: 'Apresentacoes', icon: FileBarChart },
+  { path: '/robots', label: 'Robôs', icon: Bot },
+  { path: '/presentations', label: 'Apresentações', icon: FileBarChart },
   { path: '/campaigns', label: 'Campanhas', icon: Send },
   { path: '/templates', label: 'Templates', icon: FileStack },
 ];
 
 const generalItems = [
-  { path: '/settings', label: 'Configuracoes', icon: Settings },
+  { path: '/settings', label: 'Configurações', icon: Settings },
 ];
 
 const planBadgeConfig: Record<string, { label: string; className: string }> = {
@@ -121,7 +121,7 @@ const routeMeta: Record<string, { eyebrow: string; title: string; description: s
   '/presentations': {
     eyebrow: 'Conteudo Comercial',
     title: 'Apresentacoes',
-    description: 'Gerencie propostas prontas, respostas e proximos envios.',
+    description: 'Gerencie propostas prontas, respostas e próximos envios.',
   },
   '/campaigns': {
     eyebrow: 'Orquestracao',
@@ -141,7 +141,7 @@ const routeMeta: Record<string, { eyebrow: string; title: string; description: s
   '/settings': {
     eyebrow: 'Configuracao',
     title: 'Ajustes da Conta',
-    description: 'Controle plano, faturamento e configuracoes operacionais.',
+    description: 'Controle plano, faturamento e configurações operacionais.',
   },
   '/admin': {
     eyebrow: 'Controle Interno',

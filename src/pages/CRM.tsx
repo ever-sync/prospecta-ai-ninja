@@ -235,7 +235,7 @@ const CRM = () => {
   };
 
   const handleDeleteStage = async (stageId: string) => {
-    if (!window.confirm('Remover esta coluna manual? Os leads voltam para o fluxo automatico do CRM.')) {
+    if (!window.confirm('Remover esta coluna manual? Os leads voltam para o fluxo automático do CRM.')) {
       return false;
     }
     return deleteStage(stageId);
@@ -256,7 +256,7 @@ const CRM = () => {
       .maybeSingle();
 
     if (error || !data) {
-      toast.error('Nao foi possivel carregar a proposta para regeneracao');
+      toast.error('Não foi possível carregar a proposta para regeneração');
       return;
     }
 

@@ -586,23 +586,29 @@ serve(async (req) => {
     const geoContext = buildGeoContext(location, advancedFilters.district);
     const queryHint = buildSearchQueryHint(advancedFilters);
     const hasAdvancedFilters = hasAdvancedSearchFilters(advancedFilters);
-    const targetLeadVolume = Math.max(advancedFilters.limitResults, hasAdvancedFilters ? 24 : 15);
-    const limitPerNiche = Math.min(12, Math.ceil(targetLeadVolume / niches.length));
+    const targetLeadVolume = Math.max(advancedFilters.limitResults, hasAdvancedFilters ? 30 : 25);
+    const limitPerNiche = Math.min(20, Math.ceil(targetLeadVolume / niches.length));
 
     const searchPromises = niches.map(async (nicheKey: string) => {
       const nicheLabel = nicheLabels[nicheKey] || nicheKey;
-      const mapsQuery = `site:google.com/maps "${nicheLabel}" "${geoContext}" ${queryHint}`.trim();
-      const localQuery = `${nicheLabel} em ${geoContext} ${queryHint} avaliacoes telefone endereco`.trim();
 
-      const [mapsResults, localResults] = await Promise.all([
-        firecrawlSearch(firecrawlApiKey, mapsQuery, limitPerNiche),
-        firecrawlSearch(firecrawlApiKey, localQuery, Math.ceil(limitPerNiche / 2)),
+      // Query 1: diretórios brasileiros conhecidos por listar empresas locais
+      const directoryQuery = `${nicheLabel} ${geoContext} ${queryHint} site:apontador.com OR site:guiamais.com.br OR site:yelp.com.br OR site:telelistas.net`.trim();
+      // Query 2: busca local ampla com dados de contato
+      const localQuery = `${nicheLabel} em ${geoContext} ${queryHint} telefone endereço contato`.trim();
+      // Query 3: busca por nome do negócio com dados estruturados
+      const structuredQuery = `"${nicheLabel}" "${geoContext}" avaliações CNPJ endereço horário ${queryHint}`.trim();
+
+      const [directoryResults, localResults, structuredResults] = await Promise.all([
+        firecrawlSearch(firecrawlApiKey, directoryQuery, limitPerNiche),
+        firecrawlSearch(firecrawlApiKey, localQuery, limitPerNiche),
+        firecrawlSearch(firecrawlApiKey, structuredQuery, Math.ceil(limitPerNiche / 2)),
       ]);
 
-      let combined = deduplicateResults([...mapsResults, ...localResults]);
+      let combined = deduplicateResults([...directoryResults, ...localResults, ...structuredResults]);
 
       if (combined.length < 3) {
-        const fallbackQuery = `"${nicheLabel}" perto de "${geoContext}" ${queryHint} site contato`.trim();
+        const fallbackQuery = `${nicheLabel} ${geoContext} site instagram site facebook contato telefone ${queryHint}`.trim();
         const fallbackResults = await firecrawlSearch(firecrawlApiKey, fallbackQuery, limitPerNiche);
         combined = deduplicateResults([...combined, ...fallbackResults]);
       }

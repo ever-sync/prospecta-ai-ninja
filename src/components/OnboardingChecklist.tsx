@@ -58,7 +58,7 @@ const STEPS: StepDef[] = [
   },
   {
     key: 'first_presentation',
-    label: 'Gerar primeira apresentacao',
+    label: 'Gerar primeira apresentação',
     description: 'Crie uma proposta personalizada para um lead.',
     icon: FileText,
     path: '/presentations',
@@ -197,7 +197,7 @@ const CelebrationOverlay = ({ onDone }: { onDone: () => void }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.1 }}
           >
-            Sua plataforma esta 100% configurada.
+            Sua plataforma está 100% configurada.
           </motion.p>
           <motion.p
             className="mt-2 text-base text-white/60"
@@ -374,7 +374,7 @@ const OnboardingChecklist = () => {
                   <div>
                     <h3 className="text-sm font-semibold text-[#1A1A1A]">Primeiros passos</h3>
                     <p className="text-xs text-[#9b9ba3]">
-                      {completedCount}/{totalSteps} concluidos
+                      {completedCount}/{totalSteps} concluídos
                     </p>
                   </div>
                 </div>

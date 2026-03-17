@@ -71,7 +71,7 @@ const Presentations = () => {
 
     if (error) {
       console.error(error);
-      toast({ title: 'Erro', description: 'Falha ao carregar apresentacoes', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Falha ao carregar apresentações', variant: 'destructive' });
     } else {
       setPresentations((data as any) || []);
       setPublicBaseOrigin(resolvePublicBaseOrigin((profileData as any)?.proposal_link_domain));
@@ -94,7 +94,7 @@ const Presentations = () => {
         n.delete(id);
         return n;
       });
-      toast({ title: 'Excluida', description: 'Apresentacao removida' });
+      toast({ title: 'Excluída', description: 'Apresentação removida' });
     }
   };
 
@@ -102,7 +102,7 @@ const Presentations = () => {
 
   const handleDownloadPdf = (presentation: PresentationRow) => {
     if (!presentation.presentation_html) {
-      toast({ title: 'PDF indisponivel', description: 'A apresentacao ainda nao possui HTML pronto.', variant: 'destructive' });
+      toast({ title: 'PDF indisponível', description: 'A apresentação ainda não possui HTML pronto.', variant: 'destructive' });
       return;
     }
 
@@ -126,7 +126,7 @@ const Presentations = () => {
       const frameWindow = printFrame.contentWindow;
       if (!frameWindow) {
         cleanup();
-        toast({ title: 'PDF indisponivel', description: 'Nao foi possivel iniciar a impressao da apresentacao.', variant: 'destructive' });
+        toast({ title: 'PDF indisponível', description: 'Não foi possível iniciar a impressão da apresentação.', variant: 'destructive' });
         return;
       }
 
@@ -219,7 +219,7 @@ const Presentations = () => {
         .eq('id', p.id);
 
       setPresentations((prev) => prev.map((x) => (x.id === p.id ? { ...x, status: 'ready' } : x)));
-      toast({ title: 'Regenerada!', description: 'Apresentacao atualizada com sucesso' });
+      toast({ title: 'Regenerada!', description: 'Apresentação atualizada com sucesso' });
     } catch (err) {
       console.error(err);
       await supabase.from('presentations').update({ status: 'error' } as any).eq('id', p.id);
@@ -300,10 +300,10 @@ const Presentations = () => {
       <div className="rounded-[28px] border border-[#ececf0] bg-white px-5 py-6 shadow-[0_14px_36px_rgba(20,20,24,0.06)] lg:px-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-[#75757d]">Conteudo Comercial</p>
+            <p className="text-sm font-medium text-[#75757d]">Conteúdo Comercial</p>
             <h1 className="mt-1 flex items-center gap-2 text-3xl font-semibold tracking-tight text-[#1A1A1A] lg:text-4xl">
               <Presentation className="h-7 w-7 text-[#EF3333]" />
-              Apresentacoes
+              Apresentações
             </h1>
             <p className="mt-2 text-sm text-[#66666d] lg:text-base">Gerencie propostas geradas, respostas de leads e envios para campanhas.</p>
           </div>
@@ -369,8 +369,8 @@ const Presentations = () => {
               <Presentation className="h-8 w-8 text-[#EF3333]" />
             </div>
             <div>
-              <h3 className="text-lg font-medium text-[#1A1A1A]">Nenhuma apresentacao ainda</h3>
-              <p className="mt-1 text-sm text-[#6e6e76]">Selecione empresas na aba Busca e clique em "Analisar Selecionadas" para gerar apresentacoes.</p>
+              <h3 className="text-lg font-medium text-[#1A1A1A]">Nenhuma apresentação ainda</h3>
+              <p className="mt-1 text-sm text-[#6e6e76]">Selecione empresas na aba Busca e clique em "Analisar Selecionadas" para gerar apresentações.</p>
             </div>
           </div>
         </Card>

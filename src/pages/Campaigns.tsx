@@ -454,7 +454,7 @@ const Campaigns = () => {
         const subjectTemplate = chosenVariant?.subject || template?.subject;
         subject = subjectTemplate ? replaceVars(subjectTemplate, pres, publicUrl) : undefined;
       } else {
-        message = `Ola! Tudo bem?\n\nSou da ${profile?.company_name || 'nossa empresa'} e preparei uma analise personalizada para ${pres.business_name}.\n\nAcesse aqui: ${publicUrl}`;
+        message = `Olá! Tudo bem?\n\nSou da ${profile?.company_name || 'nossa empresa'} e preparei uma análise personalizada para ${pres.business_name}.\n\nAcesse aqui: ${publicUrl}`;
       }
       return {
         id: pres.id,
@@ -716,7 +716,7 @@ const Campaigns = () => {
       <div className="rounded-[28px] border border-[#ececf0] bg-white px-5 py-6 shadow-[0_14px_36px_rgba(20,20,24,0.06)] lg:px-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-[#75757d]">Orquestracao Comercial</p>
+            <p className="text-sm font-medium text-[#75757d]">Orquestração Comercial</p>
             <h1 className="mt-1 flex items-center gap-2 text-3xl font-semibold tracking-tight text-[#1A1A1A] lg:text-4xl">
               <Megaphone className="h-7 w-7 text-[#EF3333]" />
               Campanhas
@@ -759,7 +759,7 @@ const Campaigns = () => {
         <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-[#EF3333]" />
-            <p className="text-sm text-[#6f6f76]">Conversao</p>
+            <p className="text-sm text-[#6f6f76]">Conversão</p>
           </div>
           <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.conversion}%</p>
         </Card>
@@ -780,7 +780,7 @@ const Campaigns = () => {
               <Input className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Restaurantes SP - Marco" />
             </div>
             <div className="space-y-2">
-              <Label>Descricao</Label>
+              <Label>Descrição</Label>
               <Textarea className="rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]" value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Objetivo da campanha..." />
             </div>
             <div className="space-y-2">
@@ -806,7 +806,7 @@ const Campaigns = () => {
                 <SelectContent>
                   {templates.filter(t => t.channel === formChannel).length === 0 ? (
                     <div className="px-3 py-2 text-sm text-muted-foreground">
-                      Nenhum template de {formChannel === 'whatsapp' ? 'WhatsApp' : 'Email'}. Crie um em Configuracoes (menu Templates).
+                      Nenhum template de {formChannel === 'whatsapp' ? 'WhatsApp' : 'Email'}. Crie um em Configurações (menu Templates).
                     </div>
                   ) : (
                     templates
@@ -836,13 +836,13 @@ const Campaigns = () => {
       <Dialog open={!!showAddPresentations} onOpenChange={() => setShowAddPresentations(null)}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto rounded-[22px] border border-[#ececf0] bg-white">
           <DialogHeader>
-            <DialogTitle className="text-[#1A1A1A]">Adicionar Apresentacoes</DialogTitle>
+            <DialogTitle className="text-[#1A1A1A]">Adicionar Apresentações</DialogTitle>
             <DialogDescription>
               Selecione as apresentações que devem entrar nesta campanha.
             </DialogDescription>
           </DialogHeader>
           {availablePresentations.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-4">Nenhuma apresentacao disponivel para adicionar.</p>
+            <p className="text-muted-foreground text-sm py-4">Nenhuma apresentação disponível para adicionar.</p>
           ) : (
             <div className="space-y-2">
               {availablePresentations.map(p => (

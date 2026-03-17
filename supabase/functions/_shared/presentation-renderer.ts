@@ -4,34 +4,9 @@ import {
   PresentationRenderContext,
   PresentationRenderResult,
   PresentationSocialProof,
-  PresentationTemplateSkin,
 } from "./presentation-types.ts";
 
-type TemplateTokens = {
-  background: string;
-  surface: string;
-  surfaceMuted: string;
-  text: string;
-  muted: string;
-  accent: string;
-  accentSoft: string;
-  border: string;
-  success: string;
-  danger: string;
-  warning: string;
-  shadow: string;
-  heroBackground: string;
-  fontHeading: string;
-  fontBody: string;
-};
-
-const DEFAULT_FORM_FIELDS = [
-  "Nome completo",
-  "WhatsApp",
-  "Email",
-  "Principal desafio",
-  "Objetivo nos proximos 90 dias",
-];
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 const escapeHtml = (value: unknown) =>
   String(value ?? "")
@@ -41,7 +16,7 @@ const escapeHtml = (value: unknown) =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 
-const ensureImageSrc = (value: unknown) => {
+const ensureImageSrc = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -54,809 +29,980 @@ const ensureImageSrc = (value: unknown) => {
 };
 
 const getInitials = (value: unknown) => {
-  const parts = String(value || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2);
-
+  const parts = String(value || "").trim().split(/\s+/).filter(Boolean).slice(0, 2);
   if (parts.length === 0) return "EP";
-  return parts.map((part) => part[0]?.toUpperCase() || "").join("");
+  return parts.map((p) => p[0]?.toUpperCase() || "").join("");
 };
 
-const scoreToColor = (score: number, tokens: TemplateTokens) => {
-  if (score < 40) return tokens.danger;
-  if (score < 70) return tokens.warning;
-  return tokens.success;
+const hexToRgb = (hex: string): string => {
+  const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!r) return "239, 51, 51";
+  return `${parseInt(r[1], 16)}, ${parseInt(r[2], 16)}, ${parseInt(r[3], 16)}`;
 };
 
-const scoreToLabel = (score: number) => {
-  if (score < 40) return "Precisa melhorar";
-  if (score < 70) return "Pode melhorar";
-  return "Bom";
-};
+// ─── Accent per skin ─────────────────────────────────────────────────────────
 
-const getTokens = (
+const getAccent = (
   template: PresentationTemplateSkin,
-  customColors?: { bg?: string | null; text?: string | null; accent?: string | null },
-): TemplateTokens => {
-  if (template === "custom") {
-    return {
-      background: customColors?.bg || "#0c0c1d",
-      surface: "rgba(255,255,255,0.08)",
-      surfaceMuted: "rgba(255,255,255,0.04)",
-      text: customColors?.text || "#ffffff",
-      muted: "rgba(255,255,255,0.74)",
-      accent: customColors?.accent || "#EF3333",
-      accentSoft: "rgba(239,51,51,0.18)",
-      border: "rgba(255,255,255,0.16)",
-      success: "#16a34a",
-      danger: "#EF3333",
-      warning: "#f59e0b",
-      shadow: "0 22px 52px rgba(8, 8, 18, 0.28)",
-      heroBackground: "linear-gradient(135deg, rgba(255,255,255,0.08), rgba(239,51,51,0.18))",
-      fontHeading: "'Sora', 'Segoe UI', sans-serif",
-      fontBody: "'Manrope', 'Segoe UI', sans-serif",
-    };
-  }
-
-  const presets: Record<Exclude<PresentationTemplateSkin, "custom">, TemplateTokens> = {
-    "modern-dark": {
-      background: "#0c111f",
-      surface: "#10182b",
-      surfaceMuted: "#0f1422",
-      text: "#f8fafc",
-      muted: "#cbd5e1",
-      accent: "#EF3333",
-      accentSoft: "rgba(239,51,51,0.16)",
-      border: "rgba(148,163,184,0.18)",
-      success: "#22c55e",
-      danger: "#EF3333",
-      warning: "#f59e0b",
-      shadow: "0 24px 52px rgba(2, 6, 23, 0.42)",
-      heroBackground: "linear-gradient(135deg, #111827 0%, #1d2742 55%, #30131a 100%)",
-      fontHeading: "'Sora', 'Segoe UI', sans-serif",
-      fontBody: "'Manrope', 'Segoe UI', sans-serif",
-    },
-    "clean-light": {
-      background: "#f8fafc",
-      surface: "#ffffff",
-      surfaceMuted: "#f1f5f9",
-      text: "#0f172a",
-      muted: "#475569",
-      accent: "#EF3333",
-      accentSoft: "rgba(239,51,51,0.1)",
-      border: "rgba(15,23,42,0.08)",
-      success: "#16a34a",
-      danger: "#dc2626",
-      warning: "#d97706",
-      shadow: "0 18px 46px rgba(15, 23, 42, 0.08)",
-      heroBackground: "linear-gradient(135deg, #ffffff 0%, #f8fafc 55%, #fff1f2 100%)",
-      fontHeading: "'Fraunces', Georgia, serif",
-      fontBody: "'Manrope', 'Segoe UI', sans-serif",
-    },
-    corporate: {
-      background: "#f4f7fb",
-      surface: "#ffffff",
-      surfaceMuted: "#eef3f9",
-      text: "#102033",
-      muted: "#566476",
-      accent: "#EF3333",
-      accentSoft: "rgba(239,51,51,0.08)",
-      border: "rgba(16,32,51,0.08)",
-      success: "#15803d",
-      danger: "#dc2626",
-      warning: "#ca8a04",
-      shadow: "0 18px 38px rgba(16, 32, 51, 0.08)",
-      heroBackground: "linear-gradient(135deg, #ffffff 0%, #e9f0fb 65%, #fff2f4 100%)",
-      fontHeading: "'Plus Jakarta Sans', 'Segoe UI', sans-serif",
-      fontBody: "'Inter', 'Segoe UI', sans-serif",
-    },
-    "bold-gradient": {
-      background: "#0f1020",
-      surface: "rgba(18,22,39,0.92)",
-      surfaceMuted: "rgba(255,255,255,0.06)",
-      text: "#f8fafc",
-      muted: "#dbe1f0",
-      accent: "#EF3333",
-      accentSoft: "rgba(239,51,51,0.18)",
-      border: "rgba(255,255,255,0.14)",
-      success: "#22c55e",
-      danger: "#fb7185",
-      warning: "#fbbf24",
-      shadow: "0 30px 70px rgba(15, 16, 32, 0.45)",
-      heroBackground: "linear-gradient(135deg, #13142a 0%, #27346f 40%, #571725 100%)",
-      fontHeading: "'Space Grotesk', 'Segoe UI', sans-serif",
-      fontBody: "'Manrope', 'Segoe UI', sans-serif",
-    },
-  };
-
-  return presets[template];
+  customAccent?: string | null,
+): string => {
+  if (template === "custom" && customAccent) return customAccent;
+  return "#EF3333"; // all skins use red as accent
 };
 
-const scoreEntries = (analysis: Record<string, any>) => {
-  const scores = analysis?.scores || {};
+// ─── Score helpers ───────────────────────────────────────────────────────────
+
+const scoreEntries = (analysis: Record<string, unknown>) => {
+  const scores = (analysis?.scores as Record<string, unknown>) || {};
   return [
-    { key: "Aparece no Google", value: Number(scores.seo || 0), description: "Quantas pessoas conseguem encontrar esse negocio quando pesquisam no Google." },
-    { key: "Velocidade do site", value: Number(scores.speed || 0), description: "Se o site abre rapido ou faz o cliente desistir antes de ver o que o negocio oferece." },
-    { key: "Facilidade de uso", value: Number(scores.layout || 0), description: "Se o site e facil de entender e convence quem visita a entrar em contato." },
-    { key: "Passa confianca", value: Number(scores.security || 0), description: "Se o site da seguranca para quem acessa — fundamental para o cliente nao ir embora." },
-    { key: "Nota geral", value: Number(scores.overall || 0), description: "Como o negocio esta se saindo no ambiente digital como um todo." },
+    {
+      label: "Aparece no Google",
+      value: Math.min(100, Math.max(0, Number(scores.seo || 0))),
+      desc: "Quantas pessoas conseguem encontrar esse negócio quando pesquisam no Google.",
+    },
+    {
+      label: "Velocidade do Site",
+      value: Math.min(100, Math.max(0, Number(scores.speed || 0))),
+      desc: "Se o site abre rápido ou faz o cliente desistir antes de ver o que o negócio oferece.",
+    },
+    {
+      label: "Facilidade de Uso",
+      value: Math.min(100, Math.max(0, Number(scores.layout || 0))),
+      desc: "Se o site é fácil de entender e convence quem visita a entrar em contato.",
+    },
+    {
+      label: "Passa Confiança",
+      value: Math.min(100, Math.max(0, Number(scores.security || 0))),
+      desc: "Se o site dá segurança para quem acessa — fundamental para o cliente não ir embora.",
+    },
+    {
+      label: "Nota Geral",
+      value: Math.min(100, Math.max(0, Number(scores.overall || 0))),
+      desc: "Como o negócio está se saindo no ambiente digital como um todo.",
+    },
   ];
 };
 
-const renderBulletList = (items: string[], tokens: TemplateTokens) =>
-  items
-    .map(
-      (item) => `
-        <li style="display:flex; gap:12px; align-items:flex-start; color:${tokens.text};">
-          <span style="display:inline-flex; margin-top:6px; width:8px; height:8px; border-radius:999px; background:${tokens.accent}; flex:none;"></span>
-          <span style="color:${tokens.muted}; line-height:1.7;">${escapeHtml(item)}</span>
-        </li>`,
-    )
-    .join("");
+const scoreStatus = (v: number) =>
+  v >= 70
+    ? { label: "Bom", cls: "green", color: "#22c55e" }
+    : v >= 40
+    ? { label: "Pode Melhorar", cls: "yellow", color: "#f59e0b" }
+    : { label: "Precisa Melhorar", cls: "red", color: "#EF3333" };
 
-const renderFallbackCard = (
-  title: string,
-  meta: string[],
-  body: string,
-  tokens: TemplateTokens,
-) => `
-  <div class="v2-fallback-card" style="border:1px solid ${tokens.border}; border-radius:28px; background:${tokens.surfaceMuted}; padding:24px; box-shadow:${tokens.shadow}; min-height:280px;">
-    <div class="v2-fallback-head" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-      <div>
-        <p style="margin:0; font-size:12px; text-transform:uppercase; letter-spacing:0.16em; color:${tokens.muted};">Fallback visual</p>
-        <h3 style="margin:8px 0 0; font-size:26px; line-height:1.2; color:${tokens.text};">${escapeHtml(title)}</h3>
-      </div>
-      <div style="width:58px; height:58px; border-radius:18px; background:${tokens.accentSoft}; display:flex; align-items:center; justify-content:center; color:${tokens.accent}; font-size:28px;">▣</div>
-    </div>
-    <div class="v2-fallback-meta" style="display:grid; gap:10px; margin-top:22px;">
-      ${meta
-        .filter(Boolean)
-        .map(
-          (item) => `
-            <div style="padding:12px 14px; border-radius:16px; background:${tokens.surface}; border:1px solid ${tokens.border}; color:${tokens.muted}; font-size:14px;">
-              ${escapeHtml(item)}
-            </div>`,
-        )
-        .join("")}
-    </div>
-    <p style="margin:18px 0 0; color:${tokens.muted}; line-height:1.7;">${escapeHtml(body)}</p>
-  </div>
-`;
+// ─── Solution icons (cycle through a set) ────────────────────────────────────
 
-const renderProofLogos = (logos: PresentationClientLogo[], tokens: TemplateTokens) => {
-  const valid = logos.filter((item) => ensureImageSrc(item.logo_url));
-  if (valid.length === 0) return "";
+const SOLUTION_ICONS = [
+  `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+  `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>`,
+  `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`,
+  `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`,
+  `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+];
 
-  return `
-    <div class="v2-logos-grid" style="display:flex; flex-wrap:wrap; gap:14px; margin-top:24px;">
-      ${valid
-        .slice(0, 8)
-        .map((logo) => {
-          const src = ensureImageSrc(logo.logo_url);
-          return `
-            <div class="v2-logo-card" style="display:flex; align-items:center; justify-content:center; min-width:120px; min-height:68px; padding:16px 18px; border:1px solid ${tokens.border}; border-radius:18px; background:${tokens.surfaceMuted};">
-              <img src="${src}" alt="${escapeHtml(logo.company_name || "Cliente")}" style="max-height:34px; max-width:120px; object-fit:contain;" />
-            </div>`;
-        })
-        .join("")}
-    </div>
-  `;
-};
+const ABOUT_ICONS = [
+  `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`,
+  `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+  `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 15z"/></svg>`,
+];
 
-const renderTestimonialsCarousel = (
-  testimonials: PresentationSocialProof[],
-  tokens: TemplateTokens,
-) => {
-  const valid = testimonials
-    .filter((item) => String(item?.testimonial || "").trim())
-    .slice(0, 6);
+// ─── Main render function ─────────────────────────────────────────────────────
 
-  if (valid.length === 0) return "";
-
-  const avatarCluster = valid
-    .slice(0, 3)
-    .map((item, index) => {
-      const image = ensureImageSrc(item.image_url);
-      const label = escapeHtml(item.name || item.company || "Cliente");
-      const commonStyle =
-        `width:52px;height:52px;border-radius:999px;border:3px solid ${tokens.surface};box-shadow:${tokens.shadow};background:${tokens.surfaceMuted};display:flex;align-items:center;justify-content:center;font-weight:800;color:${tokens.text};overflow:hidden;margin-left:${index === 0 ? 0 : -14}px;`;
-
-      if (image) {
-        return `<img src="${image}" alt="${label}" style="${commonStyle} object-fit:cover;" />`;
-      }
-
-      return `<div aria-label="${label}" style="${commonStyle}">${escapeHtml(getInitials(item.name || item.company || "Cliente"))}</div>`;
-    })
-    .join("");
-
-  const slides = valid
-    .map((item, index) => {
-      const image = ensureImageSrc(item.image_url);
-      const author = escapeHtml(item.name || item.company || "Cliente");
-      const company = item.company ? escapeHtml(item.company) : "";
-      const testimonial = escapeHtml(String(item.testimonial || "").trim());
-      const avatar = image
-        ? `<img src="${image}" alt="${author}" style="width:64px;height:64px;border-radius:999px;object-fit:cover;border:3px solid ${tokens.surface};box-shadow:${tokens.shadow};" />`
-        : `<div style="width:64px;height:64px;border-radius:999px;border:3px solid ${tokens.surface};background:${tokens.accentSoft};display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:${tokens.accent};">${escapeHtml(getInitials(item.name || item.company || "Cliente"))}</div>`;
-
-      return `
-        <article
-          class="v2-testimonial-slide${index === 0 ? " is-active" : ""}"
-          data-testimonial-slide
-          style="display:${index === 0 ? "block" : "none"};"
-        >
-          <div style="position:absolute; top:22px; right:28px; color:${tokens.accent}; font-size:58px; line-height:1; opacity:0.18;">"</div>
-          <p style="margin:0; padding-right:34px; text-align:center; font-size:clamp(24px, 3vw, 32px); line-height:1.55; color:${tokens.text}; font-family:${tokens.fontHeading};">
-            "${testimonial}"
-          </p>
-          <div class="v2-testimonial-author" style="display:flex; align-items:center; justify-content:center; gap:16px; margin-top:28px; flex-wrap:wrap;">
-            ${avatar}
-            <div style="text-align:left;">
-              <strong style="display:block; font-size:17px; color:${tokens.text};">${author}</strong>
-              ${company ? `<span style="display:block; margin-top:4px; font-size:14px; color:${tokens.muted};">${company}</span>` : ""}
-            </div>
-          </div>
-        </article>
-      `;
-    })
-    .join("");
-
-  const dots = valid
-    .map(
-      (_, index) => `
-        <button
-          type="button"
-          class="v2-testimonial-dot${index === 0 ? " is-active" : ""}"
-          data-testimonial-dot="${index}"
-          aria-label="Ir para depoimento ${index + 1}"
-          style="width:10px;height:10px;border-radius:999px;border:none;padding:0;cursor:pointer;background:${index === 0 ? tokens.accent : tokens.border};"
-        ></button>`,
-    )
-    .join("");
-
-  const helperText = valid.length > 1
-    ? `${valid.length}+ depoimentos reais cadastrados`
-    : "Depoimento real cadastrado";
-
-  return `
-    <div
-      class="v2-testimonial-carousel"
-      data-testimonial-carousel
-      style="position:relative; margin-top:22px; padding:34px 28px 26px; border-radius:34px; border:1px solid ${tokens.border}; background:${tokens.surface}; box-shadow:${tokens.shadow}; overflow:hidden;"
-    >
-      <div style="position:absolute; inset:auto auto 0 -40px; width:180px; height:180px; border-radius:999px; background:${tokens.accentSoft}; filter:blur(16px); opacity:0.6;"></div>
-      <div style="position:relative; z-index:1;">
-        ${slides}
-        <div class="v2-testimonial-footer" style="display:flex; align-items:center; justify-content:center; gap:18px; margin-top:28px; flex-wrap:wrap;">
-          <div style="display:flex; align-items:center;">${avatarCluster}</div>
-          <strong style="font-size:16px; color:${tokens.accent};">${escapeHtml(helperText)}</strong>
-        </div>
-        ${
-          valid.length > 1
-            ? `<div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-top:18px;">${dots}</div>`
-            : ""
-        }
-      </div>
-    </div>
-    <script>
-      (function () {
-        const carousels = document.querySelectorAll("[data-testimonial-carousel]");
-        carousels.forEach(function (carousel) {
-          const slides = Array.from(carousel.querySelectorAll("[data-testimonial-slide]"));
-          const dots = Array.from(carousel.querySelectorAll("[data-testimonial-dot]"));
-          if (slides.length <= 1) return;
-          let activeIndex = 0;
-          let timerId;
-
-          const showSlide = function (index) {
-            activeIndex = index;
-            slides.forEach(function (slide, slideIndex) {
-              const isActive = slideIndex === index;
-              slide.style.display = isActive ? "block" : "none";
-              slide.classList.toggle("is-active", isActive);
-            });
-            dots.forEach(function (dot, dotIndex) {
-              const isActive = dotIndex === index;
-              dot.classList.toggle("is-active", isActive);
-              dot.style.background = isActive ? "${tokens.accent}" : "${tokens.border}";
-            });
-          };
-
-          const schedule = function () {
-            clearInterval(timerId);
-            timerId = setInterval(function () {
-              showSlide((activeIndex + 1) % slides.length);
-            }, 4800);
-          };
-
-          dots.forEach(function (dot, index) {
-            dot.addEventListener("click", function () {
-              showSlide(index);
-              schedule();
-            });
-          });
-
-          showSlide(0);
-          schedule();
-        });
-      })();
-    </script>
-  `;
-};
-
-const parseFormFields = (body?: string | null) => {
-  const parsed = String(body || "")
-    .split(/[\n,;]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-  return parsed.length > 0 ? parsed.slice(0, 5) : DEFAULT_FORM_FIELDS;
-};
-
-const renderCta = (content: PresentationContentV2, context: PresentationRenderContext, tokens: TemplateTokens) => {
-  const respondUrl = `${Deno.env.get("SUPABASE_URL") || ""}/functions/v1/respond-presentation`;
-  const acceptanceBody = JSON.stringify({ public_id: context.publicId, response: "accepted" });
-  const rejectionBody = JSON.stringify({ public_id: context.publicId, response: "rejected" });
-  const whatsappBaseUrl = context.whatsappUrl ? context.whatsappUrl.replace(/([?&])text=[^&]*/i, "").replace(/[?&]$/, "") : null;
-
-  if (context.responseMode === "form") {
-    const fields = parseFormFields(context.formTemplateBody);
-    const inputs = fields
-      .map((field, index) => {
-        const safeField = field.replace(/[^\w\s-]/g, "").trim() || `Campo ${index + 1}`;
-        const lower = safeField.toLowerCase();
-        const isTextarea = /desafio|objetivo|mensagem|observa/.test(lower);
-        const isEmail = /email/.test(lower);
-        const isPhone = /whatsapp|telefone|fone/.test(lower);
-        const required = index < 4 ? "required" : "";
-        const name = `field_${index}`;
-        if (isTextarea) {
-          return `
-            <label style="display:grid; gap:8px;">
-              <span style="font-size:13px; color:${tokens.muted};">${escapeHtml(safeField)}</span>
-              <textarea name="${name}" ${required} rows="4" style="width:100%; border-radius:16px; border:1px solid ${tokens.border}; padding:14px 16px; background:${tokens.surface}; color:${tokens.text}; font:inherit;"></textarea>
-            </label>`;
-        }
-        return `
-          <label style="display:grid; gap:8px;">
-            <span style="font-size:13px; color:${tokens.muted};">${escapeHtml(safeField)}</span>
-            <input name="${name}" ${required} type="${isEmail ? "email" : isPhone ? "tel" : "text"}" style="width:100%; border-radius:16px; border:1px solid ${tokens.border}; padding:14px 16px; background:${tokens.surface}; color:${tokens.text}; font:inherit;" />
-          </label>`;
-      })
-      .join("");
-
-    return `
-      <div>
-        <p style="color:${tokens.accent}; font-size:12px; text-transform:uppercase; letter-spacing:0.16em;">${escapeHtml(content.cta.title)}</p>
-        <h2 style="margin:14px 0 0; font-family:${tokens.fontHeading}; font-size:clamp(26px,3vw,36px); line-height:1.15; color:${tokens.text};">Receba uma analise detalhada do seu negocio</h2>
-        <p style="margin:14px 0 0; color:${tokens.muted}; line-height:1.8;">${escapeHtml(content.cta.microcopy)}</p>
-        <form id="presentation-cta-form" style="display:grid; gap:14px; margin-top:28px; max-width:600px;">
-          <div style="display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));">${inputs}</div>
-          <button type="submit" style="margin-top:8px; border:none; border-radius:14px; padding:16px 20px; background:${tokens.accent}; color:#fff; font-weight:700; font-size:16px; cursor:pointer;">
-            ${escapeHtml(content.cta.primaryLabel)}
-          </button>
-          <div style="display:flex; flex-wrap:wrap; gap:12px; color:${tokens.muted}; font-size:13px;">
-            <span>Leva menos de 1 minuto</span>
-            <span>Sem compromisso</span>
-            ${content.cta.trustLine ? `<span>${escapeHtml(content.cta.trustLine)}</span>` : ""}
-          </div>
-        </form>
-      </div>
-      <script>
-        (function () {
-          const form = document.getElementById("presentation-cta-form");
-          if (!form) return;
-          form.addEventListener("submit", async function (event) {
-            event.preventDefault();
-            const button = form.querySelector("button[type='submit']");
-            if (button) button.disabled = true;
-            const data = new FormData(form);
-            const lines = [];
-            for (const [key, value] of data.entries()) {
-              lines.push(key.replaceAll("_", " ") + ": " + value);
-            }
-            try {
-              await fetch("${respondUrl}", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: '${acceptanceBody}',
-              });
-            } catch (_) {}
-            const message = encodeURIComponent("Ola! Preenchi o formulario da proposta.%0A%0A" + lines.join("%0A"));
-            ${whatsappBaseUrl ? `window.location.href = "${whatsappBaseUrl}${whatsappBaseUrl.includes("?") ? "&" : "?"}text=" + message;` : ""}
-            form.insertAdjacentHTML("beforeend", '<p style="color:${tokens.text}; margin:0;">Recebemos seu interesse. Vamos falar.</p>');
-          });
-        })();
-      </script>
-    `;
+export function renderPresentationHtml(
+  contentOrContext: PresentationContentV2 | PresentationRenderContext,
+  maybeContext?: PresentationRenderContext,
+): PresentationRenderResult {
+  // Support both call signatures:
+  //   renderPresentationHtml(content, context)  ← used by generate-presentation
+  //   renderPresentationHtml(context)            ← future-proof
+  let content: PresentationContentV2 | null;
+  let context: PresentationRenderContext;
+  if (maybeContext !== undefined) {
+    content = contentOrContext as PresentationContentV2;
+    context = maybeContext;
+  } else {
+    context = contentOrContext as PresentationRenderContext;
+    content = (context.analysis?.presentation_content ||
+      context.analysis?.content) as PresentationContentV2 | null;
   }
 
-  return `
-    <div>
-      <p style="color:${tokens.accent}; font-size:12px; text-transform:uppercase; letter-spacing:0.16em;">${escapeHtml(content.cta.title)}</p>
-      <h2 style="margin:16px 0 0; font-family:${tokens.fontHeading}; font-size:clamp(26px,3vw,36px); line-height:1.15; color:${tokens.text};">${escapeHtml(content.cta.microcopy)}</h2>
-      <div style="display:flex; flex-wrap:wrap; gap:14px; margin-top:32px;">
-        <button id="presentation-accept" style="flex:1 1 260px; border:none; border-radius:14px; padding:18px 24px; background:${tokens.accent}; color:#fff; font-weight:700; font-size:17px; cursor:pointer;">
-          ${escapeHtml(content.cta.primaryLabel)}
-        </button>
-        <button id="presentation-reject" style="flex:1 1 200px; border:1px solid ${tokens.border}; border-radius:14px; padding:18px 24px; background:rgba(255,255,255,0.07); color:${tokens.text}; font-weight:600; font-size:16px; cursor:pointer;">
-          ${escapeHtml(content.cta.secondaryLabel || "Agora nao")}
-        </button>
-      </div>
-      <div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:18px; color:${tokens.muted}; font-size:13px;">
-        <span>Resposta em menos de 10 segundos</span>
-        <span>Sem compromisso</span>
-        ${content.cta.trustLine ? `<span>${escapeHtml(content.cta.trustLine)}</span>` : ""}
-      </div>
-      <div id="presentation-cta-feedback" style="margin-top:16px; color:${tokens.text};"></div>
-    </div>
-    <script>
-      (function () {
-        const accept = document.getElementById("presentation-accept");
-        const reject = document.getElementById("presentation-reject");
-        const feedback = document.getElementById("presentation-cta-feedback");
-        const disable = () => {
-          if (accept) accept.disabled = true;
-          if (reject) reject.disabled = true;
-        };
-        if (accept) {
-          accept.addEventListener("click", async function () {
-            disable();
-            try {
-              await fetch("${respondUrl}", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: '${acceptanceBody}',
-              });
-            } catch (_) {}
-            if (feedback) feedback.textContent = "Recebemos seu interesse. Vamos falar.";
-            ${context.whatsappUrl ? `window.location.href = "${context.whatsappUrl}";` : ""}
-          });
-        }
-        if (reject) {
-          reject.addEventListener("click", async function () {
-            disable();
-            try {
-              await fetch("${respondUrl}", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: '${rejectionBody}',
-              });
-            } catch (_) {}
-            if (feedback) feedback.textContent = "Obrigado pelo retorno. Se mudar de ideia, fale com a gente.";
-          });
-        }
-      })();
-    </script>
-  `;
-};
+  const accent = getAccent(context.template, context.dna?.custom_button_color);
+  const accentRgb = hexToRgb(accent);
 
-export const renderPresentationHtml = (
-  content: PresentationContentV2,
-  context: PresentationRenderContext,
-): PresentationRenderResult => {
-  const tokens = getTokens(context.template, {
-    bg: context.dna?.custom_bg_color as string | null | undefined,
-    text: context.dna?.custom_text_color as string | null | undefined,
-    accent: context.dna?.custom_button_color as string | null | undefined,
-  });
+  const business = context.business;
+  const businessName = escapeHtml(business.name || "Empresa");
+  const companyName = escapeHtml(context.companyName || "Nossa Empresa");
+  const logoSrc = ensureImageSrc(context.logoUrl);
 
-  const googleScreenshot = ensureImageSrc(context.assets.googleMaps.src);
-  const websiteScreenshot = ensureImageSrc(context.assets.website.src);
-  const logoUrl = ensureImageSrc(context.logoUrl);
-  const scores = scoreEntries(context.analysis);
-  const fallbacksUsed: string[] = [];
+  const googleMapsImg = ensureImageSrc(context.assets?.googleMaps?.src);
+  const websiteImg = ensureImageSrc(context.assets?.website?.src);
 
-  if (!googleScreenshot) fallbacksUsed.push("google_maps_screenshot");
-  if (!websiteScreenshot) fallbacksUsed.push("website_screenshot");
-  if (!logoUrl) fallbacksUsed.push("company_logo");
+  const usedGoogleMaps = Boolean(googleMapsImg);
+  const usedWebsite = Boolean(websiteImg);
+  const usedLogo = Boolean(logoSrc);
 
-  const proofCards = content.proof.length > 0
-    ? content.proof
-        .map(
-          (item) => `
-            <article style="padding:22px; border-radius:22px; border:1px solid ${tokens.border}; background:${tokens.surfaceMuted};">
-              <p style="margin:0; color:${tokens.accent}; font-size:13px; text-transform:uppercase; letter-spacing:0.14em;">${escapeHtml(
-                item.metric || "Resultado",
-              )}</p>
-              <h4 style="margin:12px 0 0; font-size:22px; color:${tokens.text};">${escapeHtml(item.title)}</h4>
-              <p style="margin:12px 0 0; color:${tokens.muted}; line-height:1.7;">${escapeHtml(item.description)}</p>
-            </article>`,
-        )
-        .join("")
-    : "";
+  const scores = scoreEntries(context.analysis || {});
+  const testimonials = (context.testimonials || []).filter(
+    (t) => String(t?.testimonial || "").trim(),
+  );
+  const clientLogos = (context.clientLogos || []).filter((l) =>
+    ensureImageSrc(l.logo_url),
+  );
 
-  const logosBlock = renderProofLogos(context.clientLogos, tokens);
-  const testimonialsBlock = renderTestimonialsCarousel(context.testimonials, tokens);
+  const whatsappUrl = context.whatsappUrl || "#";
+  const ctaPrimary = escapeHtml(
+    content?.cta?.primaryLabel || "Quero resolver isso",
+  );
+  const ctaSecondary = escapeHtml(
+    content?.cta?.secondaryLabel || "Agora Não",
+  );
 
-  const sec = (bg: string, inner: string, extra = "") =>
-    `<section style="width:100%; background:${bg}; ${extra}"><div style="max-width:1100px; margin:0 auto; padding:80px max(6vw,28px);">${inner}</div></section>`;
+  // ── Build section HTML ──────────────────────────────────────────────────────
 
-  const eyebrow = (label: string, color = tokens.accent) =>
-    `<p style="margin:0; color:${color}; font-size:12px; text-transform:uppercase; letter-spacing:0.18em; font-weight:700;">${label}</p>`;
+  const heroSection = buildHero(content, businessName, accent);
+  const diagSection = buildDiagnosis(content);
+  const scoresSection = buildScores(scores, googleMapsImg, websiteImg, businessName, business.category);
+  const problemsSection = buildProblems(content);
+  const solutionsSection = buildSolutions(content);
+  const quemSomosSection = buildQuemSomos(content, context, testimonials, clientLogos, accent);
+  const nextStepSection = buildNextStep(content, businessName);
+  const ctaSection = buildCta(content, whatsappUrl, ctaPrimary, ctaSecondary, context.responseMode, context, accent);
 
-  const sectionTitle = (text: string, size = "clamp(26px,3vw,36px)") =>
-    `<h2 style="margin:14px 0 0; font-family:${tokens.fontHeading}; font-size:${size}; line-height:1.15; color:${tokens.text};">${escapeHtml(text)}</h2>`;
+  const css = buildCss(accent, accentRgb);
+  const js = buildJs(accentRgb);
+
+  const logoHtml = logoSrc
+    ? `<img src="${logoSrc}" alt="${companyName}" class="nav__logo" />`
+    : `<div class="nav__logo" style="background:${accent};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;">${escapeHtml(companyName.slice(0, 2).toUpperCase())}</div>`;
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Analise para ${escapeHtml(context.business.name)} | ${escapeHtml(context.companyName)}</title>
-    <style>
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: ${tokens.fontBody}; background: ${tokens.background}; color: ${tokens.text}; }
-      img { max-width: 100%; height: auto; display: block; }
-      .lp-two { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
-      .lp-three { display: grid; grid-template-columns: repeat(3,1fr); gap: 32px; }
-      .lp-scores { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 18px; }
-      .lp-visuals { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
-      .lp-item { padding: 24px; border-radius: 16px; border: 1px solid ${tokens.border}; background: ${tokens.surfaceMuted}; }
-      @media (max-width: 860px) {
-        .lp-two, .lp-three, .lp-visuals { grid-template-columns: 1fr !important; }
-        .lp-nav-cta { display: none !important; }
-      }
-      @media (max-width: 600px) {
-        .lp-scores { grid-template-columns: 1fr 1fr !important; }
-        .lp-sticky { left: 16px !important; right: 16px !important; width: auto !important; transform: none !important; }
-      }
-    </style>
-  </head>
-  <body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Análise para ${businessName} | ${companyName}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>${css}</style>
+</head>
+<body>
 
-    <!-- HEADER FIXO -->
-    <header style="position:sticky; top:0; z-index:100; width:100%; background:${tokens.surface}; border-bottom:1px solid ${tokens.border}; backdrop-filter:blur(12px);">
-      <div style="max-width:1100px; margin:0 auto; padding:14px max(6vw,28px); display:flex; align-items:center; justify-content:space-between; gap:16px;">
-        <div style="display:flex; align-items:center; gap:14px;">
-          ${logoUrl
-            ? `<img src="${logoUrl}" alt="${escapeHtml(context.companyName)}" style="width:40px; height:40px; object-fit:contain; border-radius:10px; background:#fff; padding:4px;" />`
-            : `<div style="width:40px; height:40px; border-radius:10px; background:${tokens.accentSoft}; display:flex; align-items:center; justify-content:center; color:${tokens.accent}; font-weight:800; font-size:18px;">${escapeHtml(context.companyName.slice(0,1) || "E")}</div>`
-          }
-          <div>
-            <p style="font-size:15px; font-weight:700; color:${tokens.text};">${escapeHtml(context.companyName)}</p>
-            <p style="font-size:12px; color:${tokens.muted}; margin-top:2px;">Preparado para ${escapeHtml(context.business.name)}</p>
-          </div>
-        </div>
-        <a class="lp-nav-cta" href="#lp-cta" style="display:inline-flex; align-items:center; padding:10px 22px; border-radius:999px; background:${tokens.accent}; color:#fff; text-decoration:none; font-weight:700; font-size:14px;">Quero resolver isso</a>
+  <!-- NAVIGATION -->
+  <nav class="nav" id="nav">
+    <div class="nav__inner">
+      <div class="nav__brand">
+        ${logoHtml}
+        <span class="nav__name">${companyName}</span>
       </div>
-    </header>
+      <div class="nav__links" id="navLinks">
+        <a href="#hero" class="nav__link active" data-section="hero">Início</a>
+        <a href="#diagnostico" class="nav__link" data-section="diagnostico">Diagnóstico</a>
+        <a href="#scores" class="nav__link" data-section="scores">Ambiente Digital</a>
+        <a href="#problemas" class="nav__link" data-section="problemas">Problemas</a>
+        <a href="#solucoes" class="nav__link" data-section="solucoes">Soluções</a>
+        <a href="#quem-somos" class="nav__link" data-section="quem-somos">Quem Somos</a>
+        <a href="#cta" class="nav__link nav__link--cta">Quero Resolver Isso</a>
+      </div>
+      <button class="nav__toggle" id="navToggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
 
-    <!-- HERO -->
-    ${sec(tokens.heroBackground, `
-      ${eyebrow(`Fizemos uma analise especifica para ${escapeHtml(context.business.name)}`)}
-      <h1 style="margin:20px 0 0; font-family:${tokens.fontHeading}; font-size:clamp(36px,5vw,64px); line-height:1.05; max-width:860px; color:${tokens.text};">${escapeHtml(content.hero.headline)}</h1>
-      <p style="margin:22px 0 0; max-width:700px; font-size:clamp(17px,2vw,21px); line-height:1.65; color:${tokens.muted};">${escapeHtml(content.hero.subheadline)}</p>
-      <div style="display:flex; flex-wrap:wrap; gap:16px; margin-top:36px;">
-        <div style="padding:20px 24px; border-radius:16px; background:rgba(255,255,255,0.07); border:1px solid ${tokens.border}; max-width:340px;">
-          <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.16em; color:${tokens.muted};">Leitura rapida</p>
-          <p style="margin-top:10px; font-size:15px; line-height:1.7; color:${tokens.text};">${escapeHtml(content.hero.miniSummary)}</p>
-        </div>
-        <div style="padding:20px 24px; border-radius:16px; background:rgba(255,255,255,0.07); border:1px solid ${tokens.border}; max-width:340px;">
-          <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.16em; color:${tokens.muted};">O que esta em jogo</p>
-          <p style="margin-top:10px; font-size:15px; line-height:1.7; color:${tokens.text};">${escapeHtml(content.diagnosis.riskStatement)}</p>
-        </div>
-      </div>
-    `, "padding-top:100px; padding-bottom:100px;")}
+  ${heroSection}
+  ${diagSection}
+  ${scoresSection}
+  ${problemsSection}
+  ${solutionsSection}
+  ${quemSomosSection}
+  ${nextStepSection}
+  ${ctaSection}
 
-    <!-- SITUAÇÃO -->
-    ${sec(tokens.surface, `
-      <div class="lp-two">
-        <div>
-          ${eyebrow("A situacao da empresa")}
-          ${sectionTitle(content.executiveSummary.title || "O que encontramos")}
-          <ul style="list-style:none; display:grid; gap:18px; margin-top:28px;">
-            ${renderBulletList(content.executiveSummary.bullets, tokens)}
-          </ul>
-        </div>
-        <div>
-          ${eyebrow("O que esta acontecendo")}
-          <p style="margin-top:16px; font-size:clamp(20px,2.2vw,26px); line-height:1.4; color:${tokens.text};">${escapeHtml(content.diagnosis.summary)}</p>
-          <p style="margin-top:18px; color:${tokens.muted}; line-height:1.8;">${escapeHtml(content.diagnosis.riskStatement)}</p>
-        </div>
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__brand">
+        ${logoSrc ? `<img src="${logoSrc}" alt="${companyName}" />` : ""}
+        <span>${companyName}</span>
       </div>
-    `)}
+      <p class="footer__copy">Análise personalizada para ${businessName}</p>
+    </div>
+  </footer>
 
-    ${Array.isArray(content.pontosFortes) && content.pontosFortes.length > 0 ? sec(`rgba(34,197,94,0.07)`, `
-      ${eyebrow("Pontos positivos", tokens.success)}
-      ${sectionTitle("O que ja esta funcionando bem")}
-      <div class="lp-two" style="margin-top:32px;">
-        ${content.pontosFortes.map(item => `
-          <div style="display:flex; gap:14px; align-items:flex-start;">
-            <span style="flex:none; width:26px; height:26px; border-radius:999px; background:${tokens.success}; display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; font-weight:800; margin-top:2px;">✓</span>
-            <p style="color:${tokens.muted}; line-height:1.75; font-size:16px;">${escapeHtml(item)}</p>
-          </div>`).join("")}
-      </div>
-    `) : ""}
-
-    <!-- SCORECARD -->
-    ${sec(tokens.background, `
-      ${eyebrow("Como o negocio aparece hoje")}
-      ${sectionTitle("O que encontramos no ambiente digital")}
-      <p style="margin-top:14px; color:${tokens.muted}; line-height:1.7; max-width:600px;">Cada item mostra como o negocio esta se saindo — e o que isso significa na pratica para os clientes.</p>
-      <div class="lp-scores" style="margin-top:36px;">
-        ${scores.map(entry => `
-          <div class="lp-item">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-              <p style="font-size:14px; font-weight:600; color:${tokens.text};">${entry.key}</p>
-              <span style="padding:4px 10px; border-radius:999px; background:${tokens.accentSoft}; color:${scoreToColor(entry.value, tokens)}; font-size:11px; font-weight:700; white-space:nowrap;">${scoreToLabel(entry.value)}</span>
-            </div>
-            <div style="height:6px; border-radius:999px; background:${tokens.border}; margin-top:14px; overflow:hidden;">
-              <div style="width:${Math.max(4, Math.min(100, entry.value))}%; height:100%; background:${scoreToColor(entry.value, tokens)}; border-radius:999px;"></div>
-            </div>
-            <p style="margin-top:12px; color:${tokens.muted}; font-size:13px; line-height:1.6;">${escapeHtml(entry.description)}</p>
-          </div>`).join("")}
-      </div>
-    `)}
-
-    <!-- GOOGLE + SITE -->
-    ${sec(tokens.surface, `
-      <div class="lp-visuals">
-        <div>
-          ${eyebrow(content.googleMapsInsight.title || "No Google")}
-          <h3 style="margin:12px 0 0; font-family:${tokens.fontHeading}; font-size:clamp(22px,2.5vw,28px); color:${tokens.text};">Como o negocio aparece no Google</h3>
-          <div style="margin-top:20px; border-radius:18px; overflow:hidden; border:1px solid ${tokens.border};">
-            ${googleScreenshot
-              ? `<img src="${googleScreenshot}" alt="Google Maps ${escapeHtml(context.business.name)}" style="width:100%;" />`
-              : renderFallbackCard(context.business.name, [
-                  context.business.category ? `Tipo: ${context.business.category}` : "",
-                  context.business.rating ? `Nota: ${context.business.rating} estrelas` : "Sem avaliacao",
-                  context.business.address ? context.business.address : "",
-                ], "A analise continua mesmo sem a imagem.", tokens)
-            }
-          </div>
-          <p style="margin-top:18px; color:${tokens.text}; line-height:1.75;">${escapeHtml(content.googleMapsInsight.insight)}</p>
-          <p style="margin-top:12px; color:${tokens.muted}; line-height:1.75;">${escapeHtml(content.googleMapsInsight.impact)}</p>
-        </div>
-        <div>
-          ${eyebrow(content.websiteInsight.title || "No site")}
-          <h3 style="margin:12px 0 0; font-family:${tokens.fontHeading}; font-size:clamp(22px,2.5vw,28px); color:${tokens.text};">O site do negocio hoje</h3>
-          <div style="margin-top:20px; border-radius:18px; overflow:hidden; border:1px solid ${tokens.border};">
-            ${websiteScreenshot
-              ? `<img src="${websiteScreenshot}" alt="Site ${escapeHtml(context.business.website || context.business.name)}" style="width:100%;" />`
-              : renderFallbackCard(context.business.website || "Sem site", [
-                  context.business.website ? context.business.website : "Sem site cadastrado",
-                  context.business.category ? context.business.category : "",
-                ], context.business.website ? "A analise continua mesmo sem a imagem." : "Sem site, o negocio perde clientes que pesquisam antes de ligar.", tokens)
-            }
-          </div>
-          <p style="margin-top:18px; color:${tokens.text}; line-height:1.75;">${escapeHtml(content.websiteInsight.insight)}</p>
-          <p style="margin-top:12px; color:${tokens.muted}; line-height:1.75;">${escapeHtml(content.websiteInsight.impact)}</p>
-        </div>
-      </div>
-    `)}
-
-    ${Array.isArray(content.concorrente) && content.concorrente.length > 0 ? sec(`rgba(245,158,11,0.07)`, `
-      ${eyebrow("Atencao", tokens.warning)}
-      ${sectionTitle("Onde a concorrencia esta na sua frente")}
-      <p style="margin-top:14px; color:${tokens.muted}; line-height:1.7;">Enquanto voce le isso, outros do mesmo ramo estao aproveitando essas vantagens.</p>
-      <div class="lp-two" style="margin-top:32px;">
-        ${content.concorrente.map(item => `
-          <div style="display:flex; gap:16px; align-items:flex-start; padding:22px; border-radius:16px; border:1px solid rgba(245,158,11,0.25); background:rgba(245,158,11,0.05);">
-            <span style="flex:none; width:32px; height:32px; border-radius:999px; background:rgba(245,158,11,0.18); display:flex; align-items:center; justify-content:center; color:${tokens.warning}; font-size:16px; margin-top:2px;">⚠</span>
-            <div>
-              <p style="font-weight:600; line-height:1.5; color:${tokens.text};">${escapeHtml(item.vantagem)}</p>
-              <p style="margin-top:8px; color:${tokens.muted}; line-height:1.7; font-size:14px;">${escapeHtml(item.impacto)}</p>
-            </div>
-          </div>`).join("")}
-      </div>
-    `) : ""}
-
-    <!-- PROBLEMAS + SOLUÇÃO -->
-    ${sec(tokens.background, `
-      <div class="lp-two">
-        <div>
-          ${eyebrow("O que esta travando o crescimento")}
-          ${sectionTitle("Problemas encontrados")}
-          <div style="display:grid; gap:16px; margin-top:28px;">
-            ${content.opportunities.map((item, i) => `
-              <div class="lp-item">
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-                  <strong style="font-size:16px; color:${tokens.text};">${i + 1}. ${escapeHtml(item.title)}</strong>
-                  <span style="padding:5px 10px; border-radius:999px; background:${tokens.accentSoft}; color:${tokens.accent}; font-size:11px; font-weight:700;">${escapeHtml(item.urgency)}</span>
-                </div>
-                <p style="margin-top:10px; color:${tokens.muted}; line-height:1.7; font-size:14px;"><strong style="color:${tokens.text};">O que isso causa:</strong> ${escapeHtml(item.impact)}</p>
-                <p style="margin-top:8px; color:${tokens.muted}; line-height:1.7; font-size:14px;"><strong style="color:${tokens.text};">Como resolver:</strong> ${escapeHtml(item.opportunity)}</p>
-              </div>`).join("")}
-          </div>
-        </div>
-        <div>
-          ${eyebrow("O que podemos melhorar juntos")}
-          ${sectionTitle("Baseado no que o seu DNA mostra")}
-          <div style="display:grid; gap:16px; margin-top:28px;">
-            ${content.solutionMapping.map(item => `
-              <div class="lp-item">
-                <p style="color:${tokens.muted}; line-height:1.7; font-size:14px;"><strong style="color:${tokens.text};">Problema:</strong> ${escapeHtml(item.problem)}</p>
-                <p style="margin-top:8px; color:${tokens.muted}; line-height:1.7; font-size:14px;"><strong style="color:${tokens.text};">O que fazemos:</strong> ${escapeHtml(item.service)}</p>
-                <p style="margin-top:8px; color:${tokens.muted}; line-height:1.7; font-size:14px;"><strong style="color:${tokens.text};">O que muda para voce:</strong> ${escapeHtml(item.benefit)}</p>
-              </div>`).join("")}
-          </div>
-        </div>
-      </div>
-    `)}
-
-    <!-- QUEM SOMOS + QUEM JÁ ATENDEMOS -->
-    ${sec(tokens.surface, `
-      <div class="lp-two">
-        <div>
-          ${eyebrow("Quem somos")}
-          ${sectionTitle("Por que trabalhar com a gente")}
-          <div style="display:grid; gap:16px; margin-top:28px;">
-            ${content.differentials.map(item => `
-              <div style="display:flex; gap:14px; align-items:flex-start;">
-                <span style="flex:none; width:10px; height:10px; border-radius:999px; background:${tokens.accent}; margin-top:8px;"></span>
-                <div>
-                  <h4 style="font-size:17px; color:${tokens.text};">${escapeHtml(item.title)}</h4>
-                  <p style="margin-top:6px; color:${tokens.muted}; line-height:1.7; font-size:14px;">${escapeHtml(item.description)}</p>
-                </div>
-              </div>`).join("")}
-          </div>
-        </div>
-        <div>
-          ${eyebrow("Quem ja atendemos")}
-          ${sectionTitle("Negocios que passaram por isso com a gente")}
-          <div style="margin-top:28px;">
-            ${testimonialsBlock}
-            ${proofCards ? `<div style="display:grid; gap:16px; margin-top:22px;">${proofCards}</div>` : ""}
-            ${logosBlock}
-          </div>
-        </div>
-      </div>
-    `)}
-
-    <!-- COMO FUNCIONA -->
-    ${sec(tokens.accentSoft, `
-      ${eyebrow("Sem complicacao")}
-      ${sectionTitle("Como funciona na pratica")}
-      <p style="margin-top:14px; color:${tokens.muted}; line-height:1.7;">Nao tem nenhum compromisso em dar o proximo passo. E simples assim:</p>
-      <div class="lp-three" style="margin-top:40px;">
-        ${[
-          ["1", "Voce responde", "Clica no botao abaixo e manda uma mensagem rapida. Leva menos de 1 minuto."],
-          ["2", "A gente liga em ate 24h", "Uma conversa rapida para entender o momento do negocio e tirar duvidas."],
-          ["3", "Montamos o plano juntos", "Se fizer sentido para os dois lados, a gente parte para a acao."],
-        ].map(([num, title, desc]) => `
-          <div>
-            <div style="width:52px; height:52px; border-radius:16px; background:${tokens.accent}; display:flex; align-items:center; justify-content:center; color:#fff; font-size:24px; font-weight:800; font-family:${tokens.fontHeading};">${num}</div>
-            <h4 style="margin-top:18px; font-size:18px; color:${tokens.text};">${title}</h4>
-            <p style="margin-top:8px; color:${tokens.muted}; line-height:1.7; font-size:14px;">${desc}</p>
-          </div>`).join("")}
-      </div>
-    `)}
-
-    <!-- OFFER + CTA -->
-    ${sec(tokens.heroBackground, `
-      ${eyebrow(content.offer.title || "Proximo passo")}
-      <h2 style="margin:16px 0 0; font-family:${tokens.fontHeading}; font-size:clamp(28px,3.5vw,44px); line-height:1.15; max-width:760px; color:${tokens.text};">${escapeHtml(content.offer.summary)}</h2>
-      <div style="display:flex; flex-wrap:wrap; gap:16px; margin-top:28px;">
-        <div style="padding:20px 24px; border-radius:14px; background:rgba(255,255,255,0.07); border:1px solid ${tokens.border}; max-width:320px;">
-          <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.16em; color:${tokens.muted};">O que muda</p>
-          <p style="margin-top:10px; color:${tokens.text}; line-height:1.75;">${escapeHtml(content.offer.expectedResult)}</p>
-        </div>
-        <div style="padding:20px 24px; border-radius:14px; background:rgba(255,255,255,0.07); border:1px solid ${tokens.border}; max-width:320px;">
-          <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.16em; color:${tokens.muted};">Se nada mudar</p>
-          <p style="margin-top:10px; color:${tokens.text}; line-height:1.75;">${escapeHtml(content.offer.riskOfInaction)}</p>
-        </div>
-      </div>
-      <div id="lp-cta" style="margin-top:48px;">
-        ${renderCta(content, context, tokens)}
-      </div>
-    `, "padding-bottom:100px;")}
-
-    <a href="#lp-cta" class="lp-sticky" style="position:fixed; left:50%; transform:translateX(-50%); bottom:20px; z-index:999; display:inline-flex; align-items:center; justify-content:center; min-width:240px; padding:16px 28px; border-radius:999px; background:${tokens.accent}; color:#fff; text-decoration:none; font-weight:800; font-size:15px; box-shadow:0 16px 40px rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.15);">
-      Quero resolver isso
-    </a>
-  </body>
+  <script>${js}</script>
+</body>
 </html>`;
 
   return {
     html,
     assetsUsed: {
-      googleMapsScreenshot: Boolean(googleScreenshot),
-      websiteScreenshot: Boolean(websiteScreenshot),
-      logo: Boolean(logoUrl),
+      googleMapsScreenshot: usedGoogleMaps,
+      websiteScreenshot: usedWebsite,
+      logo: usedLogo,
     },
-    fallbacksUsed,
+    fallbacksUsed: [
+      ...(usedGoogleMaps ? [] : ["google-maps-screenshot"]),
+      ...(usedWebsite ? [] : ["website-screenshot"]),
+    ],
   };
-};
+}
+
+// ─── Section builders ─────────────────────────────────────────────────────────
+
+function buildHero(
+  content: PresentationContentV2 | null,
+  businessName: string,
+  accent: string,
+): string {
+  const eyebrow = escapeHtml(content?.hero?.eyebrow || "Análise do Negócio");
+  const headline = escapeHtml(
+    content?.hero?.headline || `${businessName} tem oportunidade real de crescer.`,
+  );
+  const subheadline = escapeHtml(
+    content?.hero?.subheadline ||
+      "Esta análise mostra exatamente onde estão os problemas e o que podemos fazer juntos.",
+  );
+  const miniSummary = escapeHtml(
+    content?.hero?.miniSummary ||
+      "Com ajustes simples, dá para capturar muito mais dos clientes que já passam perto do negócio.",
+  );
+
+  return `
+  <section class="hero" id="hero">
+    <div class="hero__bg">
+      <div class="hero__orb hero__orb--1"></div>
+      <div class="hero__orb hero__orb--2"></div>
+      <div class="hero__orb hero__orb--3"></div>
+    </div>
+    <div class="container hero__content">
+      <div class="hero__badge reveal">
+        <span class="badge badge--red">${eyebrow}</span>
+        <span class="badge badge--outline">Lead: ${businessName}</span>
+      </div>
+      <h1 class="hero__title reveal reveal--delay-1">
+        ${headline.replace(businessName, `<span class="text-gradient">${businessName}</span>`)}
+      </h1>
+      <p class="hero__subtitle reveal reveal--delay-2">${subheadline}</p>
+      <div class="hero__cards reveal reveal--delay-3">
+        <div class="mini-card">
+          <div class="mini-card__icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          </div>
+          <h3>Leitura Rápida</h3>
+          <p>${escapeHtml(content?.executiveSummary?.title || "Encontramos pontos que precisam de atenção. A boa notícia é que dá para resolver — e é isso que vamos mostrar aqui.")}</p>
+        </div>
+        <div class="mini-card">
+          <div class="mini-card__icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <h3>Risco Comercial</h3>
+          <p>${miniSummary}</p>
+        </div>
+      </div>
+      <a href="#diagnostico" class="hero__scroll reveal reveal--delay-3">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+        <span>Veja a análise completa</span>
+      </a>
+    </div>
+  </section>`;
+}
+
+function buildDiagnosis(content: PresentationContentV2 | null): string {
+  const diagTitle = escapeHtml(
+    content?.diagnosis?.title || "A situação atual da empresa",
+  );
+  const diagSummary = escapeHtml(
+    content?.diagnosis?.summary || "O negócio tem oportunidade real de atrair mais clientes com ajustes simples.",
+  );
+  const diagRisk = escapeHtml(
+    content?.diagnosis?.riskStatement ||
+      "Do jeito que está hoje, o negócio não está aproveitando todas as pessoas que já estão procurando pelo que ele oferece.",
+  );
+
+  const bullets = (content?.executiveSummary?.bullets || []).slice(0, 4);
+  const bulletHtml = bullets.length > 0
+    ? bullets.map((b) => `
+        <li>
+          <span class="diag-dot"></span>
+          <span>${escapeHtml(b)}</span>
+        </li>`).join("")
+    : `<li><span class="diag-dot"></span><span>${diagSummary}</span></li>`;
+
+  const pontosFortes = content?.pontosFortes || [];
+  const positiveHtml = pontosFortes.length > 0
+    ? `
+    <div class="positive-card reveal">
+      <div class="positive-card__header">
+        <span class="positive-card__tag">Pontos Positivos</span>
+        <h3>O que já está funcionando bem</h3>
+      </div>
+      <div class="positive-card__items">
+        ${pontosFortes.map((p) => `
+          <div class="positive-item">
+            <span class="check-icon">&#10003;</span>
+            <span>${escapeHtml(p)}</span>
+          </div>`).join("")}
+      </div>
+    </div>`
+    : "";
+
+  return `
+  <section class="section" id="diagnostico">
+    <div class="container">
+      <div class="section__header reveal">
+        <span class="section__tag">Diagnóstico</span>
+        <h2 class="section__title">${diagTitle}</h2>
+      </div>
+      <div class="diag-grid">
+        <div class="diag-card diag-card--main reveal">
+          <span class="diag-card__label">A Situação da Empresa</span>
+          <ul class="diag-list">${bulletHtml}</ul>
+        </div>
+        <div class="diag-card diag-card--side reveal reveal--delay-1">
+          <span class="diag-card__label">O Que Está Acontecendo</span>
+          <p class="diag-card__highlight">${diagRisk}</p>
+          <p class="diag-card__text">Com pequenos ajustes, dá para capturar muito mais dos clientes que já passam perto do negócio.</p>
+        </div>
+      </div>
+      ${positiveHtml}
+    </div>
+  </section>`;
+}
+
+function buildScores(
+  scores: ReturnType<typeof scoreEntries>,
+  googleMapsImg: string | null,
+  websiteImg: string | null,
+  businessName: string,
+  category?: string | null,
+): string {
+  const scoreCardsHtml = scores.map((s, i) => {
+    const status = scoreStatus(s.value);
+    const delay = i < 3 ? (i === 0 ? "" : ` reveal--delay-${i}`) : "";
+    return `
+      <div class="score-card reveal${delay}" data-score="${s.value}" data-status="${status.cls}">
+        <div class="score-card__top">
+          <span class="score-card__label">${escapeHtml(s.label)}</span>
+          <span class="score-card__value" data-count="${s.value}">0</span>
+        </div>
+        <div class="score-bar">
+          <div class="score-bar__fill" data-width="${Math.max(4, s.value)}" style="--bar-color: ${status.color};"></div>
+        </div>
+        <p class="score-card__desc">${escapeHtml(s.desc)}</p>
+        <span class="score-badge score-badge--${status.cls}">${status.label}</span>
+      </div>`;
+  }).join("");
+
+  const cat = escapeHtml(category || "seu segmento");
+
+  const googleMapsCard = `
+    <div class="visual-card">
+      <span class="visual-card__tag">No Google</span>
+      <h3>Como o negócio aparece no Google</h3>
+      <div class="visual-card__img">
+        ${googleMapsImg
+          ? `<img src="${googleMapsImg}" alt="Google Maps ${businessName}" loading="lazy" />`
+          : `<div style="height:200px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:14px;">Imagem não disponível</div>`}
+      </div>
+      <p>Quando alguém pesquisa por ${cat} na região, a forma como o negócio aparece influencia muito se a pessoa vai ligar ou escolher outro.</p>
+      <p class="text-muted">Se a aparência no Google não passa confiança, as pessoas escolhem quem parece mais seguro — mesmo que o seu serviço seja melhor.</p>
+    </div>`;
+
+  const websiteCard = `
+    <div class="visual-card">
+      <span class="visual-card__tag">No Site</span>
+      <h3>O site do negócio hoje</h3>
+      <div class="visual-card__img">
+        ${websiteImg
+          ? `<img src="${websiteImg}" alt="Site ${businessName}" loading="lazy" />`
+          : `<div style="height:200px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:14px;">Imagem não disponível</div>`}
+      </div>
+      <p>O site é como a vitrine do negócio na internet. Ele precisa deixar claro o que você faz e facilitar o contato.</p>
+      <p class="text-muted">Quando isso não acontece, as pessoas visitam, ficam confusas e vão embora sem entrar em contato.</p>
+    </div>`;
+
+  return `
+  <section class="section section--dark" id="scores">
+    <div class="container">
+      <div class="section__header reveal">
+        <span class="section__tag">Ambiente Digital</span>
+        <h2 class="section__title">O que encontramos no ambiente digital</h2>
+        <p class="section__desc">Cada item abaixo mostra como o negócio está se saindo — e o que isso significa na prática para os clientes.</p>
+      </div>
+      <div class="scores-grid">${scoreCardsHtml}</div>
+      <div class="visual-grid reveal">
+        ${googleMapsCard}
+        ${websiteCard}
+      </div>
+    </div>
+  </section>`;
+}
+
+function buildProblems(content: PresentationContentV2 | null): string {
+  const concorrentes = content?.concorrente || [];
+  const warningHtml = concorrentes.length > 0
+    ? `
+    <div class="section__header reveal">
+      <span class="section__tag section__tag--yellow">Atenção</span>
+      <h2 class="section__title">Onde a concorrência está na sua frente</h2>
+      <p class="section__desc">Enquanto você lê isso, outros negócios do mesmo ramo estão aproveitando essas vantagens.</p>
+    </div>
+    <div class="warning-grid reveal">
+      ${concorrentes.slice(0, 4).map((c) => `
+        <div class="warning-card">
+          <span class="warning-icon">&#9888;</span>
+          <div>
+            <strong>${escapeHtml(c.vantagem)}</strong>
+            <p>${escapeHtml(c.impacto)}</p>
+          </div>
+        </div>`).join("")}
+    </div>`
+    : "";
+
+  const opportunities = content?.opportunities || [];
+  const urgencyToBadge = (urgency: string) => {
+    const u = (urgency || "").toLowerCase();
+    if (u.includes("alta") || u.includes("alto")) return { cls: "high", label: "Alta" };
+    if (u.includes("média") || u.includes("media") || u.includes("médio")) return { cls: "medium", label: "Média" };
+    return { cls: "medium", label: "Média" };
+  };
+
+  const problemCardsHtml = opportunities.slice(0, 6).map((opp, i) => {
+    const badge = urgencyToBadge(opp.urgency || "");
+    const num = String(i + 1).padStart(2, "0");
+    return `
+      <div class="problem-card reveal${i > 0 ? ` reveal--delay-${Math.min(i, 3)}` : ""}">
+        <div class="problem-card__header">
+          <span class="problem-card__number">${num}</span>
+          <span class="problem-badge problem-badge--${badge.cls}">${badge.label}</span>
+        </div>
+        <h3>${escapeHtml(opp.title)}</h3>
+        <div class="problem-card__detail">
+          <p><strong>O que isso causa:</strong> ${escapeHtml(opp.impact)}</p>
+          <p><strong>Como resolver:</strong> ${escapeHtml(opp.opportunity)}</p>
+        </div>
+      </div>`;
+  }).join("");
+
+  const problemsHeader = warningHtml
+    ? `<div class="section__header reveal" style="margin-top: 80px;"><span class="section__tag">Barreiras</span><h2 class="section__title">O que está travando o crescimento</h2></div>`
+    : `<div class="section__header reveal"><span class="section__tag">Barreiras</span><h2 class="section__title">O que está travando o crescimento</h2></div>`;
+
+  return `
+  <section class="section" id="problemas">
+    <div class="container">
+      ${warningHtml}
+      ${problemsHeader}
+      <div class="problems-grid">${problemCardsHtml}</div>
+    </div>
+  </section>`;
+}
+
+function buildSolutions(content: PresentationContentV2 | null): string {
+  const solutions = content?.solutionMapping || [];
+
+  const cardsHtml = solutions.slice(0, 6).map((s, i) => {
+    const icon = SOLUTION_ICONS[i % SOLUTION_ICONS.length];
+    return `
+      <div class="solution-card reveal${i > 0 ? ` reveal--delay-${Math.min(i, 3)}` : ""}">
+        <div class="solution-card__icon">${icon}</div>
+        <span class="solution-card__problem">Problema: ${escapeHtml(s.problem)}</span>
+        <h3>${escapeHtml(s.service)}</h3>
+        <p>${escapeHtml(s.benefit)}</p>
+      </div>`;
+  }).join("");
+
+  return `
+  <section class="section section--dark" id="solucoes">
+    <div class="container">
+      <div class="section__header reveal">
+        <span class="section__tag">Soluções</span>
+        <h2 class="section__title">O que podemos melhorar juntos</h2>
+      </div>
+      <div class="solutions-grid">${cardsHtml}</div>
+    </div>
+  </section>`;
+}
+
+function buildQuemSomos(
+  content: PresentationContentV2 | null,
+  context: PresentationRenderContext,
+  testimonials: PresentationSocialProof[],
+  clientLogos: PresentationClientLogo[],
+  accent: string,
+): string {
+  const differentials = content?.differentials || [];
+
+  const featuresHtml = differentials.slice(0, 4).map((d, i) => {
+    const icon = ABOUT_ICONS[i % ABOUT_ICONS.length];
+    return `
+      <div class="about-feature">
+        <div class="about-feature__icon">${icon}</div>
+        <div>
+          <h4>${escapeHtml(d.title)}</h4>
+          <p>${escapeHtml(d.description)}</p>
+        </div>
+      </div>`;
+  }).join("");
+
+  // First testimonial as featured card
+  const featuredTestimonial = testimonials[0];
+  const testimonialHtml = featuredTestimonial
+    ? (() => {
+        const imgSrc = ensureImageSrc(featuredTestimonial.image_url);
+        const author = escapeHtml(featuredTestimonial.name || featuredTestimonial.company || "Cliente");
+        const company = featuredTestimonial.company ? escapeHtml(featuredTestimonial.company) : "";
+        const text = escapeHtml(String(featuredTestimonial.testimonial || "").trim());
+        const avatarHtml = imgSrc
+          ? `<img src="${imgSrc}" alt="${author}" />`
+          : `<div style="width:52px;height:52px;border-radius:50%;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;color:var(--accent);font-weight:800;font-size:18px;">${escapeHtml(getInitials(featuredTestimonial.name || featuredTestimonial.company || "C"))}</div>`;
+        return `
+          <div class="testimonial-card">
+            <div class="testimonial-card__quote">"</div>
+            <p class="testimonial-card__text">"${text}"</p>
+            <div class="testimonial-card__author">
+              ${avatarHtml}
+              <div>
+                <strong>${author}</strong>
+                ${company ? `<span>${company}</span>` : ""}
+              </div>
+            </div>
+          </div>`;
+      })()
+    : "";
+
+  // Proof cards
+  const proofItems = content?.proof || [];
+  const extraCardsHtml = proofItems.slice(0, 2).map((p) => `
+    <div class="about-extra__card">
+      <span class="about-extra__tag">${escapeHtml(p.title)}</span>
+      ${p.metric ? `<h4>${escapeHtml(p.metric)}</h4>` : ""}
+      <p>${escapeHtml(p.description)}</p>
+    </div>`).join("") ||
+    `<div class="about-extra__card">
+      <span class="about-extra__tag">Experiência</span>
+      <h4>Trabalhamos com negócios do seu segmento</h4>
+      <p>Já ajudamos empresas a aparecer mais e atrair mais clientes sem precisar de grandes investimentos.</p>
+    </div>
+    <div class="about-extra__card">
+      <span class="about-extra__tag">Personalização</span>
+      <h4>Plano feito para o seu negócio, não um pacote genérico</h4>
+      <p>Cada proposta é montada com base no que encontramos — sem solução de prateleira.</p>
+    </div>`;
+
+  const logosHtml = clientLogos.length > 0
+    ? `
+      <div class="client-logos">
+        ${clientLogos.slice(0, 6).map((l) => {
+          const src = ensureImageSrc(l.logo_url);
+          return src ? `<img src="${src}" alt="${escapeHtml(l.company_name || "Cliente")}" />` : "";
+        }).join("")}
+      </div>`
+    : "";
+
+  // Additional testimonials (2nd onwards)
+  const extraTestimonialsHtml = testimonials.slice(1, 4).map((t) => {
+    const imgSrc = ensureImageSrc(t.image_url);
+    const author = escapeHtml(t.name || t.company || "Cliente");
+    const company = t.company ? escapeHtml(t.company) : "";
+    const text = escapeHtml(String(t.testimonial || "").trim());
+    const avatarHtml = imgSrc
+      ? `<img src="${imgSrc}" alt="${author}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--border);" />`
+      : `<div style="width:44px;height:44px;border-radius:50%;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;color:var(--accent);font-weight:800;font-size:15px;flex-shrink:0;">${escapeHtml(getInitials(t.name || t.company || "C"))}</div>`;
+    return `
+      <div style="display:flex;gap:14px;padding:20px;border-radius:16px;background:var(--bg-card);border:1px solid var(--border);">
+        ${avatarHtml}
+        <div>
+          <p style="color:var(--text-primary);font-size:14px;line-height:1.7;margin-bottom:8px;">"${text}"</p>
+          <strong style="font-size:13px;color:var(--text-secondary);">${author}${company ? " · " + company : ""}</strong>
+        </div>
+      </div>`;
+  }).join("");
+
+  const companyNameLabel = escapeHtml(context.companyName || "Nossa Empresa");
+
+  return `
+  <section class="section" id="quem-somos">
+    <div class="container">
+      <div class="section__header reveal">
+        <span class="section__tag">Quem Somos</span>
+        <h2 class="section__title">Por que a ${companyNameLabel}?</h2>
+      </div>
+      <div class="about-grid">
+        <div class="about-features reveal">${featuresHtml}</div>
+        <div class="about-social reveal reveal--delay-1">
+          ${testimonialHtml}
+          <div class="about-extra">${extraCardsHtml}</div>
+          ${logosHtml}
+          ${extraTestimonialsHtml ? `<div style="display:grid;gap:12px;margin-top:16px;">${extraTestimonialsHtml}</div>` : ""}
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function buildNextStep(
+  content: PresentationContentV2 | null,
+  businessName: string,
+): string {
+  const offerTitle = escapeHtml(
+    content?.offer?.summary ||
+      `A ideia é simples: resolver os pontos que estão fazendo clientes de ${businessName} escolherem a concorrência.`,
+  );
+  const expectedResult = escapeHtml(
+    content?.offer?.expectedResult ||
+      "Mais pessoas te encontrando, mais pessoas te escolhendo, mais clientes novos entrando.",
+  );
+  const riskOfInaction = escapeHtml(
+    content?.offer?.riskOfInaction ||
+      "Do jeito que está, o negócio continua perdendo clientes que já estão prontos para contratar — só que estão indo para o concorrente.",
+  );
+
+  return `
+  <section class="section section--dark" id="proximo-passo">
+    <div class="container">
+      <div class="next-step reveal">
+        <span class="section__tag">Próximo Passo</span>
+        <h2 class="next-step__title">${offerTitle}</h2>
+        <div class="next-step__cards">
+          <div class="next-step__card next-step__card--green">
+            <span class="next-step__card-label">Resultado Esperado</span>
+            <p>${expectedResult}</p>
+          </div>
+          <div class="next-step__card next-step__card--red">
+            <span class="next-step__card-label">Se Nada Mudar</span>
+            <p>${riskOfInaction}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function buildCta(
+  content: PresentationContentV2 | null,
+  whatsappUrl: string,
+  ctaPrimary: string,
+  ctaSecondary: string,
+  responseMode: string,
+  context: PresentationRenderContext,
+  accent: string,
+): string {
+  const title = escapeHtml(
+    content?.cta?.title ||
+      "Quer saber como resolver esses pontos de forma simples e rápida?",
+  );
+  const microcopy = escapeHtml(
+    content?.cta?.microcopy ||
+      "Se fizer sentido, o próximo passo é simples: responder agora. A gente entra em contato para explicar tudo direitinho.",
+  );
+  const trust = escapeHtml(content?.cta?.trustLine || "");
+
+  const whatsappSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 0 0 .611.611l4.458-1.495A11.96 11.96 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.37 0-4.567-.82-6.3-2.19l-.44-.37-3.26 1.093 1.093-3.26-.37-.44A9.96 9.96 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>`;
+
+  let buttonsHtml = "";
+  if (responseMode === "form") {
+    const fields = [
+      "Nome completo",
+      "WhatsApp",
+      "Email",
+      "Principal desafio",
+    ];
+    const publicId = escapeHtml(context.publicId || "");
+    buttonsHtml = `
+      <form class="cta-form" id="ctaForm" style="max-width:480px;margin:0 auto 24px;display:grid;gap:14px;">
+        ${fields.map((f) => `<input class="cta-input" type="text" placeholder="${escapeHtml(f)}" name="${escapeHtml(f.toLowerCase().replace(/\s+/g, "_"))}" required style="width:100%;padding:16px 20px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);color:#f8fafc;font-size:16px;outline:none;" />`).join("")}
+        <input type="hidden" name="public_id" value="${publicId}" />
+        <button type="submit" class="btn btn--primary btn--lg" style="width:100%;justify-content:center;">
+          ${whatsappSvg} ${ctaPrimary}
+        </button>
+      </form>`;
+  } else {
+    buttonsHtml = `
+      <div class="cta-buttons">
+        <a href="${escapeHtml(whatsappUrl)}" class="btn btn--primary btn--lg" id="btnAccept" target="_blank" rel="noopener noreferrer">
+          ${whatsappSvg} ${ctaPrimary}
+        </a>
+        <button class="btn btn--outline btn--lg" id="btnReject">${ctaSecondary}</button>
+      </div>`;
+  }
+
+  return `
+  <section class="cta-section" id="cta">
+    <div class="cta-section__bg">
+      <div class="cta-orb cta-orb--1"></div>
+      <div class="cta-orb cta-orb--2"></div>
+    </div>
+    <div class="container">
+      <div class="cta-content reveal">
+        <span class="section__tag">Vamos Conversar?</span>
+        <h2 class="cta-content__title">${title}</h2>
+        <p class="cta-content__desc">${microcopy}</p>
+        ${buttonsHtml}
+        <div class="cta-meta">
+          <span>Resposta em menos de 10 segundos</span>
+          <span>Sem compromisso</span>
+          ${trust ? `<span>${trust}</span>` : ""}
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+// ─── CSS builder ──────────────────────────────────────────────────────────────
+
+function buildCss(accent: string, accentRgb: string): string {
+  return `/* Reset */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{
+--bg-primary:#080c18;
+--bg-secondary:#0c111f;
+--bg-card:#10182b;
+--bg-card-inner:#0f1422;
+--text-primary:#f8fafc;
+--text-secondary:#cbd5e1;
+--text-muted:#94a3b8;
+--accent:${accent};
+--accent-glow:rgba(${accentRgb},0.25);
+--green:#22c55e;
+--yellow:#f59e0b;
+--border:rgba(148,163,184,0.12);
+--border-hover:rgba(148,163,184,0.25);
+--shadow:0 24px 52px rgba(2,6,23,0.42);
+--radius-sm:12px;--radius-md:20px;--radius-lg:28px;--radius-xl:34px;
+--font-body:'Inter',-apple-system,'Segoe UI',sans-serif;
+--font-heading:'Sora','Inter',sans-serif;
+--transition:0.4s cubic-bezier(0.16,1,0.3,1);
+}
+html{scroll-behavior:smooth;scroll-padding-top:80px;}
+body{font-family:var(--font-body);background:var(--bg-primary);color:var(--text-primary);line-height:1.7;overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+.container{max-width:1140px;margin:0 auto;padding:0 24px;}
+img{max-width:100%;height:auto;display:block;}
+a{text-decoration:none;color:inherit;}
+.reveal{opacity:0;transform:translateY(40px);transition:opacity 0.8s cubic-bezier(0.16,1,0.3,1),transform 0.8s cubic-bezier(0.16,1,0.3,1);}
+.reveal.is-visible{opacity:1;transform:translateY(0);}
+.reveal--delay-1{transition-delay:0.15s;}
+.reveal--delay-2{transition-delay:0.3s;}
+.reveal--delay-3{transition-delay:0.45s;}
+/* NAV */
+.nav{position:fixed;top:0;left:0;right:0;z-index:1000;padding:16px 0;transition:background 0.3s,backdrop-filter 0.3s,box-shadow 0.3s;}
+.nav.is-scrolled{background:rgba(8,12,24,0.85);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);box-shadow:0 1px 0 var(--border);}
+.nav__inner{max-width:1140px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;}
+.nav__brand{display:flex;align-items:center;gap:12px;}
+.nav__logo{width:40px;height:40px;border-radius:12px;background:#fff;padding:6px;object-fit:contain;}
+.nav__name{font-family:var(--font-heading);font-weight:700;font-size:20px;color:var(--text-primary);}
+.nav__links{display:flex;align-items:center;gap:8px;}
+.nav__link{padding:8px 16px;font-size:14px;font-weight:500;color:var(--text-secondary);border-radius:999px;transition:color var(--transition),background var(--transition);}
+.nav__link:hover,.nav__link.active{color:var(--text-primary);background:rgba(255,255,255,0.06);}
+.nav__link--cta{background:var(--accent)!important;color:#fff!important;font-weight:600;padding:10px 22px;}
+.nav__link--cta:hover{background:color-mix(in srgb,var(--accent) 80%,#000)!important;transform:scale(1.02);}
+.nav__toggle{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;}
+.nav__toggle span{display:block;width:24px;height:2px;background:var(--text-primary);border-radius:2px;transition:var(--transition);}
+/* HERO */
+.hero{position:relative;min-height:100vh;display:flex;align-items:center;padding:120px 0 80px;overflow:hidden;}
+.hero__bg{position:absolute;inset:0;overflow:hidden;}
+.hero__orb{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.4;animation:float 20s ease-in-out infinite;}
+.hero__orb--1{width:600px;height:600px;background:var(--accent);top:-200px;right:-200px;animation-delay:0s;}
+.hero__orb--2{width:400px;height:400px;background:#3b82f6;bottom:-100px;left:-100px;animation-delay:-7s;}
+.hero__orb--3{width:300px;height:300px;background:#8b5cf6;top:50%;left:50%;animation-delay:-14s;}
+@keyframes float{0%,100%{transform:translate(0,0) scale(1);}33%{transform:translate(30px,-30px) scale(1.05);}66%{transform:translate(-20px,20px) scale(0.95);}}
+.hero__content{position:relative;z-index:1;}
+.hero__badge{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:32px;}
+.badge{display:inline-flex;align-items:center;padding:8px 18px;border-radius:999px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;}
+.badge--red{background:var(--accent-glow);color:var(--accent);border:1px solid rgba(${accentRgb},0.3);}
+.badge--outline{background:rgba(255,255,255,0.04);color:var(--text-secondary);border:1px solid var(--border);}
+.hero__title{font-family:var(--font-heading);font-size:clamp(36px,5vw,64px);font-weight:800;line-height:1.05;max-width:900px;margin-bottom:24px;}
+.text-gradient{background:linear-gradient(135deg,var(--accent) 0%,#f97316 50%,#fbbf24 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero__subtitle{font-size:clamp(17px,2vw,21px);color:var(--text-secondary);max-width:780px;line-height:1.7;margin-bottom:40px;}
+.hero__cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:48px;}
+.mini-card{padding:28px;border-radius:var(--radius-lg);background:rgba(16,24,43,0.7);backdrop-filter:blur(12px);border:1px solid var(--border);transition:border-color var(--transition),transform var(--transition);}
+.mini-card:hover{border-color:var(--border-hover);transform:translateY(-4px);}
+.mini-card__icon{width:48px;height:48px;border-radius:14px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;color:var(--accent);margin-bottom:16px;}
+.mini-card h3{font-family:var(--font-heading);font-size:16px;font-weight:700;margin-bottom:8px;color:var(--text-primary);}
+.mini-card p{font-size:14px;color:var(--text-secondary);line-height:1.7;}
+.hero__scroll{display:inline-flex;align-items:center;gap:10px;color:var(--text-muted);font-size:14px;font-weight:500;transition:color var(--transition);animation:bounce 2s ease-in-out infinite;}
+.hero__scroll:hover{color:var(--text-primary);}
+@keyframes bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(8px);}}
+/* SECTIONS */
+.section{padding:100px 0;position:relative;}
+.section--dark{background:var(--bg-secondary);}
+.section__header{text-align:center;margin-bottom:56px;}
+.section__tag{display:inline-flex;padding:8px 18px;border-radius:999px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:var(--accent);background:var(--accent-glow);border:1px solid rgba(${accentRgb},0.2);margin-bottom:20px;}
+.section__tag--yellow{color:var(--yellow);background:rgba(245,158,11,0.15);border-color:rgba(245,158,11,0.25);}
+.section__title{font-family:var(--font-heading);font-size:clamp(28px,3.5vw,44px);font-weight:800;line-height:1.1;margin-bottom:16px;}
+.section__desc{font-size:18px;color:var(--text-secondary);max-width:640px;margin:0 auto;line-height:1.7;}
+/* DIAGNOSIS */
+.diag-grid{display:grid;grid-template-columns:1.2fr 0.8fr;gap:24px;margin-bottom:40px;}
+.diag-card{padding:36px;border-radius:var(--radius-lg);background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow);transition:border-color var(--transition),transform var(--transition);}
+.diag-card:hover{border-color:var(--border-hover);transform:translateY(-2px);}
+.diag-card__label{display:inline-block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:var(--accent);margin-bottom:20px;}
+.diag-list{list-style:none;display:grid;gap:18px;}
+.diag-list li{display:flex;gap:14px;align-items:flex-start;color:var(--text-secondary);line-height:1.7;}
+.diag-dot{display:inline-flex;margin-top:8px;width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.diag-card__highlight{font-size:20px;line-height:1.4;color:var(--text-primary);margin-bottom:16px;}
+.diag-card__text{color:var(--text-secondary);line-height:1.8;}
+.positive-card{padding:36px;border-radius:var(--radius-lg);background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow);}
+.positive-card__header{margin-bottom:24px;}
+.positive-card__tag{display:inline-block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:var(--green);margin-bottom:10px;}
+.positive-card__header h3{font-family:var(--font-heading);font-size:24px;font-weight:700;}
+.positive-card__items{display:grid;gap:16px;}
+.positive-item{display:flex;gap:14px;align-items:flex-start;color:var(--text-secondary);line-height:1.7;}
+.check-icon{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--green);color:#fff;font-size:14px;font-weight:700;flex-shrink:0;margin-top:2px;}
+/* SCORES */
+.scores-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:56px;}
+.score-card{padding:28px;border-radius:var(--radius-lg);background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow);transition:border-color var(--transition),transform var(--transition);}
+.score-card:hover{border-color:var(--border-hover);transform:translateY(-4px);}
+.score-card__top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+.score-card__label{font-size:13px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-secondary);font-weight:600;}
+.score-card__value{font-family:var(--font-heading);font-size:28px;font-weight:800;color:var(--text-primary);}
+.score-bar{height:8px;border-radius:999px;background:var(--bg-primary);overflow:hidden;margin-bottom:16px;}
+.score-bar__fill{height:100%;border-radius:999px;background:var(--bar-color,var(--accent));width:0;transition:width 1.5s cubic-bezier(0.16,1,0.3,1);}
+.score-card__desc{font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:14px;}
+.score-badge{display:inline-flex;padding:6px 14px;border-radius:999px;font-size:12px;font-weight:700;}
+.score-badge--green{background:rgba(34,197,94,0.15);color:var(--green);}
+.score-badge--red{background:rgba(${accentRgb},0.15);color:var(--accent);}
+.score-badge--yellow{background:rgba(245,158,11,0.15);color:var(--yellow);}
+.visual-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+.visual-card{padding:32px;border-radius:var(--radius-lg);background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow);}
+.visual-card__tag{display:inline-block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:var(--accent);margin-bottom:12px;}
+.visual-card h3{font-family:var(--font-heading);font-size:24px;font-weight:700;margin-bottom:20px;}
+.visual-card__img{border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border);margin-bottom:20px;background:#fff;}
+.visual-card__img img{width:100%;transition:transform 0.6s ease;}
+.visual-card:hover .visual-card__img img{transform:scale(1.03);}
+.visual-card p{color:var(--text-primary);line-height:1.8;margin-bottom:10px;}
+.text-muted{color:var(--text-secondary)!important;}
+/* WARNINGS */
+.warning-grid{display:grid;gap:16px;margin-bottom:40px;}
+.warning-card{display:flex;gap:18px;align-items:flex-start;padding:24px;border-radius:var(--radius-md);background:var(--bg-card);border:1px solid rgba(245,158,11,0.2);transition:border-color var(--transition),transform var(--transition);}
+.warning-card:hover{border-color:rgba(245,158,11,0.4);transform:translateX(4px);}
+.warning-icon{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:rgba(245,158,11,0.15);color:var(--yellow);font-size:18px;flex-shrink:0;}
+.warning-card strong{display:block;color:var(--text-primary);font-size:16px;margin-bottom:6px;line-height:1.5;}
+.warning-card p{color:var(--text-secondary);font-size:14px;line-height:1.7;}
+/* PROBLEMS */
+.problems-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;}
+.problem-card{padding:32px;border-radius:var(--radius-lg);background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow);transition:border-color var(--transition),transform var(--transition);}
+.problem-card:hover{border-color:var(--accent);transform:translateY(-4px);}
+.problem-card__header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.problem-card__number{font-family:var(--font-heading);font-size:36px;font-weight:800;color:rgba(${accentRgb},0.3);}
+.problem-badge{padding:6px 14px;border-radius:999px;font-size:12px;font-weight:700;}
+.problem-badge--high{background:rgba(${accentRgb},0.15);color:var(--accent);}
+.problem-badge--medium{background:rgba(245,158,11,0.15);color:var(--yellow);}
+.problem-card h3{font-family:var(--font-heading);font-size:20px;font-weight:700;margin-bottom:16px;line-height:1.3;}
+.problem-card__detail p{color:var(--text-secondary);line-height:1.7;margin-bottom:8px;font-size:15px;}
+.problem-card__detail strong{color:var(--text-primary);}
+/* SOLUTIONS */
+.solutions-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;}
+.solution-card{padding:36px;border-radius:var(--radius-lg);background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow);transition:border-color var(--transition),transform var(--transition);position:relative;overflow:hidden;}
+.solution-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),#f97316);opacity:0;transition:opacity var(--transition);}
+.solution-card:hover{border-color:var(--border-hover);transform:translateY(-4px);}
+.solution-card:hover::before{opacity:1;}
+.solution-card__icon{width:56px;height:56px;border-radius:16px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;color:var(--accent);margin-bottom:20px;}
+.solution-card__problem{display:block;font-size:13px;color:var(--text-muted);margin-bottom:12px;line-height:1.6;}
+.solution-card h3{font-family:var(--font-heading);font-size:22px;font-weight:700;margin-bottom:12px;line-height:1.3;}
+.solution-card p{color:var(--text-secondary);line-height:1.7;font-size:15px;}
+/* ABOUT */
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;}
+.about-features{display:grid;gap:20px;}
+.about-feature{display:flex;gap:18px;padding:28px;border-radius:var(--radius-lg);background:var(--bg-card);border:1px solid var(--border);transition:border-color var(--transition),transform var(--transition);}
+.about-feature:hover{border-color:var(--border-hover);transform:translateX(4px);}
+.about-feature__icon{width:52px;height:52px;border-radius:14px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;color:var(--accent);flex-shrink:0;}
+.about-feature h4{font-family:var(--font-heading);font-size:17px;font-weight:700;margin-bottom:6px;}
+.about-feature p{color:var(--text-secondary);font-size:14px;line-height:1.7;}
+.testimonial-card{position:relative;padding:36px;border-radius:var(--radius-xl);background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow);margin-bottom:20px;overflow:hidden;}
+.testimonial-card::before{content:'';position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;border-radius:50%;background:var(--accent-glow);filter:blur(60px);opacity:0.4;}
+.testimonial-card__quote{position:absolute;top:16px;right:28px;font-size:72px;color:var(--accent);opacity:0.15;font-family:var(--font-heading);line-height:1;}
+.testimonial-card__text{position:relative;font-family:var(--font-heading);font-size:clamp(18px,2vw,24px);line-height:1.5;color:var(--text-primary);margin-bottom:28px;}
+.testimonial-card__author{position:relative;display:flex;align-items:center;gap:14px;}
+.testimonial-card__author img{width:52px;height:52px;border-radius:50%;object-fit:cover;border:3px solid var(--bg-card);box-shadow:var(--shadow);}
+.testimonial-card__author strong{display:block;font-size:16px;color:var(--text-primary);}
+.testimonial-card__author span{display:block;font-size:14px;color:var(--text-secondary);margin-top:2px;}
+.about-extra{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.about-extra__card{padding:24px;border-radius:var(--radius-md);background:var(--bg-card);border:1px solid var(--border);}
+.about-extra__tag{display:inline-block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:var(--accent);margin-bottom:10px;}
+.about-extra__card h4{font-family:var(--font-heading);font-size:16px;font-weight:700;margin-bottom:8px;line-height:1.3;}
+.about-extra__card p{color:var(--text-secondary);font-size:14px;line-height:1.7;}
+.client-logos{display:flex;flex-wrap:wrap;gap:14px;}
+.client-logos img{max-height:36px;max-width:120px;object-fit:contain;padding:14px 20px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card-inner);transition:border-color var(--transition);}
+.client-logos img:hover{border-color:var(--border-hover);}
+/* NEXT STEP */
+.next-step{text-align:center;}
+.next-step__title{font-family:var(--font-heading);font-size:clamp(26px,3vw,38px);font-weight:800;line-height:1.15;max-width:800px;margin:20px auto 36px;}
+.next-step__cards{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:800px;margin:0 auto;}
+.next-step__card{padding:28px;border-radius:var(--radius-lg);background:var(--bg-card);border:1px solid var(--border);text-align:left;}
+.next-step__card--green{border-color:rgba(34,197,94,0.3);}
+.next-step__card--red{border-color:rgba(${accentRgb},0.3);}
+.next-step__card-label{display:inline-block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:var(--text-secondary);margin-bottom:14px;}
+.next-step__card p{color:var(--text-primary);line-height:1.75;}
+/* CTA */
+.cta-section{position:relative;padding:120px 0;overflow:hidden;}
+.cta-section__bg{position:absolute;inset:0;background:linear-gradient(135deg,#111827 0%,#1d2742 55%,#30131a 100%);}
+.cta-orb{position:absolute;border-radius:50%;filter:blur(100px);opacity:0.3;}
+.cta-orb--1{width:500px;height:500px;background:var(--accent);top:-200px;right:-100px;}
+.cta-orb--2{width:400px;height:400px;background:#3b82f6;bottom:-200px;left:-100px;}
+.cta-content{position:relative;z-index:1;text-align:center;max-width:720px;margin:0 auto;}
+.cta-content__title{font-family:var(--font-heading);font-size:clamp(26px,3.5vw,40px);font-weight:800;line-height:1.15;margin:20px 0 16px;}
+.cta-content__desc{font-size:18px;color:var(--text-secondary);line-height:1.8;margin-bottom:36px;}
+.cta-buttons{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-bottom:24px;}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:14px 28px;border-radius:var(--radius-md);font-size:16px;font-weight:700;cursor:pointer;transition:all var(--transition);border:none;font-family:var(--font-body);}
+.btn--primary{background:var(--accent);color:#fff;box-shadow:0 8px 32px rgba(${accentRgb},0.35);}
+.btn--primary:hover{filter:brightness(0.88);transform:translateY(-2px);box-shadow:0 12px 40px rgba(${accentRgb},0.45);}
+.btn--outline{background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);}
+.btn--outline:hover{border-color:var(--border-hover);background:rgba(16,24,43,0.8);}
+.btn--lg{padding:18px 36px;font-size:17px;border-radius:var(--radius-md);}
+.cta-meta{display:flex;flex-wrap:wrap;gap:24px;justify-content:center;color:var(--text-muted);font-size:14px;}
+.cta-meta span{display:flex;align-items:center;gap:6px;}
+.cta-meta span::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);}
+.cta-input:focus{border-color:var(--accent)!important;outline:none;}
+/* FOOTER */
+.footer{padding:32px 0;border-top:1px solid var(--border);background:var(--bg-primary);}
+.footer__inner{display:flex;align-items:center;justify-content:space-between;}
+.footer__brand{display:flex;align-items:center;gap:10px;}
+.footer__brand img{width:32px;height:32px;border-radius:10px;background:#fff;padding:4px;}
+.footer__brand span{font-family:var(--font-heading);font-weight:700;font-size:16px;}
+.footer__copy{font-size:14px;color:var(--text-muted);}
+/* SCROLLBAR */
+::-webkit-scrollbar{width:8px;}
+::-webkit-scrollbar-track{background:var(--bg-primary);}
+::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.2);border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(148,163,184,0.35);}
+/* PARTICLES & PROGRESS */
+#particles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0.4;}
+.progress-bar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--accent),#f97316);z-index:1001;transition:width 0.1s linear;}
+/* RESPONSIVE */
+@media(max-width:960px){
+.nav__links{position:fixed;top:0;right:-100%;width:280px;height:100vh;background:var(--bg-card);flex-direction:column;padding:80px 24px 32px;gap:4px;transition:right var(--transition);box-shadow:-10px 0 40px rgba(0,0,0,0.5);z-index:999;}
+.nav__links.is-open{right:0;}
+.nav__toggle{display:flex;z-index:1001;}
+.nav__link{width:100%;padding:14px 18px;border-radius:var(--radius-sm);}
+.diag-grid,.visual-grid,.about-grid,.next-step__cards{grid-template-columns:1fr;}
+.about-extra{grid-template-columns:1fr;}
+.hero{padding:100px 0 60px;}
+.section{padding:72px 0;}
+}
+@media(max-width:640px){
+.hero__title{font-size:32px;}
+.hero__cards{grid-template-columns:1fr;}
+.scores-grid{grid-template-columns:1fr 1fr;}
+.problems-grid,.solutions-grid{grid-template-columns:1fr;}
+.cta-buttons{flex-direction:column;}
+.btn--lg{width:100%;justify-content:center;}
+.footer__inner{flex-direction:column;gap:12px;text-align:center;}
+}`;
+}
+
+// ─── JS builder ───────────────────────────────────────────────────────────────
+
+function buildJs(accentRgb: string): string {
+  return `
+(function(){var bar=document.createElement('div');bar.className='progress-bar';document.body.prepend(bar);window.addEventListener('scroll',function(){var s=window.scrollY,d=document.documentElement.scrollHeight-window.innerHeight;bar.style.width=(d>0?s/d*100:0)+'%';});})();
+(function(){var canvas=document.createElement('canvas');canvas.id='particles';document.body.prepend(canvas);var ctx=canvas.getContext('2d'),w,h,pts;function resize(){w=canvas.width=window.innerWidth;h=canvas.height=window.innerHeight;}function init(){var n=Math.min(60,Math.floor(w*h/20000));pts=[];for(var i=0;i<n;i++)pts.push({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*1.5+.5,o:Math.random()*.5+.1});}function draw(){ctx.clearRect(0,0,w,h);pts.forEach(function(p){p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=w;if(p.x>w)p.x=0;if(p.y<0)p.y=h;if(p.y>h)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(${accentRgb},'+p.o+')';ctx.fill();});for(var i=0;i<pts.length;i++){for(var j=i+1;j<pts.length;j++){var dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<150){ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle='rgba(${accentRgb},'+(0.06*(1-d/150))+')';ctx.lineWidth=.5;ctx.stroke();}}}requestAnimationFrame(draw);}resize();init();draw();window.addEventListener('resize',function(){resize();init();});})();
+(function(){var nav=document.getElementById('nav'),toggle=document.getElementById('navToggle'),links=document.getElementById('navLinks'),navLinks=document.querySelectorAll('.nav__link');window.addEventListener('scroll',function(){nav.classList.toggle('is-scrolled',window.scrollY>50);});toggle.addEventListener('click',function(){links.classList.toggle('is-open');var s=toggle.querySelectorAll('span');if(links.classList.contains('is-open')){s[0].style.transform='rotate(45deg) translate(5px,5px)';s[1].style.opacity='0';s[2].style.transform='rotate(-45deg) translate(5px,-5px)';}else{s[0].style.transform='';s[1].style.opacity='';s[2].style.transform='';}});navLinks.forEach(function(link){link.addEventListener('click',function(){links.classList.remove('is-open');var s=toggle.querySelectorAll('span');s[0].style.transform='';s[1].style.opacity='';s[2].style.transform='';});});var sections=document.querySelectorAll('section[id]');var obs=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){var id=e.target.id;navLinks.forEach(function(l){l.classList.toggle('active',l.dataset.section===id);});}});},{threshold:0.3});sections.forEach(function(s){obs.observe(s);});})();
+(function(){var reveals=document.querySelectorAll('.reveal');var obs=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('is-visible');obs.unobserve(e.target);}});},{threshold:0.1,rootMargin:'0px 0px -60px 0px'});reveals.forEach(function(el){obs.observe(el);});})();
+(function(){var counters=document.querySelectorAll('.score-card__value'),bars=document.querySelectorAll('.score-bar__fill');var obs=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){var el=e.target;if(el.classList.contains('score-card__value')){var target=parseInt(el.dataset.count,10),cur=0,inc=target/60;var t=setInterval(function(){cur+=inc;if(cur>=target){cur=target;clearInterval(t);}el.textContent=Math.round(cur);},25);}if(el.classList.contains('score-bar__fill')){setTimeout(function(){el.style.width=el.dataset.width+'%';},200);}obs.unobserve(el);}});},{threshold:0.5});counters.forEach(function(el){obs.observe(el);});bars.forEach(function(el){obs.observe(el);});})();
+(function(){var cards=document.querySelectorAll('.score-card,.solution-card,.problem-card');cards.forEach(function(card){card.addEventListener('mousemove',function(e){var r=card.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,cx=r.width/2,cy=r.height/2;card.style.transform='perspective(1000px) rotateX('+((y-cy)/cy*-3)+'deg) rotateY('+((x-cx)/cx*3)+'deg) translateY(-4px)';});card.addEventListener('mouseleave',function(){card.style.transform='';});});})();
+document.querySelectorAll('a[href^="#"]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();var t=document.querySelector(this.getAttribute('href'));if(t)t.scrollIntoView({behavior:'smooth',block:'start'});});});
+(function(){var g=document.querySelector('.text-gradient');if(g)setInterval(function(){g.style.filter='brightness(1.2)';setTimeout(function(){g.style.filter='brightness(1)';},1000);},3000);})();
+(function(){var orbs=document.querySelectorAll('.hero__orb');window.addEventListener('mousemove',function(e){var x=(e.clientX/window.innerWidth-.5)*2,y=(e.clientY/window.innerHeight-.5)*2;orbs.forEach(function(orb,i){var sp=(i+1)*15;orb.style.transform='translate('+(x*sp)+'px,'+(y*sp)+'px)';});});})();
+`;
+}

@@ -572,7 +572,7 @@ export const AppLayout = () => {
 
         <aside
           className={cn(
-            'relative hidden h-full shrink-0 border-r border-[#1a1a20] bg-[#0A0A0A] transition-[width] duration-300 ease-out lg:flex',
+            'relative hidden h-full shrink-0 border-r border-[#1a1a20] bg-[#0A0A0A] transition-[width] duration-300 ease-out lg:block',
             isSidebarCollapsed ? 'w-[78px] lg:pl-[10px]' : 'w-[280px]'
           )}
         >

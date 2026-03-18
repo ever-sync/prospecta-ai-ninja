@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Megaphone, Plus, Trash2, Send, Clock, Loader2, Calendar, CheckCircle2, BarChart3 } from 'lucide-react';
+import { Megaphone, Plus, Trash2, Send, Clock, Loader2, Calendar, CheckCircle2, BarChart3, Pencil, Eye, RefreshCw } from 'lucide-react';
 import CampaignPreviewDialog from '@/components/CampaignPreviewDialog';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ interface Campaign {
   description: string;
   status: string;
   channel: string;
+  template_id: string | null;
   scheduled_at: string | null;
   sent_at: string | null;
   created_at: string;
@@ -32,6 +33,7 @@ interface Campaign {
   sent_count: number;
   accepted: number;
   rejected: number;
+  views: number;
 }
 
 interface PresentationOption {
@@ -176,7 +178,8 @@ const Campaigns = () => {
   const [sendAsAudio, setSendAsAudio] = useState(false);
   const [voiceId, setVoiceId] = useState<string | null>(null);
 
-  // Create form
+  // Create / Edit form
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [formName, setFormName] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [formChannel, setFormChannel] = useState('whatsapp');
@@ -233,12 +236,19 @@ const Campaigns = () => {
         rejected = (pRows || []).filter(p => p.lead_response === 'rejected').length;
       }
 
+      const { count: viewsCount } = await supabase
+        .from('message_conversion_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('campaign_id', c.id)
+        .eq('event_type', 'opened');
+
       enriched.push({
         id: c.id,
         name: c.name,
         description: c.description || '',
         status: c.status,
         channel: c.channel,
+        template_id: c.template_id || null,
         scheduled_at: c.scheduled_at,
         sent_at: c.sent_at,
         created_at: c.created_at,
@@ -246,6 +256,7 @@ const Campaigns = () => {
         sent_count: (cpRows || []).filter(r => r.send_status === 'sent').length,
         accepted,
         rejected,
+        views: viewsCount || 0,
       });
     }
 
@@ -300,6 +311,46 @@ const Campaigns = () => {
       setCampaigns(prev => prev.filter(c => c.id !== id));
       toast({ title: 'Campanha excluída' });
     }
+  };
+
+  const openEdit = (c: Campaign) => {
+    setEditingCampaign(c);
+    setFormName(c.name);
+    setFormDesc(c.description || '');
+    setFormChannel(c.channel);
+    setFormSchedule(c.scheduled_at ? c.scheduled_at.slice(0, 16) : '');
+    setFormTemplateId(c.template_id || '');
+    setShowCreate(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingCampaign || !formName.trim()) return;
+    setCreating(true);
+    const { error } = await supabase.from('campaigns').update({
+      name: formName.trim(),
+      description: formDesc.trim(),
+      channel: formChannel,
+      template_id: formTemplateId || null,
+      scheduled_at: formSchedule || null,
+    } as any).eq('id', editingCampaign.id);
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Campanha atualizada!' });
+      setShowCreate(false);
+      setEditingCampaign(null);
+      setFormName(''); setFormDesc(''); setFormChannel('whatsapp'); setFormSchedule(''); setFormTemplateId('');
+      fetchCampaigns();
+    }
+    setCreating(false);
+  };
+
+  const handleForceSend = async (c: Campaign) => {
+    // Reset send_status of all campaign_presentations so they can be resent
+    await supabase.from('campaign_presentations').update({ send_status: null } as any).eq('campaign_id', c.id);
+    await supabase.from('campaigns').update({ status: 'draft' } as any).eq('id', c.id);
+    await fetchCampaigns();
+    handleSendCampaign({ ...c, status: 'draft', sent_count: 0 });
   };
 
   const openAddPresentations = async (campaignId: string) => {
@@ -765,13 +816,13 @@ const Campaigns = () => {
         </Card>
       </div>
 
-      {/* Create Dialog */}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+      {/* Create / Edit Dialog */}
+      <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) { setEditingCampaign(null); setFormName(''); setFormDesc(''); setFormChannel('whatsapp'); setFormSchedule(''); setFormTemplateId(''); } }}>
         <DialogContent className="max-w-xl rounded-[22px] border border-[#ececf0] bg-white">
           <DialogHeader>
-            <DialogTitle className="text-[#1A1A1A]">Nova Campanha</DialogTitle>
+            <DialogTitle className="text-[#1A1A1A]">{editingCampaign ? 'Editar Campanha' : 'Nova Campanha'}</DialogTitle>
             <DialogDescription>
-              Configure o canal, template e agendamento para criar uma nova campanha.
+              Configure o canal, template e agendamento {editingCampaign ? 'da campanha.' : 'para criar uma nova campanha.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -825,8 +876,9 @@ const Campaigns = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={creating || !formName.trim()} className="rounded-xl gradient-primary text-primary-foreground glow-primary">
-              {creating ? 'Criando...' : 'Criar'}
+            <Button onClick={editingCampaign ? handleUpdate : handleCreate} disabled={creating || !formName.trim()} className="rounded-xl gradient-primary text-primary-foreground glow-primary">
+              {creating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+              {editingCampaign ? 'Salvar' : 'Criar'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -924,7 +976,7 @@ const Campaigns = () => {
                   {c.description && <p className="text-sm text-[#6e6e76] mb-3">{c.description}</p>}
 
                   {/* Metrics */}
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  <div className={`grid grid-cols-3 gap-3 ${c.channel === 'email' ? 'sm:grid-cols-6' : 'sm:grid-cols-5'}`}>
                     <div className="text-center p-2 rounded-xl bg-[#f7f7fa]">
                       <p className="text-xl font-bold text-[#1A1A1A]">{c.total}</p>
                       <p className="text-xs text-[#7b7b83]">Leads</p>
@@ -933,6 +985,12 @@ const Campaigns = () => {
                       <p className="text-xl font-bold text-[#1A1A1A]">{c.sent_count}</p>
                       <p className="text-xs text-[#7b7b83]">Enviadas</p>
                     </div>
+                    {c.channel === 'email' && (
+                      <div className="text-center p-2 rounded-xl bg-[#f0f4ff]">
+                        <p className="text-xl font-bold text-[#3b5fc2]">{c.views}</p>
+                        <p className="text-xs text-[#7b7b83] flex items-center justify-center gap-0.5"><Eye className="w-3 h-3" /> Abertas</p>
+                      </div>
+                    )}
                     <div className="text-center p-2 rounded-xl bg-[#fff3f5]">
                       <p className="text-xl font-bold text-[#EF3333]">{c.accepted}</p>
                       <p className="text-xs text-[#7b7b83]">Aceitas</p>
@@ -962,10 +1020,20 @@ const Campaigns = () => {
                     <Plus className="w-3.5 h-3.5" />
                     Leads
                   </Button>
+                  <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#e6e6eb] hover:bg-[#f8f8fa]" onClick={() => openEdit(c)}>
+                    <Pencil className="w-3.5 h-3.5" />
+                    Editar
+                  </Button>
                   {c.status !== 'sent' && c.total > 0 && (
                     <Button size="sm" className="h-9 rounded-xl gap-1.5 gradient-primary text-primary-foreground glow-primary" onClick={() => handleSendCampaign(c)}>
                       <Send className="w-3.5 h-3.5" />
                       Enviar
+                    </Button>
+                  )}
+                  {c.status === 'sent' && c.total > 0 && (
+                    <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#e6e6eb] hover:bg-[#fff8f0] hover:text-[#c2620a]" onClick={() => handleForceSend(c)}>
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Reenviar
                     </Button>
                   )}
                   {c.channel === 'whatsapp' && c.status === 'sent' && (

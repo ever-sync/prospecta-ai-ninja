@@ -173,9 +173,9 @@ const NavItem = ({ path, label, icon: Icon, collapsed, onNavigate, currentPath, 
       <Icon className={cn('h-[18px] w-[18px] shrink-0', active && !comingSoon ? 'text-[#EF3333]' : 'text-[#8e8e98]')} strokeWidth={1.8} />
       {!collapsed && (
         <>
-          <span className="text-sm font-medium text-white">{label}</span>
+          <span className="flex-1 text-sm font-medium text-white">{label}</span>
           {comingSoon ? (
-            <span className="ml-auto rounded-full bg-[#EF3333] px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none text-white">
+            <span className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-[#EF3333] px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none text-white">
               Em breve
             </span>
           ) : active ? (

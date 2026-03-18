@@ -22,8 +22,13 @@ import {
   FileText,
   Eye,
   Bot,
-  MessageSquare,
 } from 'lucide-react';
+
+const WhatsAppIcon = ({ className, strokeWidth: _sw }: { className?: string; strokeWidth?: number }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12.001 2C6.478 2 2 6.478 2 12c0 1.85.504 3.58 1.383 5.065L2 22l5.085-1.332A9.954 9.954 0 0012.001 22C17.523 22 22 17.522 22 12S17.523 2 12.001 2zm0 1.8A8.2 8.2 0 0120.2 12a8.2 8.2 0 01-8.199 8.2 8.17 8.17 0 01-4.276-1.2l-.307-.184-3.017.79.813-2.944-.202-.318A8.17 8.17 0 013.8 12 8.2 8.2 0 0112.001 3.8zM8.89 7.5c-.2 0-.52.075-.795.375S7 8.725 7 9.5c0 .775.62 1.525.705 1.625.085.1 1.21 1.875 2.97 2.625.415.175.74.28 .993.36.417.13.797.112 1.097.068.335-.05 1.03-.42 1.175-.825.147-.405.147-.75.103-.825-.044-.075-.163-.12-.34-.21-.178-.088-1.05-.517-1.212-.577-.163-.06-.282-.088-.4.088-.118.176-.456.577-.558.695-.104.118-.207.133-.385.045-.178-.09-.75-.276-1.428-.881-.528-.47-.884-1.05-.988-1.228-.103-.178-.01-.274.078-.362.08-.08.178-.208.267-.312.088-.104.118-.178.178-.296.06-.118.03-.22-.015-.308-.045-.088-.4-.962-.548-1.318-.145-.345-.292-.298-.4-.303L8.89 7.5z"/>
+  </svg>
+);
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -48,7 +53,7 @@ const menuItems = [
   { path: '/dna', label: 'DNA', icon: Fingerprint },
   { path: '/search', label: 'Scanner', icon: SearchIcon },
   { path: '/robots', label: 'Robôs', icon: Bot, comingSoon: true },
-  { path: '/ai-atendimento', label: 'IA de Atendimento', icon: MessageSquare, comingSoon: true },
+  { path: '/ai-whatsapp', label: 'IA Whatsapp', icon: WhatsAppIcon, comingSoon: true },
   { path: '/presentations', label: 'Apresentações', icon: FileBarChart },
   { path: '/campaigns', label: 'Campanhas', icon: Send },
   { path: '/templates', label: 'Templates', icon: FileStack },

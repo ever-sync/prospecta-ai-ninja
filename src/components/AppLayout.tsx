@@ -173,7 +173,7 @@ const NavItem = ({ path, label, icon: Icon, collapsed, onNavigate, currentPath, 
       <Icon className={cn('h-[18px] w-[18px] shrink-0', active && !comingSoon ? 'text-[#EF3333]' : 'text-[#8e8e98]')} strokeWidth={1.8} />
       {!collapsed && (
         <>
-          <span className="truncate text-sm font-medium">{label}</span>
+          <span className="text-sm font-medium text-white">{label}</span>
           {comingSoon ? (
             <span className="ml-auto rounded-full bg-[#EF3333] px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none text-white">
               Em breve
@@ -568,7 +568,7 @@ export const AppLayout = () => {
         <aside
           className={cn(
             'relative hidden h-full shrink-0 border-r border-[#1a1a20] bg-[#0A0A0A] transition-[width] duration-300 ease-out lg:flex',
-            isSidebarCollapsed ? 'w-[78px] lg:pl-[10px]' : 'w-[248px]'
+            isSidebarCollapsed ? 'w-[78px] lg:pl-[10px]' : 'w-[280px]'
           )}
         >
           {renderSidebarContent({ mobile: false })}

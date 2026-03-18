@@ -264,6 +264,10 @@ Deno.serve(async (req) => {
       responseMode,
       formTemplateName,
       formTemplateBody,
+      formSlug,
+      formSchemaId,
+      formFields,
+      whatsappButtonLabel,
     } = await req.json();
 
     const { user, svc } = await getAuthenticatedUserContext(req);
@@ -359,6 +363,9 @@ Escreva em linguagem simples, sem termos tecnicos. O dono do negocio precisa ent
       tone: selectedTone,
       responseMode: selectedMode,
     });
+    if (whatsappButtonLabel && selectedMode !== "form") {
+      fallbackContent.cta.primaryLabel = whatsappButtonLabel;
+    }
 
     let generatedContent: PresentationContentV2;
 
@@ -389,6 +396,9 @@ Escreva em linguagem simples, sem termos tecnicos. O dono do negocio precisa ent
       whatsappUrl,
       formTemplateName: formTemplateName || null,
       formTemplateBody: formTemplateBody || null,
+      formSlug: formSlug || null,
+      formSchemaId: formSchemaId || null,
+      formFields: Array.isArray(formFields) ? formFields : null,
       testimonials: Array.isArray(testimonials) ? testimonials : [],
       clientLogos: Array.isArray(clientLogos) ? clientLogos : [],
       assets: {

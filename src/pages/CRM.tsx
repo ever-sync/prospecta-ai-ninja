@@ -264,12 +264,17 @@ const CRM = () => {
     setRegenDialogOpen(true);
   };
 
-  const handleRegenerate = async (
-    template: string,
-    tone: string,
-    customInstructions: string,
-    customColors?: { textColor: string; buttonColor: string; bgColor: string }
-  ) => {
+  const handleRegenerate = async (options: {
+    customInstructions: string;
+    responseMode: string;
+    formSchemaId?: string;
+    formTemplateName?: string;
+    formTemplateBody?: string;
+    formSlug?: string;
+    formFields?: any[];
+    whatsappPhone?: string;
+    whatsappButtonLabel?: string;
+  }) => {
     const presentation = regenPresentation;
     if (!presentation || !user) return;
 
@@ -283,6 +288,8 @@ const CRM = () => {
         supabase.from('client_logos').select('company_name, logo_url').eq('user_id', user.id),
       ]);
 
+      const profileData = profileRes.data as any;
+
       const { data: generated, error: generatedError } = await invokeEdgeFunction<GeneratePresentationResponse>('generate-presentation', {
         body: {
           analysis: presentation.analysis_data,
@@ -294,22 +301,22 @@ const CRM = () => {
             category: presentation.business_category,
             rating: presentation.business_rating,
           },
-          dna: {
-            ...dnaRes.data,
-            ...(customColors
-              ? {
-                  custom_text_color: customColors.textColor,
-                  custom_button_color: customColors.buttonColor,
-                  custom_bg_color: customColors.bgColor,
-                }
-              : {}),
-          },
-          profile: profileRes.data,
+          dna: dnaRes.data,
+          profile: options.whatsappPhone
+            ? { ...profileData, phone: options.whatsappPhone }
+            : profileData,
           testimonials: testimonialsRes.data,
           clientLogos: clientLogosRes.data,
-          template,
-          tone,
-          customInstructions,
+          template: 'modern-dark',
+          tone: (dnaRes.data as any)?.presentation_tone || 'professional',
+          customInstructions: options.customInstructions,
+          responseMode: options.responseMode,
+          formTemplateName: options.formTemplateName,
+          formTemplateBody: options.formTemplateBody,
+          formSlug: options.formSlug,
+          formSchemaId: options.formSchemaId,
+          formFields: options.formFields,
+          whatsappButtonLabel: options.whatsappButtonLabel,
           publicId: presentation.public_id,
         },
       });

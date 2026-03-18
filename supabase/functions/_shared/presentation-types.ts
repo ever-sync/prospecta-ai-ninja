@@ -164,6 +164,9 @@ export type PresentationRenderContext = {
   whatsappUrl: string | null;
   formTemplateName?: string | null;
   formTemplateBody?: string | null;
+  formSlug?: string | null;
+  formSchemaId?: string | null;
+  formFields?: Array<{ id: string; type: string; label: string; placeholder?: string; required?: boolean; options?: string[] }> | null;
   testimonials: PresentationSocialProof[];
   clientLogos: PresentationClientLogo[];
   assets: {

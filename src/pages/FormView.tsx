@@ -47,15 +47,32 @@ export default function FormView() {
   const setAnswer = (id: string, val: string | string[]) =>
     setAnswers((p) => ({ ...p, [id]: val }));
 
+  const maskPhone = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 10) {
+      return digits.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
+    }
+    return digits.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
+  };
+
   const validate = () => {
     if (!schema) return false;
     const errs: Record<string, string> = {};
     for (const field of schema.fields) {
       if (!isVisible(field)) continue;
-      if (!field.required) continue;
       const val = answers[field.id];
-      const empty = !val || (Array.isArray(val) ? val.length === 0 : val.trim() === '');
-      if (empty) errs[field.id] = 'Campo obrigatório';
+      const empty = !val || (Array.isArray(val) ? val.length === 0 : (val as string).trim() === '');
+      if (field.required && empty) { errs[field.id] = 'Campo obrigatório'; continue; }
+      if (!empty) {
+        if (field.type === 'email') {
+          const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val as string);
+          if (!emailOk) errs[field.id] = 'Email inválido';
+        }
+        if (field.type === 'phone') {
+          const digits = (val as string).replace(/\D/g, '');
+          if (digits.length < 10) errs[field.id] = 'Telefone inválido';
+        }
+      }
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -122,24 +139,29 @@ export default function FormView() {
     );
   }
 
-  if (submitted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <div className="max-w-md w-full text-center space-y-4">
-          <div className="w-16 h-16 rounded-full bg-[#ef3333]/10 flex items-center justify-center mx-auto">
-            <svg className="w-8 h-8 text-[#ef3333]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold">Enviado com sucesso!</h2>
-          <p className="text-muted-foreground">{schema.thank_you_message}</p>
-        </div>
-      </div>
-    );
+  const behavior = (schema as any).submission_behavior || 'popup';
+  const redirectUrl = (schema as any).redirect_url || '';
+
+  if (submitted && behavior === 'page' && redirectUrl) {
+    window.location.href = redirectUrl;
+    return null;
   }
 
   return (
     <div className="min-h-screen bg-background flex items-start justify-center py-12 px-4">
+      {submitted && behavior === 'popup' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center space-y-4">
+            <div className="w-14 h-14 rounded-full bg-[#ef3333]/10 flex items-center justify-center mx-auto">
+              <svg className="w-7 h-7 text-[#ef3333]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-[#1A1A1A]">Cadastro concluído!</h2>
+            <p className="text-sm text-[#6d6d75]">{schema.thank_you_message}</p>
+          </div>
+        </div>
+      )}
       <div className="max-w-lg w-full space-y-6">
         <div>
           <h1 className="text-2xl font-bold">{schema.title}</h1>
@@ -169,13 +191,35 @@ export default function FormView() {
                   />
                 )}
 
-                {(field.type === 'text' || field.type === 'phone' || field.type === 'email' || field.type === 'number') && (
+                {(field.type === 'text' || field.type === 'number') && (
                   <Input
-                    type={field.type === 'number' ? 'number' : field.type === 'email' ? 'email' : 'text'}
+                    type={field.type === 'number' ? 'number' : 'text'}
                     placeholder={field.placeholder}
                     value={val as string}
                     onChange={(e) => setAnswer(field.id, e.target.value)}
                     className={err ? 'border-destructive' : ''}
+                  />
+                )}
+
+                {field.type === 'phone' && (
+                  <Input
+                    type="tel"
+                    placeholder={field.placeholder || '(11) 99999-9999'}
+                    value={val as string}
+                    onChange={(e) => setAnswer(field.id, maskPhone(e.target.value))}
+                    className={err ? 'border-destructive' : ''}
+                    maxLength={15}
+                  />
+                )}
+
+                {field.type === 'email' && (
+                  <Input
+                    type="email"
+                    placeholder={field.placeholder || 'seu@email.com'}
+                    value={val as string}
+                    onChange={(e) => setAnswer(field.id, e.target.value)}
+                    className={err ? 'border-destructive' : ''}
+                    inputMode="email"
                   />
                 )}
 

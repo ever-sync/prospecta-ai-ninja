@@ -36,7 +36,7 @@ interface Template {
   created_at: string;
 }
 
-const VARIABLES = [
+const LEAD_VARIABLES = [
   { key: '{{nome_empresa}}', label: 'Nome da empresa', desc: 'Nome do lead' },
   { key: '{{categoria}}', label: 'Categoria', desc: 'Setor do lead' },
   { key: '{{endereco}}', label: 'Endereco', desc: 'Endereco do lead' },
@@ -45,7 +45,12 @@ const VARIABLES = [
   { key: '{{rating}}', label: 'Rating Google', desc: 'Nota no Google' },
   { key: '{{score}}', label: 'Score Geral', desc: 'Score da analise' },
   { key: '{{link_proposta}}', label: 'Link da Proposta', desc: 'URL da apresentacao' },
-  { key: '{{sua_empresa}}', label: 'Sua Empresa', desc: 'Nome da sua empresa' },
+];
+
+const MY_COMPANY_VARIABLES = [
+  { key: '{{sua_empresa}}', label: 'Minha Empresa', desc: 'Nome da sua empresa' },
+  { key: '{{seu_telefone}}', label: 'Meu Telefone', desc: 'Telefone da sua empresa' },
+  { key: '{{seu_email}}', label: 'Meu Email', desc: 'Email da sua empresa' },
 ];
 
 const fieldClass = 'h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]';
@@ -99,9 +104,14 @@ const TemplatesManager = () => {
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
   const [audioRef] = useState<{ current: HTMLAudioElement | null }>({ current: null });
+  const [myProfile, setMyProfile] = useState<{ company_name: string | null; phone: string | null; email: string | null } | null>(null);
 
   useEffect(() => {
-    if (user) fetchTemplates();
+    if (user) {
+      fetchTemplates();
+      supabase.from('profiles').select('company_name, phone, email').eq('user_id', user.id).single()
+        .then(({ data }) => { if (data) setMyProfile(data); });
+    }
   }, [user]);
 
   const handleSendTest = async () => {
@@ -111,11 +121,14 @@ const TemplatesManager = () => {
       const { error } = await supabase.functions.invoke('send-marketing-email', {
         body: {
           targetEmail: user.email,
+          senderName: myProfile?.company_name || BRAND.name,
           customSubject: formSubject,
           customBody: formBody,
           variables: {
             nome_empresa: 'Restaurante Exemplo',
-            sua_empresa: BRAND.name,
+            sua_empresa: myProfile?.company_name || BRAND.name,
+            seu_telefone: myProfile?.phone || '',
+            seu_email: myProfile?.email || '',
             link_proposta: `${BRAND.websiteUrl}/demo`
           }
         }
@@ -183,8 +196,10 @@ const TemplatesManager = () => {
           title: data.title,
           description: data.description,
           thank_you_message: data.thank_you_message,
+          redirect_url: (data as any).redirect_url || '',
           slug: data.slug,
           fields: data.fields as any,
+          submission_behavior: (data as any).submission_behavior || 'popup',
         });
       } else {
         setFormSchemaId(null);
@@ -254,8 +269,10 @@ const TemplatesManager = () => {
         title: formSchema.title,
         description: formSchema.description,
         thank_you_message: formSchema.thank_you_message,
+        redirect_url: formSchema.redirect_url,
         slug: formSchema.slug,
         fields: formSchema.fields as any,
+        submission_behavior: formSchema.submission_behavior,
         updated_at: new Date().toISOString(),
       };
       if (formSchemaId) {
@@ -337,7 +354,9 @@ const TemplatesManager = () => {
       .replace(/\{\{rating\}\}/g, '4.5')
       .replace(/\{\{score\}\}/g, '72')
       .replace(/\{\{link_proposta\}\}/g, 'https://app.com/presentation/abc123')
-      .replace(/\{\{sua_empresa\}\}/g, BRAND.name);
+      .replace(/\{\{sua_empresa\}\}/g, myProfile?.company_name || BRAND.name)
+      .replace(/\{\{seu_telefone\}\}/g, myProfile?.phone || '')
+      .replace(/\{\{seu_email\}\}/g, myProfile?.email || '');
   };
 
   const getChannelLabel = (channel: string) => {
@@ -689,32 +708,6 @@ const TemplatesManager = () => {
               <Input className={fieldClass} value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Proposta Restaurantes" />
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Chave da Variante</Label>
-                <Input className={fieldClass} value={formVariantKey} onChange={(e) => setFormVariantKey(e.target.value.toUpperCase())} placeholder="A" maxLength={8} />
-              </div>
-              <div className="space-y-2">
-                <Label>Grupo de Experimento (A/B)</Label>
-                <Input className={fieldClass} value={formExperimentGroup} onChange={(e) => setFormExperimentGroup(e.target.value)} placeholder="ex: whatsapp-oferta-marco" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Persona alvo (opcional)</Label>
-                <Input className={fieldClass} value={formTargetPersona} onChange={(e) => setFormTargetPersona(e.target.value)} placeholder="ex: Dono de restaurante" />
-              </div>
-              <div className="space-y-2">
-                <Label>Objetivo da campanha (opcional)</Label>
-                <Input className={fieldClass} value={formCampaignObjective} onChange={(e) => setFormCampaignObjective(e.target.value)} placeholder="ex: Agendar chamada" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Gatilho de CTA (opcional)</Label>
-              <Input className={fieldClass} value={formCtaTrigger} onChange={(e) => setFormCtaTrigger(e.target.value)} placeholder="ex: urgencia e prova social" />
-            </div>
 
             <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-[#fafafd] p-3">
               <div>
@@ -778,42 +771,37 @@ const TemplatesManager = () => {
                     <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-[#ececf0] bg-white">Smart Tags</Badge>
                   </div>
                   <p className="text-[11px] text-[#6d6d75]">Clique para inserir onde o texto estiver focado.</p>
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {VARIABLES.map((v) => (
-                      <Button key={v.key} variant="ghost" size="sm"
-                        className="h-7 rounded-lg border border-[#ececf0] bg-white px-2.5 text-[11px] font-medium text-[#5f5f67] hover:border-[#ef3333]/35 hover:bg-[#fff5f6] hover:text-[#ef3333]"
-                        onClick={() => {
-                          const subjectEl = document.getElementById('email-subject-input') as HTMLInputElement;
-                          const bodyEl = document.querySelector('textarea') as HTMLTextAreaElement;
-                          if (document.activeElement === subjectEl) {
-                            const start = subjectEl.selectionStart || 0; const end = subjectEl.selectionEnd || 0; const text = subjectEl.value;
-                            setFormSubject(text.substring(0, start) + v.key + text.substring(end));
-                          } else {
-                            const start = bodyEl.selectionStart || 0; const end = bodyEl.selectionEnd || 0; const text = bodyEl.value;
-                            setFormBody(text.substring(0, start) + v.key + text.substring(end));
-                          }
-                        }} title={v.desc}>{v.label}</Button>
-                    ))}
-                  </div>
+                  {[
+                    { title: 'Lead', vars: LEAD_VARIABLES },
+                    { title: 'Minha Empresa', vars: MY_COMPANY_VARIABLES },
+                  ].map((group) => (
+                    <div key={group.title} className="space-y-1">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9d9da8]">{group.title}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {group.vars.map((v) => (
+                          <Button key={v.key} variant="ghost" size="sm"
+                            className="h-7 rounded-lg border border-[#ececf0] bg-white px-2.5 text-[11px] font-medium text-[#5f5f67] hover:border-[#ef3333]/35 hover:bg-[#fff5f6] hover:text-[#ef3333]"
+                            onClick={() => {
+                              const subjectEl = document.getElementById('email-subject-input') as HTMLInputElement;
+                              const bodyEl = document.querySelector('textarea') as HTMLTextAreaElement;
+                              if (document.activeElement === subjectEl) {
+                                const start = subjectEl.selectionStart || 0; const end = subjectEl.selectionEnd || 0; const text = subjectEl.value;
+                                setFormSubject(text.substring(0, start) + v.key + text.substring(end));
+                              } else {
+                                const start = bodyEl.selectionStart || 0; const end = bodyEl.selectionEnd || 0; const text = bodyEl.value;
+                                setFormBody(text.substring(0, start) + v.key + text.substring(end));
+                              }
+                            }} title={v.desc}>{v.label}</Button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
                 <div className="space-y-2">
                   <Label>Corpo da Mensagem *</Label>
                   <Textarea value={formBody} onChange={(e) => setFormBody(e.target.value)}
                     placeholder={formChannel === 'whatsapp' ? 'Ola! Sou da {{sua_empresa}}...' : '<p>Ola!</p><p>Preparamos uma analise para {{nome_empresa}}...</p>'}
                     className="min-h-[200px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] font-mono text-sm focus-visible:ring-[#ef3333]" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Imagem (opcional)</Label>
-                  <div className="flex items-center gap-3">
-                    {formImageUrl && <img src={formImageUrl} alt="Preview" className="h-16 w-16 rounded-lg border border-[#e6e6eb] object-cover" />}
-                    <label className="cursor-pointer">
-                      <Button variant="outline" size="sm" className="gap-2 rounded-xl border-[#e6e6eb] hover:bg-[#f8f8fa]" asChild>
-                        <span><Image className="h-4 w-4" />{uploading ? 'Enviando...' : 'Upload Imagem'}</span>
-                      </Button>
-                      <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
-                    </label>
-                    {formImageUrl && <Button variant="ghost" size="sm" onClick={() => setFormImageUrl('')} className="rounded-xl text-[#6d6d75] hover:bg-[#f5f5f7]">Remover</Button>}
-                  </div>
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-[#fafafd] p-3">
                   <div>

@@ -17,12 +17,13 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
-    const { templateId, targetEmail, variables = {}, customSubject, customBody } = await req.json() as {
+    const { templateId, targetEmail, variables = {}, customSubject, customBody, senderName } = await req.json() as {
       templateId?: string;
       targetEmail: string;
       variables?: Record<string, string>;
       customSubject?: string;
       customBody?: string;
+      senderName?: string;
     };
 
     if (!targetEmail) {
@@ -78,7 +79,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'envPRO <noreply@prospecta.ai>',
+        from: `${senderName || 'envPRO'} <contato@envpro.com.br>`,
         to: [targetEmail],
         subject: finalSubject,
         html: finalHtml,

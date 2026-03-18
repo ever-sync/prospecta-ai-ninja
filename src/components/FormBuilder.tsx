@@ -27,8 +27,10 @@ export interface FormSchema {
   title: string;
   description: string;
   thank_you_message: string;
+  redirect_url: string;
   slug: string;
   fields: FormField[];
+  submission_behavior: 'page' | 'popup';
 }
 
 interface FormBuilderProps {
@@ -61,9 +63,11 @@ const DEFAULT_FIELDS: FormField[] = [
 export const defaultFormSchema = (): FormSchema => ({
   title: 'Formulário de Qualificação',
   description: 'Preencha para receber sua proposta personalizada',
-  thank_you_message: 'Obrigado! Em breve entraremos em contato.',
+  thank_you_message: 'Cadastro concluído! Logo entraremos em contato.',
+  redirect_url: '',
   slug: '',
   fields: DEFAULT_FIELDS,
+  submission_behavior: 'popup',
 });
 
 // ─── Preview ────────────────────────────────────────────────────────────────
@@ -376,9 +380,46 @@ export default function FormBuilder({ value, onChange }: FormBuilderProps) {
           <Textarea value={value.description} onChange={(e) => update({ description: e.target.value })} placeholder="Subtítulo exibido abaixo do título..." rows={2} />
         </div>
         <div className="space-y-1.5">
-          <Label>Mensagem após envio</Label>
-          <Textarea value={value.thank_you_message} onChange={(e) => update({ thank_you_message: e.target.value })} placeholder="Ex: Obrigado! Em breve entraremos em contato." rows={2} />
+          <Label>Comportamento após envio</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { value: 'popup', label: 'Pop-up de confirmação', desc: 'Exibe mensagem sobre o formulário' },
+              { value: 'page', label: 'Tela de obrigado', desc: 'Redireciona para página inteira' },
+            ] as const).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => update({ submission_behavior: opt.value })}
+                className={`rounded-xl border p-3 text-left transition-colors ${
+                  value.submission_behavior === opt.value
+                    ? 'border-[#ef3333] bg-[#fff5f6]'
+                    : 'border-[#e6e6eb] bg-white hover:border-[#ef3333]/40'
+                }`}
+              >
+                <p className="text-xs font-semibold text-[#1A1A1A]">{opt.label}</p>
+                <p className="text-[10px] text-[#6d6d75] mt-0.5">{opt.desc}</p>
+              </button>
+            ))}
+          </div>
         </div>
+        {value.submission_behavior === 'popup' && (
+          <div className="space-y-1.5">
+            <Label>Mensagem após envio</Label>
+            <Textarea value={value.thank_you_message} onChange={(e) => update({ thank_you_message: e.target.value })} placeholder="Ex: Cadastro concluído! Logo entraremos em contato." rows={2} />
+          </div>
+        )}
+        {value.submission_behavior === 'page' && (
+          <div className="space-y-1.5">
+            <Label>URL de redirecionamento</Label>
+            <Input
+              value={value.redirect_url ?? ''}
+              onChange={(e) => update({ redirect_url: e.target.value })}
+              placeholder="https://seusite.com.br/obrigado"
+              type="url"
+            />
+            <p className="text-[11px] text-[#6d6d75]">Após enviar o formulário, o usuário será redirecionado para essa URL.</p>
+          </div>
+        )}
         <div className="space-y-1.5">
           <Label>URL personalizada</Label>
           <div className="flex items-center gap-1">

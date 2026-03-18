@@ -2,34 +2,44 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, RefreshCw, Palette } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, RefreshCw, MessageCircle, ClipboardList } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import { selectFirstRow } from '@/lib/supabase/select-first-row';
 
-const TEMPLATES = [
-  { value: 'modern-dark', label: 'Moderno Escuro', description: 'Fundo escuro, cores vibrantes, visual tech' },
-  { value: 'clean-light', label: 'Clean Claro', description: 'Fundo branco, tipografia elegante, minimalista' },
-  { value: 'corporate', label: 'Corporativo', description: 'Layout formal, tons sóbrios, estilo enterprise' },
-  { value: 'bold-gradient', label: 'Gradiente Bold', description: 'Gradientes fortes, tipografia grande, impactante' },
-  { value: 'custom', label: 'Customizado', description: 'Defina suas próprias cores' },
-];
-
-const TONES = [
-  { value: 'professional', label: 'Profissional' },
-  { value: 'consultive', label: 'Consultivo' },
-  { value: 'urgent', label: 'Urgente' },
-  { value: 'friendly', label: 'Amigável' },
-  { value: 'technical', label: 'Técnico' },
-];
+interface RegenOptions {
+  customInstructions: string;
+  responseMode: string;
+  formSchemaId?: string;
+  formTemplateName?: string;
+  formTemplateBody?: string;
+  formSlug?: string;
+  formFields?: any[];
+  whatsappPhone?: string;
+  whatsappButtonLabel?: string;
+}
 
 interface RegeneratePresentationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onRegenerate: (template: string, tone: string, customInstructions: string, customColors?: { textColor: string; buttonColor: string; bgColor: string }) => Promise<void>;
+  onRegenerate: (options: RegenOptions) => Promise<void>;
   businessName: string;
 }
+
+interface FormSchema {
+  id: string;
+  title: string;
+  templateName: string;
+  slug: string;
+  fields: any[];
+}
+
+const CTA_OPTIONS = [
+  { value: 'buttons', label: 'Botão WhatsApp', desc: 'CTA direto para conversa no WhatsApp', icon: MessageCircle },
+  { value: 'form', label: 'Formulário', desc: 'Lead preenche um formulário de qualificação', icon: ClipboardList },
+];
 
 export const RegeneratePresentationDialog = ({
   open,
@@ -37,62 +47,70 @@ export const RegeneratePresentationDialog = ({
   onRegenerate,
   businessName,
 }: RegeneratePresentationDialogProps) => {
-  const [template, setTemplate] = useState('modern-dark');
-  const [tone, setTone] = useState('professional');
   const [customInstructions, setCustomInstructions] = useState('');
+  const [responseMode, setResponseMode] = useState('buttons');
   const [loading, setLoading] = useState(false);
-  const [customTextColor, setCustomTextColor] = useState('#ffffff');
-  const [customButtonColor, setCustomButtonColor] = useState('#6366f1');
-  const [customBgColor, setCustomBgColor] = useState('#0c0c1d');
+
+  // WhatsApp fields
+  const [whatsappPhone, setWhatsappPhone] = useState('');
+  const [whatsappButtonLabel, setWhatsappButtonLabel] = useState('Quero saber mais');
+
+  // Form fields
+  const [forms, setForms] = useState<FormSchema[]>([]);
+  const [selectedFormId, setSelectedFormId] = useState('');
 
   useEffect(() => {
-    if (open) {
-      loadDnaColors();
-    }
+    if (open) loadForms();
   }, [open]);
 
-  const loadDnaColors = async () => {
+  const loadForms = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data } = await selectFirstRow(
-      supabase
-        .from('company_dna')
-        .select('custom_text_color, custom_button_color, custom_bg_color, presentation_template, presentation_tone')
-        .eq('user_id', user.id)
-    );
+
+    // Get template IDs + names for this user's formulario templates
+    const { data: templates } = await supabase
+      .from('message_templates')
+      .select('id, name')
+      .eq('user_id', user.id)
+      .eq('channel', 'formulario');
+
+    if (!templates || templates.length === 0) return;
+
+    const templateIds = templates.map(t => t.id);
+    const { data } = await supabase
+      .from('form_schemas')
+      .select('id, title, slug, fields, template_id')
+      .in('template_id', templateIds);
+
     if (data) {
-      setCustomTextColor(data.custom_text_color || '#ffffff');
-      setCustomButtonColor(data.custom_button_color || '#6366f1');
-      setCustomBgColor(data.custom_bg_color || '#0c0c1d');
-      if (data.presentation_template) setTemplate(data.presentation_template);
-      if (data.presentation_tone) setTone(data.presentation_tone);
+      const merged = data.map((f: any) => ({
+        ...f,
+        templateName: templates.find(t => t.id === f.template_id)?.name || f.title,
+      }));
+      setForms(merged as FormSchema[]);
+      if (merged.length > 0 && !selectedFormId) setSelectedFormId(merged[0].id);
     }
   };
 
   const handleRegenerate = async () => {
     setLoading(true);
     try {
-      // Persist template, tone and custom colors to company_dna
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const updates: Record<string, string> = {
-          presentation_template: template,
-          presentation_tone: tone,
-        };
-        if (template === 'custom') {
-          updates.custom_text_color = customTextColor;
-          updates.custom_button_color = customButtonColor;
-          updates.custom_bg_color = customBgColor;
-        }
-        await supabase.from('company_dna').update(updates).eq('user_id', user.id);
-      }
+      const selectedForm = forms.find(f => f.id === selectedFormId);
+      const fieldLabels = selectedForm
+        ? selectedForm.fields.map((f: any) => f.label).join(', ')
+        : '';
 
-      await onRegenerate(
-        template,
-        tone,
+      await onRegenerate({
         customInstructions,
-        template === 'custom' ? { textColor: customTextColor, buttonColor: customButtonColor, bgColor: customBgColor } : undefined
-      );
+        responseMode,
+        formSchemaId: responseMode === 'form' ? selectedFormId : undefined,
+        formTemplateName: responseMode === 'form' ? selectedForm?.title : undefined,
+        formTemplateBody: responseMode === 'form' ? fieldLabels : undefined,
+        formSlug: responseMode === 'form' ? selectedForm?.slug : undefined,
+        formFields: responseMode === 'form' ? selectedForm?.fields : undefined,
+        whatsappPhone: responseMode === 'buttons' ? whatsappPhone : undefined,
+        whatsappButtonLabel: responseMode === 'buttons' ? whatsappButtonLabel : undefined,
+      });
       onOpenChange(false);
     } finally {
       setLoading(false);
@@ -108,96 +126,91 @@ export const RegeneratePresentationDialog = ({
             Regenerar Apresentação
           </DialogTitle>
           <DialogDescription>
-            A estrutura da proposta agora e fixa. Aqui voce ajusta estilo visual, tom e instrucoes de copy para gerar uma nova versao.
+            Ajuste as opções abaixo e gere uma nova versão da proposta.
           </DialogDescription>
-          <p className="text-sm text-muted-foreground">
-            {businessName}
-          </p>
+          <p className="text-sm text-muted-foreground font-medium">{businessName}</p>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* CTA selector */}
           <div className="space-y-2">
-            <Label className="text-foreground">Template Visual</Label>
-            <Select value={template} onValueChange={setTemplate}>
-              <SelectTrigger className="bg-background border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TEMPLATES.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>
-                    <div>
-                      <span className="font-medium">{t.label}</span>
-                      <span className="text-muted-foreground ml-2 text-xs">{t.description}</span>
+            <Label className="text-foreground">Call to Action</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {CTA_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setResponseMode(opt.value)}
+                    className={cn(
+                      'rounded-xl border p-3 text-left transition-colors',
+                      responseMode === opt.value
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/40'
+                    )}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Icon className={cn('w-4 h-4', responseMode === opt.value ? 'text-primary' : 'text-muted-foreground')} />
+                      <p className="text-sm font-semibold">{opt.label}</p>
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                    <p className="text-[11px] text-muted-foreground">{opt.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {template === 'custom' && (
-            <div className="space-y-3 p-3 rounded-lg border border-border bg-background/50">
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Palette className="w-4 h-4 text-primary" />
-                Cores Customizadas
+          {/* WhatsApp fields */}
+          {responseMode === 'buttons' && (
+            <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-3">
+              <div className="space-y-1.5">
+                <Label className="text-sm">Telefone de contato</Label>
+                <Input
+                  value={whatsappPhone}
+                  onChange={(e) => setWhatsappPhone(e.target.value)}
+                  placeholder="(11) 99999-9999"
+                  className="bg-background border-border"
+                />
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Texto</Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={customTextColor}
-                      onChange={(e) => setCustomTextColor(e.target.value)}
-                      className="w-8 h-8 rounded cursor-pointer border border-border"
-                    />
-                    <span className="text-xs text-muted-foreground">{customTextColor}</span>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Botões</Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={customButtonColor}
-                      onChange={(e) => setCustomButtonColor(e.target.value)}
-                      className="w-8 h-8 rounded cursor-pointer border border-border"
-                    />
-                    <span className="text-xs text-muted-foreground">{customButtonColor}</span>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Fundo</Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={customBgColor}
-                      onChange={(e) => setCustomBgColor(e.target.value)}
-                      className="w-8 h-8 rounded cursor-pointer border border-border"
-                    />
-                    <span className="text-xs text-muted-foreground">{customBgColor}</span>
-                  </div>
-                </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Texto do botão</Label>
+                <Input
+                  value={whatsappButtonLabel}
+                  onChange={(e) => setWhatsappButtonLabel(e.target.value)}
+                  placeholder="Quero saber mais"
+                  className="bg-background border-border"
+                />
               </div>
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label className="text-foreground">Tom de Comunicação</Label>
-            <Select value={tone} onValueChange={setTone}>
-              <SelectTrigger className="bg-background border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TONES.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Form selector */}
+          {responseMode === 'form' && (
+            <div className="space-y-1.5">
+              <Label className="text-sm">Formulário</Label>
+              {forms.length === 0 ? (
+                <p className="text-xs text-muted-foreground p-2 rounded-lg border border-border bg-muted/30">
+                  Nenhum formulário cadastrado. Crie um na aba Templates.
+                </p>
+              ) : (
+                <Select value={selectedFormId} onValueChange={setSelectedFormId}>
+                  <SelectTrigger className="bg-background border-border">
+                    <SelectValue placeholder="Selecione um formulário..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {forms.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>
+                        {f.templateName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
 
+          {/* Instructions */}
           <div className="space-y-2">
             <Label className="text-foreground">Instruções Adicionais</Label>
             <Textarea
@@ -213,7 +226,7 @@ export const RegeneratePresentationDialog = ({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancelar
           </Button>
-          <Button onClick={handleRegenerate} disabled={loading}>
+          <Button onClick={handleRegenerate} disabled={loading || (responseMode === 'form' && forms.length === 0)}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
             Regenerar
           </Button>

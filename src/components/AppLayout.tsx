@@ -167,7 +167,7 @@ const NavItem = ({ path, label, icon: Icon, collapsed, onNavigate, currentPath, 
       onClick={() => !comingSoon && onNavigate(path)}
       className={cn(
         'group relative flex w-full items-center rounded-2xl transition-all duration-200',
-        collapsed ? 'h-11 justify-center px-0' : 'h-11 gap-3 px-3.5',
+        collapsed ? 'h-11 justify-center px-0' : 'h-11 justify-start gap-3 px-3.5',
         comingSoon
           ? 'cursor-not-allowed opacity-50'
           : active

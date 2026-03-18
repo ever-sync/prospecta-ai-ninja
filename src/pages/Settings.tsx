@@ -177,7 +177,7 @@ const Settings = () => {
       .order('created_at');
 
     if (error) {
-      toast({ title: 'Erro', description: 'Nao foi possivel carregar as chaves de API.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'N?o foi poss?vel carregar as chaves de API.', variant: 'destructive' });
     } else {
       setApiKeys((data || []) as UserAiApiKey[]);
     }
@@ -242,15 +242,15 @@ const Settings = () => {
   const handleSave = async () => {
     if (!user) return;
     if (!fullName.trim()) {
-      toast({ title: 'Campo obrigatorio', description: 'Informe o nome completo do responsavel.', variant: 'destructive' });
+      toast({ title: 'Campo obrigat?rio', description: 'Informe o nome completo do respons?vel.', variant: 'destructive' });
       return;
     }
     if (!companyName.trim()) {
-      toast({ title: 'Campo obrigatorio', description: 'Informe o nome da empresa.', variant: 'destructive' });
+      toast({ title: 'Campo obrigat?rio', description: 'Informe o nome da empresa.', variant: 'destructive' });
       return;
     }
     if (!validateBrazilPhone(phone)) {
-      toast({ title: 'Telefone invalido', description: 'Informe um telefone valido com DDD.', variant: 'destructive' });
+      toast({ title: 'Telefone inv?lido', description: 'Informe um telefone v?lido com DDD.', variant: 'destructive' });
       return;
     }
 
@@ -268,19 +268,19 @@ const Settings = () => {
     if (error) {
       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Salvo!', description: 'Configuracoes atualizadas com sucesso.' });
+      toast({ title: 'Salvo!', description: 'Configura??es atualizadas com sucesso.' });
     }
     setSaving(false);
   };
 
   const handleRequestEmailChange = async () => {
     if (!pendingAccessEmail.trim()) {
-      toast({ title: 'Campo obrigatorio', description: 'Informe o novo email de acesso.', variant: 'destructive' });
+      toast({ title: 'Campo obrigat?rio', description: 'Informe o novo email de acesso.', variant: 'destructive' });
       return;
     }
 
     if (pendingAccessEmail.trim().toLowerCase() === (email || '').trim().toLowerCase()) {
-      toast({ title: 'Sem alteracao', description: 'Informe um email diferente do atual.', variant: 'destructive' });
+      toast({ title: 'Sem altera??o', description: 'Informe um email diferente do atual.', variant: 'destructive' });
       return;
     }
 
@@ -294,8 +294,8 @@ const Settings = () => {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
       toast({
-        title: 'Verificacao enviada',
-        description: 'Confira o novo email para concluir a alteracao do acesso.',
+        title: 'Verifica??o enviada',
+        description: 'Confira o novo email para concluir a altera??o do acesso.',
       });
       setEmailChangeDialogOpen(false);
       setPendingAccessEmail('');
@@ -310,19 +310,19 @@ const Settings = () => {
     const customProvider = customProviderName.trim();
 
     if (!apiKey) {
-      toast({ title: 'Campo obrigatorio', description: 'Informe uma chave de API valida.', variant: 'destructive' });
+      toast({ title: 'Campo obrigat?rio', description: 'Informe uma chave de API v?lida.', variant: 'destructive' });
       return;
     }
 
     if (apiProvider === 'other' && !customProvider) {
-      toast({ title: 'Campo obrigatorio', description: 'Informe o nome do provedor personalizado.', variant: 'destructive' });
+      toast({ title: 'Campo obrigat?rio', description: 'Informe o nome do provedor personalizado.', variant: 'destructive' });
       return;
     }
 
     if (limitReachedForNewProvider) {
       toast({
         title: 'Limite atingido',
-        description: 'Voce pode conectar no maximo 2 provedores de IA.',
+        description: 'Voc? pode conectar no m?ximo 2 provedores de IA.',
         variant: 'destructive',
       });
       return;
@@ -344,7 +344,7 @@ const Settings = () => {
     } else {
       toast({
         title: providerAlreadyConnected ? 'Chave atualizada' : 'Provedor conectado',
-        description: 'Configuracao de API salva com sucesso.',
+        description: 'Configura??o de API salva com sucesso.',
       });
       setProviderApiKey('');
       if (apiProvider === 'other') setCustomProviderName('');
@@ -358,7 +358,7 @@ const Settings = () => {
     setDeletingApiKeyId(keyId);
     const { error } = await supabase.from('user_ai_api_keys').delete().eq('id', keyId);
     if (error) {
-      toast({ title: 'Erro', description: 'Nao foi possivel remover a chave.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'N?o foi poss?vel remover a chave.', variant: 'destructive' });
     } else {
       setApiKeys((prev) => prev.filter((item) => item.id !== keyId));
       toast({ title: 'Removido', description: 'Chave de API removida com sucesso.' });
@@ -391,27 +391,27 @@ const Settings = () => {
         const looksValid = keyToValidate.startsWith('fc-') && keyToValidate.length > 20;
         if (looksValid) {
           setFirecrawlValidationStatus('valid');
-          toast({ title: 'Formato aceito', description: 'Chave aceita pelo formato. A validacao online nao esta disponivel no momento.' });
+          toast({ title: 'Formato aceito', description: 'Chave aceita pelo formato. A valida??o online n?o est? dispon?vel no momento.' });
         } else {
           setFirecrawlValidationStatus('invalid');
-          toast({ title: 'Formato invalido', description: 'A chave deve comecar com "fc-" e ter pelo menos 20 caracteres.', variant: 'destructive' });
+          toast({ title: 'Formato inv?lido', description: 'A chave deve come?ar com "fc-" e ter pelo menos 20 caracteres.', variant: 'destructive' });
         }
       } else if (error || !data?.valid) {
         setFirecrawlValidationStatus('invalid');
-        toast({ title: 'Chave invalida', description: data?.error || 'Nao foi possivel validar a chave.', variant: 'destructive' });
+        toast({ title: 'Chave inv?lida', description: data?.error || 'N?o foi poss?vel validar a chave.', variant: 'destructive' });
       } else {
         setFirecrawlValidationStatus('valid');
-        toast({ title: 'Chave valida!', description: 'Sua chave Firecrawl foi validada com sucesso.' });
+        toast({ title: 'Chave v?lida!', description: 'Sua chave Firecrawl foi validada com sucesso.' });
       }
     } catch {
       // Unexpected throw — fallback to format check
       const looksValid = keyToValidate.startsWith('fc-') && keyToValidate.length > 20;
       if (looksValid) {
         setFirecrawlValidationStatus('valid');
-        toast({ title: 'Formato aceito', description: 'Chave aceita pelo formato. A validacao online nao esta disponivel no momento.' });
+        toast({ title: 'Formato aceito', description: 'Chave aceita pelo formato. A valida??o online n?o est? dispon?vel no momento.' });
       } else {
         setFirecrawlValidationStatus('invalid');
-        toast({ title: 'Formato invalido', description: 'A chave deve comecar com "fc-" e ter pelo menos 20 caracteres.', variant: 'destructive' });
+        toast({ title: 'Formato inv?lido', description: 'A chave deve come?ar com "fc-" e ter pelo menos 20 caracteres.', variant: 'destructive' });
       }
     }
     setValidatingFirecrawl(false);
@@ -467,7 +467,7 @@ const Settings = () => {
         setFirecrawlApiKeyInput('');
         setFirecrawlValidationStatus('idle');
       }
-      toast({ title: 'Integracoes atualizadas', description: 'Configuracoes de WhatsApp, email, dominio e Firecrawl salvas.' });
+      toast({ title: 'Integra??es atualizadas', description: 'Configura??es de WhatsApp, email, dom?nio e Firecrawl salvas.' });
       window.dispatchEvent(new CustomEvent('onboarding:refetch'));
     }
     setSavingIntegrations(false);
@@ -482,7 +482,7 @@ const Settings = () => {
       setFirecrawlApiKey('');
       setFirecrawlApiKeyInput('');
       setFirecrawlValidationStatus('idle');
-      toast({ title: 'Chave removida', description: 'Chave Firecrawl removida. Sera usada a chave do sistema.' });
+      toast({ title: 'Chave removida', description: 'Chave Firecrawl removida. Ser? usada a chave do sistema.' });
     }
   };
 
@@ -491,7 +491,7 @@ const Settings = () => {
     try {
       await startCheckout(planId);
     } catch {
-      toast({ title: 'Erro', description: 'Nao foi possivel iniciar o checkout.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'N?o foi poss?vel iniciar o checkout.', variant: 'destructive' });
     }
     setCheckoutLoading(null);
   };
@@ -500,7 +500,7 @@ const Settings = () => {
     try {
       await openCustomerPortal();
     } catch {
-      toast({ title: 'Erro', description: 'Nao foi possivel abrir o portal de gerenciamento.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'N?o foi poss?vel abrir o portal de gerenciamento.', variant: 'destructive' });
     }
   };
 
@@ -508,7 +508,7 @@ const Settings = () => {
 
   const usageItems = useMemo(
     () => [
-      { label: 'Apresentacoes', used: subscription?.usage.presentations || 0, limit: subscription?.limits.presentations || 50 },
+      { label: 'Apresenta??es', used: subscription?.usage.presentations || 0, limit: subscription?.limits.presentations || 50 },
       { label: 'Campanhas', used: subscription?.usage.campaigns || 0, limit: subscription?.limits.campaigns || 2 },
       { label: 'Emails enviados', used: subscription?.usage.emails || 0, limit: subscription?.limits.emails || 50 },
     ],
@@ -523,15 +523,15 @@ const Settings = () => {
             <p className="text-sm font-medium text-[#75757d]">Painel Administrativo</p>
             <h1 className="mt-1 flex items-center gap-2 text-3xl font-semibold tracking-tight text-[#1A1A1A] lg:text-4xl">
               <Settings2 className="h-7 w-7 text-[#EF3333]" />
-              Configuracoes
+              Configura??es
             </h1>
-            <p className="mt-2 text-sm text-[#66666d] lg:text-base">Gerencie dados da empresa, assinatura, integracoes e chaves de IA no mesmo padrao visual do dashboard.</p>
+            <p className="mt-2 text-sm text-[#66666d] lg:text-base">Gerencie dados da empresa, assinatura, integra??es e chaves de IA no mesmo padr?o visual do dashboard.</p>
           </div>
           <div className="rounded-2xl border border-[#f2d4d8] bg-[#fff5f6] px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#b94456]">Dica</p>
             <p className="mt-1 flex items-center gap-1 text-sm font-semibold text-[#7f2432]">
               <Sparkles className="h-4 w-4" />
-              Complete o perfil para mais conversao
+              Complete o perfil para mais convers?o
             </p>
           </div>
         </div>
@@ -558,7 +558,7 @@ const Settings = () => {
             className="flex h-11 items-center gap-2 rounded-2xl text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-[#1A1A1A] data-[state=active]:shadow-[inset_0_0_0_1px_rgba(239,51,51,0.22)]"
           >
             <SlidersHorizontal className="h-4 w-4 text-[#EF3333]" />
-            Integracoes/APIs
+            Integra??es/APIs
           </TabsTrigger>
           <TabsTrigger
             value="apis"
@@ -599,7 +599,7 @@ const Settings = () => {
                   <Label htmlFor="fullName" className="text-sm text-[#1A1A1A]">
                     Nome completo
                   </Label>
-                  <Input id="fullName" className={fieldClass} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nome do responsavel" />
+                  <Input id="fullName" className={fieldClass} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nome do respons?vel" />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="companyName" className="text-sm text-[#1A1A1A]">
@@ -619,7 +619,7 @@ const Settings = () => {
                     disabled
                     placeholder="Documento principal"
                   />
-                  <p className="text-xs text-[#6d6d75]">Esse documento define o perfil da empresa e nao pode ser alterado apos o cadastro.</p>
+                  <p className="text-xs text-[#6d6d75]">Esse documento define o perfil da empresa e n?o pode ser alterado ap?s o cadastro.</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="settingsEmail" className="text-sm text-[#1A1A1A]">
@@ -627,10 +627,10 @@ const Settings = () => {
                   </Label>
                   <Input id="settingsEmail" className={`${fieldClass} bg-[#f7f7fa] text-[#65656d]`} type="email" value={email} readOnly disabled placeholder="contato@empresa.com" />
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-xs text-[#6d6d75]">O email de acesso so pode ser alterado com verificacao.</p>
+                    <p className="text-xs text-[#6d6d75]">O email de acesso s? pode ser alterado com verifica??o.</p>
                     <Button type="button" variant="outline" size="sm" className="h-9 rounded-xl border-[#f1d2d7] text-[#b2374b] hover:bg-[#fff3f5]" onClick={() => setEmailChangeDialogOpen(true)}>
                       <ShieldCheck className="h-3.5 w-3.5" />
-                      Alterar com verificacao
+                      Alterar com verifica??o
                     </Button>
                   </div>
                 </div>
@@ -644,7 +644,7 @@ const Settings = () => {
 
               <Button onClick={handleSave} disabled={saving} className="h-12 w-full rounded-xl gradient-primary text-primary-foreground font-semibold gap-2">
                 <Save className="h-4 w-4" />
-                {saving ? 'Salvando...' : 'Salvar Configuracoes'}
+                {saving ? 'Salvando...' : 'Salvar Configura??es'}
               </Button>
             </div>
           </Card>
@@ -663,7 +663,7 @@ const Settings = () => {
             <Card className={cardClass}>
               <h3 className="mb-4 flex items-center gap-2 font-semibold text-[#1A1A1A]">
                 <BarChart3 className="h-5 w-5 text-[#EF3333]" />
-                Uso do Mes
+                Uso do M?s
               </h3>
               {subLoading ? (
                 <div className="flex items-center justify-center py-4">
@@ -717,7 +717,7 @@ const Settings = () => {
                         <p className="font-semibold text-[#1A1A1A]">{plan.name}</p>
                         <p className="text-xl font-bold text-[#1A1A1A]">
                           {priceFormatted}
-                          <span className="text-xs font-normal text-[#6d6d75]">/mes</span>
+                          <span className="text-xs font-normal text-[#6d6d75]">/m?s</span>
                         </p>
                       </div>
                       <ul className="space-y-1.5">
@@ -765,8 +765,8 @@ const Settings = () => {
           <Card className={cardClass}>
             <div className="space-y-6">
               <div>
-                <h3 className="mb-1 font-semibold text-[#1A1A1A]">Integracoes</h3>
-                <p className="text-sm text-[#6d6d75]">Conecte WhatsApp, configure email remetente, dominio das propostas e sua chave Firecrawl para raspagem de sites.</p>
+                <h3 className="mb-1 font-semibold text-[#1A1A1A]">Integra??es</h3>
+                <p className="text-sm text-[#6d6d75]">Conecte WhatsApp, configure email remetente, dom?nio das propostas e sua chave Firecrawl para raspagem de sites.</p>
               </div>
 
               <div className="rounded-2xl border border-[#ececf0] bg-[#fafafd] p-4">
@@ -778,7 +778,7 @@ const Settings = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="unofficial">Nao oficial (API externa)</SelectItem>
+                        <SelectItem value="unofficial">N?o oficial (API externa)</SelectItem>
                         <SelectItem value="meta_official">Oficial (Meta Cloud API)</SelectItem>
                       </SelectContent>
                     </Select>
@@ -809,7 +809,7 @@ const Settings = () => {
                   ) : (
                     <>
                       <div className="space-y-2">
-                        <Label className="text-sm text-[#1A1A1A]">URL da API nao oficial</Label>
+                        <Label className="text-sm text-[#1A1A1A]">URL da API n?o oficial</Label>
                         <Input
                           className={fieldClass}
                           value={unofficialApiUrl}
@@ -818,7 +818,7 @@ const Settings = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm text-[#1A1A1A]">Token da API nao oficial</Label>
+                        <Label className="text-sm text-[#1A1A1A]">Token da API n?o oficial</Label>
                         <Input
                           type="password"
                           className={fieldClass}
@@ -828,7 +828,7 @@ const Settings = () => {
                         />
                       </div>
                       <div className="space-y-2 md:col-span-2">
-                        <Label className="text-sm text-[#1A1A1A]">Instancia (opcional)</Label>
+                        <Label className="text-sm text-[#1A1A1A]">Inst?ncia (opcional)</Label>
                         <Input
                           className={fieldClass}
                           value={unofficialInstance}
@@ -861,7 +861,7 @@ const Settings = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm text-[#1A1A1A]">Dominio do link das propostas</Label>
+                    <Label className="text-sm text-[#1A1A1A]">Dom?nio do link das propostas</Label>
                     <Input
                       className={fieldClass}
                       value={proposalLinkDomain}
@@ -871,12 +871,12 @@ const Settings = () => {
                   </div>
                 </div>
 
-                <p className="mt-3 text-xs text-[#7b7b83]">Use o dominio sem barra final. Pode informar com ou sem https://.</p>
+                <p className="mt-3 text-xs text-[#7b7b83]">Use o dom?nio sem barra final. Pode informar com ou sem https://.</p>
 
                 <div className="mt-4">
                   <Button onClick={handleSaveIntegrations} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
                     {savingIntegrations ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    Salvar Integracoes
+                    Salvar Integra??es
                   </Button>
                 </div>
               </div>
@@ -986,11 +986,11 @@ const Settings = () => {
                 )}
                 {firecrawlValidationStatus === 'invalid' && (
                   <p className="mt-2 flex items-center gap-1 text-xs text-[#b2374b]">
-                    <XCircle className="h-3 w-3" /> Chave invalida. Verifique e tente novamente.
+                    <XCircle className="h-3 w-3" /> Chave inv?lida. Verifique e tente novamente.
                   </p>
                 )}
                 {!firecrawlApiKey && firecrawlValidationStatus === 'idle' && (
-                  <p className="mt-2 text-xs text-[#7b7b83]">Sem chave configurada sera usada a chave padrao do sistema.</p>
+                  <p className="mt-2 text-xs text-[#7b7b83]">Sem chave configurada ser? usada a chave padr?o do sistema.</p>
                 )}
               </div>
 
@@ -1016,7 +1016,7 @@ const Settings = () => {
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-xs text-[#6d6d75]">Voice ID para enviar audios com sua voz clonada nas propostas.</p>
+                    <p className="mt-0.5 text-xs text-[#6d6d75]">Voice ID para enviar ?udios com sua voz clonada nas propostas.</p>
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -1043,17 +1043,17 @@ const Settings = () => {
                     <MessageCircle className="h-5 w-5 text-[#EF3333]" />
                     <div>
                       <p className="text-sm font-medium text-[#1A1A1A]">WhatsApp</p>
-                      <p className="text-xs text-[#6d6d75]">{whatsAppConnectionType === 'meta_official' ? 'Meta Cloud API (oficial)' : 'API nao oficial configuravel'}</p>
+                      <p className="text-xs text-[#6d6d75]">{whatsAppConnectionType === 'meta_official' ? 'Meta Cloud API (oficial)' : 'API n?o oficial configur?vel'}</p>
                     </div>
                   </div>
-                  <span className="text-xs font-medium text-[#9b2a3d]">{whatsAppConnectionType === 'meta_official' ? 'Oficial' : 'Nao oficial'}</span>
+                  <span className="text-xs font-medium text-[#9b2a3d]">{whatsAppConnectionType === 'meta_official' ? 'Oficial' : 'N?o oficial'}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-white p-3">
                   <div className="flex items-center gap-3">
                     <Mail className="h-5 w-5 text-[#EF3333]" />
                     <div>
                       <p className="text-sm font-medium text-[#1A1A1A]">Email e Link</p>
-                      <p className="text-xs text-[#6d6d75]">{campaignSenderEmail || 'Remetente padrao'} / {proposalLinkDomain || 'Dominio padrao'}</p>
+                      <p className="text-xs text-[#6d6d75]">{campaignSenderEmail || 'Remetente padr?o'} / {proposalLinkDomain || 'Dom?nio padr?o'}</p>
                     </div>
                   </div>
                   <span className="text-xs font-medium text-[#9b2a3d]">Configuravel</span>
@@ -1067,7 +1067,7 @@ const Settings = () => {
                     </div>
                   </div>
                   <span className={`text-xs font-medium ${firecrawlApiKey ? 'text-[#2d7a4a]' : 'text-[#7b7b83]'}`}>
-                    {firecrawlApiKey ? 'Propria' : 'Padrao'}
+                    {firecrawlApiKey ? 'Pr?pria' : 'Padr?o'}
                   </span>
                 </div>
               </div>
@@ -1142,7 +1142,7 @@ const Settings = () => {
                     {savingApiKey ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     {providerAlreadyConnected ? 'Atualizar chave' : 'Salvar chave'}
                   </Button>
-                  <p className="text-xs text-[#7b7b83]">As chaves ficam vinculadas apenas ao seu usuario. O gasto com tokens e cobrado diretamente pelo provedor de IA.</p>
+                  <p className="text-xs text-[#7b7b83]">As chaves ficam vinculadas apenas ao seu usu?rio. O gasto com tokens ? cobrado diretamente pelo provedor de IA.</p>
                 </div>
               </div>
 
@@ -1186,7 +1186,7 @@ const Settings = () => {
           <DialogHeader>
             <DialogTitle className="text-[#1A1A1A]">Alterar email de acesso</DialogTitle>
             <DialogDescription className="text-[#6d6d75]">
-              Enviaremos um link de verificacao para o novo email. A troca so sera concluida depois da confirmacao.
+              Enviaremos um link de verifica??o para o novo email. A troca s? ser? conclu?da depois da confirma??o.
             </DialogDescription>
           </DialogHeader>
 
@@ -1215,7 +1215,7 @@ const Settings = () => {
               Cancelar
             </Button>
             <Button type="button" className="rounded-xl gradient-primary text-primary-foreground" onClick={handleRequestEmailChange} disabled={sendingAccessEmailChange}>
-              {sendingAccessEmailChange ? 'Enviando...' : 'Enviar verificacao'}
+              {sendingAccessEmailChange ? 'Enviando...' : 'Enviar verifica??o'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1264,14 +1264,14 @@ const Settings = () => {
                 {
                   step: 2,
                   title: 'Crie sua conta gratuitamente',
-                  description: 'Cadastre-se com seu email ou conta Google. O plano gratuito ja inclui creditos suficientes para comecar.',
+                  description: 'Cadastre-se com seu email ou conta Google. O plano gratuito j? inclui cr?ditos suficientes para come?ar.',
                 },
                 {
                   step: 3,
                   title: 'Acesse o painel da API',
                   description: (
                     <>
-                      Apos entrar, va no menu lateral e clique em <strong>API Keys</strong> ou acesse diretamente{' '}
+                      Ap?s entrar, v? no menu lateral e clique em <strong>API Keys</strong> ou acesse diretamente{' '}
                       <a
                         href="https://www.firecrawl.dev/app/api-keys"
                         target="_blank"
@@ -1286,12 +1286,12 @@ const Settings = () => {
                 {
                   step: 4,
                   title: 'Gere uma nova chave',
-                  description: 'Clique em "Create new key", de um nome para identificar (ex: "Prospecta") e confirme.',
+                  description: 'Clique em "Create new key", d? um nome para identificar (ex: "Prospecta") e confirme.',
                 },
                 {
                   step: 5,
                   title: 'Copie e cole aqui',
-                  description: 'Copie a chave gerada (comeca com "fc-..."), volte para esta pagina, cole no campo acima e clique em Validar.',
+                  description: 'Copie a chave gerada (come?a com "fc-..."), volte para esta p?gina, cole no campo acima e clique em Validar.',
                 },
               ].map(({ step, title, description }) => (
                 <li key={step} className="flex gap-4">

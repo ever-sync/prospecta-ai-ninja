@@ -9,41 +9,41 @@ const TermsOfUse = () => {
   return (
     <LegalPageLayout
       title="Termos de Uso"
-      summary="Estes termos regulam o acesso ao site e ao uso da plataforma envPRO. Ao navegar, criar conta ou utilizar os recursos disponiveis, o usuario declara estar de acordo com as condicoes abaixo."
+      summary="Estes termos regulam o acesso ao site e ao uso da plataforma envPRO. Ao navegar, criar conta ou utilizar os recursos dispon?veis, o usu?rio declara estar de acordo com as condi??es abaixo."
     >
       <section className={cardClass}>
         <h2 className={titleClass}>1. Objeto</h2>
         <p className={textClass}>
-          A {BRAND.name} disponibiliza recursos para prospeccao, auditoria comercial, leitura consultiva, geracao de propostas,
-          campanhas e operacoes relacionadas ao fluxo comercial do usuario.
+          A {BRAND.name} disponibiliza recursos para prospec??o, auditoria comercial, leitura consultiva, gera??o de propostas,
+          campanhas e opera??es relacionadas ao fluxo comercial do usu?rio.
         </p>
       </section>
 
       <section className={cardClass}>
         <h2 className={titleClass}>2. Cadastro e responsabilidade da conta</h2>
         <ul className="mt-4 space-y-2 text-sm leading-7 text-[#5f5f67]">
-          <li>O usuario deve fornecer informacoes verdadeiras, atualizadas e suficientes para o uso da plataforma.</li>
-          <li>Credenciais de acesso sao pessoais e nao devem ser compartilhadas com terceiros sem autorizacao formal.</li>
+          <li>O usu?rio deve fornecer informa??es verdadeiras, atualizadas e suficientes para o uso da plataforma.</li>
+          <li>Credenciais de acesso s?o pessoais e n?o devem ser compartilhadas com terceiros sem autoriza??o formal.</li>
           <li>O titular da conta responde pelas atividades realizadas a partir de seu login e de suas integracoes.</li>
         </ul>
       </section>
 
       <section className={cardClass}>
         <h2 className={titleClass}>3. Uso permitido</h2>
-        <p className={textClass}>O usuario se compromete a utilizar a plataforma de forma licita, etica e compativel com a legislacao aplicavel.</p>
+        <p className={textClass}>O usu?rio se compromete a utilizar a plataforma de forma l?cita, ?tica e compat?vel com a legisla??o aplic?vel.</p>
         <ul className="mt-4 space-y-2 text-sm leading-7 text-[#5f5f67]">
-          <li>E vedado utilizar a envPRO para fraude, spam ilegal, assedio, engenharia social abusiva ou violacao de direitos de terceiros.</li>
-          <li>E vedado tentar contornar limites tecnicos, explorar falhas ou acessar dados sem permissao.</li>
-          <li>E vedado inserir conteudo ilicito, ofensivo, discriminatorio ou que viole propriedade intelectual de terceiros.</li>
+          <li>? vedado utilizar a envPRO para fraude, spam ilegal, ass?dio, engenharia social abusiva ou viola??o de direitos de terceiros.</li>
+          <li>? vedado tentar contornar limites t?cnicos, explorar falhas ou acessar dados sem permiss?o.</li>
+          <li>? vedado inserir conte?do il?cito, ofensivo, discriminat?rio ou que viole propriedade intelectual de terceiros.</li>
         </ul>
       </section>
 
       <section className={cardClass}>
-        <h2 className={titleClass}>4. Integracoes e servicos de terceiros</h2>
+        <h2 className={titleClass}>4. Integra??es e servi?os de terceiros</h2>
         <p className={textClass}>
-          A plataforma pode depender de servicos de terceiros para autenticacao, IA, envio de email, mensagens, scraping,
-          hospedagem e pagamentos. O uso dessas integracoes pode exigir credenciais proprias do usuario e tambem fica sujeito
-          aos termos e politicas dos respectivos fornecedores.
+          A plataforma pode depender de servi?os de terceiros para autentica??o, IA, envio de email, mensagens, scraping,
+          hospedagem e pagamentos. O uso dessas integra??es pode exigir credenciais pr?prias do usu?rio e tamb?m fica sujeito
+          aos termos e pol?ticas dos respectivos fornecedores.
         </p>
       </section>
 
@@ -51,38 +51,38 @@ const TermsOfUse = () => {
         <h2 className={titleClass}>5. Propriedade intelectual</h2>
         <p className={textClass}>
           O software, a marca {BRAND.name}, a identidade visual, os fluxos, os textos-base, componentes e demais elementos
-          da plataforma pertencem a seus titulares e nao podem ser copiados, revendidos, desmontados ou explorados sem autorizacao.
+          da plataforma pertencem a seus titulares e n?o podem ser copiados, revendidos, desmontados ou explorados sem autoriza??o.
         </p>
       </section>
 
       <section className={cardClass}>
         <h2 className={titleClass}>6. Planos, cobranca e uso de APIs</h2>
         <p className={textClass}>
-          Alguns recursos podem depender de assinatura, franquia de uso ou configuracoes adicionais. Quando o usuario conectar
-          chaves proprias de IA ou integracoes externas, ele permanece responsavel pelos custos, limites e compliance desses servicos.
+          Alguns recursos podem depender de assinatura, franquia de uso ou configura??es adicionais. Quando o usu?rio conectar
+          chaves pr?prias de IA ou integra??es externas, ele permanece respons?vel pelos custos, limites e compliance desses servi?os.
         </p>
       </section>
 
       <section className={cardClass}>
-        <h2 className={titleClass}>7. Disponibilidade e limitacoes</h2>
+        <h2 className={titleClass}>7. Disponibilidade e limita??es</h2>
         <p className={textClass}>
-          A {BRAND.name} busca manter a plataforma disponivel e segura, mas nao garante operacao ininterrupta nem ausencia absoluta de falhas,
-          indisponibilidades, mudancas de provedores terceiros ou variacoes de resposta de modelos de IA e servicos externos.
+          A {BRAND.name} busca manter a plataforma dispon?vel e segura, mas n?o garante opera??o ininterrupta nem aus?ncia absoluta de falhas,
+          indisponibilidades, mudan?as de provedores terceiros ou varia??es de resposta de modelos de IA e servi?os externos.
         </p>
       </section>
 
       <section className={cardClass}>
-        <h2 className={titleClass}>8. Suspensao e encerramento</h2>
+        <h2 className={titleClass}>8. Suspens?o e encerramento</h2>
         <p className={textClass}>
-          Contas podem ser suspensas ou encerradas em caso de violacao destes termos, uso abusivo, risco operacional, fraude,
-          exigencia legal ou inadimplemento, sem prejuizo das medidas cabiveis para resguardar a plataforma e terceiros.
+          Contas podem ser suspensas ou encerradas em caso de viola??o destes termos, uso abusivo, risco operacional, fraude,
+          exig?ncia legal ou inadimplemento, sem preju?zo das medidas cab?veis para resguardar a plataforma e terceiros.
         </p>
       </section>
 
       <section className={cardClass}>
-        <h2 className={titleClass}>9. Privacidade e protecao de dados</h2>
+        <h2 className={titleClass}>9. Privacidade e prote??o de dados</h2>
         <p className={textClass}>
-          O tratamento de dados pessoais segue a Politica de Privacidade e a pagina de LGPD e Cookies, que integram estes termos
+          O tratamento de dados pessoais segue a Pol?tica de Privacidade e a p?gina de LGPD e Cookies, que integram estes termos
           para todos os fins.
         </p>
       </section>
@@ -90,8 +90,8 @@ const TermsOfUse = () => {
       <section className={cardClass}>
         <h2 className={titleClass}>10. Contato e foro</h2>
         <p className={textClass}>
-          Em caso de duvidas sobre estes termos, entre em contato por {BRAND.contactEmail}. Na ausencia de disposicao legal diversa,
-          aplica-se a legislacao brasileira.
+          Em caso de d?vidas sobre estes termos, entre em contato por {BRAND.contactEmail}. Na aus?ncia de disposi??o legal diversa,
+          aplica-se ? legisla??o brasileira.
         </p>
       </section>
     </LegalPageLayout>

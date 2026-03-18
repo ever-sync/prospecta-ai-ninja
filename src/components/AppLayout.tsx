@@ -55,7 +55,7 @@ const menuItems = [
   { path: '/dna', label: 'DNA', icon: Fingerprint },
   { path: '/search', label: 'Scanner', icon: SearchIcon },
   { path: '/robots', label: 'Robôs', icon: Bot, comingSoon: true },
-  { path: '/ai-whatsapp', label: 'IA Whatsapp', icon: WhatsAppIcon, comingSoon: true },
+  { path: '/ai-whatsapp', label: 'IA WhatsApp', icon: WhatsAppIcon, comingSoon: true },
   { path: '/presentations', label: 'Apresentações', icon: FileBarChart },
   { path: '/campaigns', label: 'Campanhas', icon: Send },
   { path: '/templates', label: 'Templates', icon: FileStack },
@@ -129,19 +129,19 @@ const routeMeta: Record<string, { eyebrow: string; title: string; description: s
     description: 'Configure a base de autoridade usada para personalizar cada proposta.',
   },
   '/presentations': {
-    eyebrow: 'Conteudo Comercial',
-    title: 'Apresentacoes',
+    eyebrow: 'Conte?do Comercial',
+    title: 'Apresenta??es',
     description: 'Gerencie propostas prontas, respostas e próximos envios.',
   },
   '/campaigns': {
-    eyebrow: 'Orquestracao',
+    eyebrow: 'Orquestra??o',
     title: 'Campanhas',
-    description: 'Ative cadencias e acompanhe o desempenho de disparo.',
+    description: 'Ative cad?ncias e acompanhe o desempenho de disparo.',
   },
   '/crm': {
     eyebrow: 'Pipeline',
     title: 'CRM',
-    description: 'Organize follow-ups, fases e movimentacao de leads.',
+    description: 'Organize follow-ups, fases e movimenta??o de leads.',
   },
   '/clients': {
     eyebrow: 'Carteira',
@@ -151,10 +151,10 @@ const routeMeta: Record<string, { eyebrow: string; title: string; description: s
   '/templates': {
     eyebrow: 'Playbooks',
     title: 'Templates',
-    description: 'Ajuste os assets que sustentam mensagens e formularios.',
+    description: 'Ajuste os assets que sustentam mensagens e formul?rios.',
   },
   '/settings': {
-    eyebrow: 'Configuracao',
+    eyebrow: 'Configura??o',
     title: 'Ajustes da Conta',
     description: 'Controle plano, faturamento e configurações operacionais.',
   },
@@ -382,7 +382,7 @@ export const AppLayout = () => {
         };
 
         const resolved = config[item.event_type] || {
-          title: `Atualizacao da proposta${businessName}`,
+          title: `Atualiza??o da proposta${businessName}`,
           description: 'A plataforma registrou um novo evento nesse lead.',
           icon: Clock3,
           iconClassName: 'bg-[#f5f5f7] text-[#66666d]',
@@ -447,7 +447,7 @@ export const AppLayout = () => {
     const collapsed = mobile ? false : isSidebarCollapsed;
 
     return (
-      <div className="flex h-full min-w-0 flex-1 flex-col">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
         <div className={cn('border-b border-[#1f1f25]', collapsed ? 'px-2.5 py-4' : 'px-4 py-5')}>
           {collapsed ? (
             <div className="flex flex-col items-center gap-3">
@@ -487,7 +487,7 @@ export const AppLayout = () => {
           )}
         </div>
 
-        <div className="flex-1 w-full overflow-hidden px-2 py-4">
+        <div className="min-h-0 w-full flex-1 overflow-y-auto px-2 py-4">
           {!collapsed && (
             <p className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8f8f97]">
               Menu
@@ -627,7 +627,7 @@ export const AppLayout = () => {
                   <div className="border-b border-[#ececf0] px-4 py-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-[#1A1A1A]">Notificacoes</p>
+                        <p className="text-sm font-semibold text-[#1A1A1A]">Notifica??es</p>
                         <p className="mt-0.5 text-xs text-[#7a7a82]">Propostas, respostas e envios recentes da plataforma.</p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -659,7 +659,7 @@ export const AppLayout = () => {
                         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#f5f5f7] text-[#7a7a82]">
                           <Bell className="h-5 w-5" />
                         </div>
-                        <p className="mt-4 text-sm font-semibold text-[#1A1A1A]">Nenhuma notificacao ainda</p>
+                        <p className="mt-4 text-sm font-semibold text-[#1A1A1A]">Nenhuma notifica??o ainda</p>
                         <p className="mt-1 text-xs leading-5 text-[#7a7a82]">Quando a plataforma gerar, enviar, abrir ou receber resposta em propostas, tudo aparece aqui.</p>
                       </div>
                     ) : (

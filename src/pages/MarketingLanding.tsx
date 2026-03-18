@@ -13,7 +13,7 @@ import loginLogo from "@/logos/ligth.svg";
 const painPoints = [
   {
     icon: MessageSquare,
-    title: "Vazio do silencio",
+    title: "Vazio do sil?ncio",
     desc: "Pare de mandar propostas que somem no fundo da caixa de entrada sem abrir conversa real.",
   },
   {
@@ -23,8 +23,8 @@ const painPoints = [
   },
   {
     icon: Zap,
-    title: "Injustica competitiva",
-    desc: "Nao deixe empresas menos preparadas ocuparem o espaco que deveria ser seu.",
+    title: "Injusti?a competitiva",
+    desc: "N?o deixe empresas menos preparadas ocuparem o espa?o que deveria ser seu.",
   },
 ];
 
@@ -32,7 +32,7 @@ const featureCards = [
   {
     icon: Search,
     title: "DNA Scan",
-    desc: "Auditoria de reputacao, SEO, site e sinais comerciais em um fluxo unico.",
+    desc: "Auditoria de reputa??o, SEO, site e sinais comerciais em um fluxo ?nico.",
   },
   {
     icon: BarChart3,
@@ -47,14 +47,14 @@ const featureCards = [
   {
     icon: MessageSquare,
     title: "WhatsApp Loop",
-    desc: "Transicao rapida da leitura para o contato e a conversa.",
+    desc: "Transi??o r?pida da leitura para o contato e a conversa.",
   },
 ];
 
 const stats = [
-  { icon: BarChart3, value: "80%", label: "Taxa de visualizacao", desc: "Leads que abrem a proposta" },
-  { icon: MessageSquare, value: "30%", label: "Taxa de agendamento", desc: "Conversao em reunioes reais" },
-  { icon: Clock, value: "+40h", label: "Horas economizadas", desc: "Por mes, por usuario" },
+  { icon: BarChart3, value: "80%", label: "Taxa de visualiza??o", desc: "Leads que abrem a proposta" },
+  { icon: MessageSquare, value: "30%", label: "Taxa de agendamento", desc: "Convers?o em reuni?es reais" },
+  { icon: Clock, value: "+40h", label: "Horas economizadas", desc: "Por m?s, por usu?rio" },
   { icon: Zap, value: "50x", label: "Mais produtivo", desc: "Escala com o poder da IA" },
 ];
 
@@ -109,7 +109,7 @@ const MarketingLanding = () => {
               Como funciona
             </a>
             <a href="#pricing" className="text-sm font-medium text-[#66666d] transition-colors hover:text-[#ef3333]">
-              Precos
+              Pre?os
             </a>
           </div>
 
@@ -121,7 +121,7 @@ const MarketingLanding = () => {
               className="rounded-full bg-[#ef3333] px-6 font-semibold text-white shadow-lg shadow-[#ef3333]/20 hover:bg-[#d42c2c]"
               onClick={handleCtaClick}
             >
-              {user ? "Ir para o Painel" : "Comecar agora"}
+              {user ? "Ir para o Painel" : "Come?ar agora"}
             </Button>
           </div>
         </div>
@@ -135,16 +135,16 @@ const MarketingLanding = () => {
               className="mb-6 inline-flex items-center gap-2 rounded-full bg-[#fff1f1] px-4 py-2 text-sm font-bold text-[#ef3333]"
             >
               <Rocket className="h-4 w-4" />
-              <span>FOGUETE NAO DA RE</span>
+              <span>FOGUETE NA DIRE??O</span>
             </motion.div>
 
             <motion.h1
               variants={itemVariants}
               className="mb-8 text-5xl font-bold leading-[1.05] tracking-tight lg:text-[58px] xl:text-[66px]"
             >
-              <span className="block lg:whitespace-nowrap">Pare de cacar leads.</span>
+              <span className="block lg:whitespace-nowrap">Pare de ca?ar leads.</span>
               <span className="block bg-gradient-to-r from-[#ef3333] to-[#ff6b6b] bg-clip-text text-transparent lg:whitespace-nowrap">
-                Comece a fechar negocios.
+                Comece a fechar neg?cios.
               </span>
             </motion.h1>
 
@@ -152,7 +152,7 @@ const MarketingLanding = () => {
               variants={itemVariants}
               className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-[#66666d] lg:mx-0 lg:text-xl"
             >
-              Transforme a invisibilidade do Google em uma agenda cheia de reunioes. A {BRAND.name} opera como um scanner
+              Transforme a invisibilidade do Google em uma agenda cheia de reuni?es. A {BRAND.name} opera como um scanner
               comercial que encontra oportunidades, gera leitura consultiva e acelera conversas reais.
             </motion.p>
 
@@ -164,7 +164,7 @@ const MarketingLanding = () => {
                 {user ? "Acessar painel" : "Testar o scanner"}
                 <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
               </Button>
-              <p className="text-sm font-medium text-[#75757d]">Sem cartao de credito. Resultado em minutos.</p>
+              <p className="text-sm font-medium text-[#75757d]">Sem cart?o de cr?dito. Resultado em minutos.</p>
             </motion.div>
           </motion.div>
 
@@ -191,9 +191,9 @@ const MarketingLanding = () => {
       <section className="bg-[#fff1f1] py-24">
         <div className="mx-auto max-w-7xl px-6">
           <div className="mx-auto mb-16 max-w-3xl text-center">
-            <h2 className="mb-6 text-3xl font-bold lg:text-4xl">O moedor de carne da prospeccao manual ainda te prende?</h2>
+            <h2 className="mb-6 text-3xl font-bold lg:text-4xl">O moedor de carne da prospec??o manual ainda te prende?</h2>
             <p className="text-lg text-[#66666d]">
-              Abrir aba por aba, analisar site por site e ligar no escuro nao escala. O objetivo da {BRAND.name} e trocar
+              Abrir aba por aba, analisar site por site e ligar no escuro n?o escala. O objetivo da {BRAND.name} ? trocar
               volume cego por leitura comercial orientada.
             </p>
           </div>
@@ -215,8 +215,8 @@ const MarketingLanding = () => {
           <div className="flex flex-col items-center gap-20 lg:flex-row">
             <div className="flex-1">
               <h2 className="mb-8 text-4xl font-bold leading-[1.1] tracking-tight lg:text-[42px] xl:text-[48px]">
-                <span className="block lg:whitespace-nowrap">Conheca o Scanner de DNA:</span>
-                <span className="block text-[#ef3333] lg:whitespace-nowrap">sua inteligencia de elite.</span>
+                <span className="block lg:whitespace-nowrap">Conhe?a o Scanner de DNA:</span>
+                <span className="block text-[#ef3333] lg:whitespace-nowrap">sua intelig?ncia de elite.</span>
               </h2>
               <p className="mb-8 text-lg leading-relaxed text-[#66666d]">
                 Em minutos, a {BRAND.name} rastreia o ecossistema digital do lead, monta a leitura comercial e te entrega
@@ -224,8 +224,8 @@ const MarketingLanding = () => {
               </p>
               <ul className="space-y-4">
                 {[
-                  "Analise de Google Meu Negocio",
-                  "Leitura de concorrencia e reputacao",
+                  "An?lise de Google Meu Neg?cio",
+                  "Leitura de concorr?ncia e reputa??o",
                   "Auditoria de site, SEO e sinais comerciais",
                 ].map((text) => (
                   <li key={text} className="flex items-center gap-3 font-medium">
@@ -258,9 +258,9 @@ const MarketingLanding = () => {
 
       <section id="how-it-works" className="bg-[#f8f8fa] py-24">
         <div className="mx-auto max-w-7xl px-6 text-center">
-          <h2 className="mb-8 text-4xl font-bold lg:text-5xl">Loop de Persuasao Recursiva</h2>
+          <h2 className="mb-8 text-4xl font-bold lg:text-5xl">Loop de Persuas?o Recursiva</h2>
           <p className="mx-auto mb-16 max-w-3xl text-xl text-[#66666d]">
-            Nao e so um disparo. E uma conversa inteligente que nunca para.
+            N?o ? s? um disparo. ? uma conversa inteligente que nunca para.
           </p>
 
           <div className="mx-auto max-w-4xl overflow-hidden rounded-[48px] border border-white bg-white p-12 shadow-2xl">
@@ -269,7 +269,7 @@ const MarketingLanding = () => {
                 <Zap className="h-12 w-12 text-[#ef3333]/20" />
               </div>
               <p className="mb-8 text-2xl font-medium leading-relaxed text-[#1A1A1A]">
-                "Quando o lead responde ao formulario, nossa IA captura a dor dele e ja inicia uma conversa no WhatsApp usando as respostas dele como gancho. E prospeccao humana em escala industrial."
+                "Quando o lead responde ao formul?rio, nossa IA captura a dor dele e j? inicia uma conversa no WhatsApp usando as respostas dele como gancho. ? prospec??o humana em escala industrial."
               </p>
               <div className="flex items-center justify-center gap-4">
                 <div className="flex -space-x-4">
@@ -311,7 +311,7 @@ const MarketingLanding = () => {
           <div className="flex flex-col items-center gap-16 lg:flex-row">
             <div className="flex-1">
               <h2 className="mb-8 text-4xl font-bold lg:text-5xl">
-                Um preco unico.
+                Um pre?o ?nico.
                 <br />
                 Sem surpresas.
               </h2>
@@ -330,7 +330,7 @@ const MarketingLanding = () => {
                 </div>
                 <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                   <CheckCircle2 className="h-6 w-6 text-[#ef3333]" />
-                  <span className="text-lg font-medium">Sem taxa sobre uso. Voce controla o gasto de API</span>
+                  <span className="text-lg font-medium">Sem taxa sobre uso. Voc? controla o gasto de API</span>
                 </div>
               </div>
             </div>
@@ -344,13 +344,13 @@ const MarketingLanding = () => {
                 </div>
                 <p className="mb-1 text-sm text-[#66666d]">por mes · cancele quando quiser</p>
                 <p className="mb-6 mt-4 text-xs leading-5 text-[#9b9ba3]">
-                  APIs de IA (Gemini, etc.) e Firecrawl sao contratadas separadamente direto com os provedores. Voce tem controle total do gasto.
+                  APIs de IA (Gemini, etc.) e Firecrawl s?o contratadas separadamente direto com os provedores. Voc? tem controle total do gasto.
                 </p>
                 <Button
                   onClick={() => navigate('/auth')}
                   className="h-14 w-full rounded-full bg-[#ef3333] text-lg font-bold text-white hover:bg-[#d42c2c]"
                 >
-                  Comecar agora
+                  Come?ar agora
                 </Button>
               </Card>
             </div>
@@ -362,20 +362,20 @@ const MarketingLanding = () => {
         <div className="rounded-[36px] border border-[#ececf0] bg-white p-8 shadow-[0_14px_36px_rgba(20,20,24,0.06)] lg:p-10">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#ef3333]">Transparencia e conformidade</p>
-              <h2 className="mt-2 text-3xl font-bold text-[#1A1A1A]">Privacidade, termos e LGPD acessiveis no site</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#ef3333]">Transpar?ncia e conformidade</p>
+              <h2 className="mt-2 text-3xl font-bold text-[#1A1A1A]">Privacidade, termos e LGPD acess?veis no site</h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-[#66666d]">
-                A {BRAND.name} publica bases juridicas, politica de privacidade, termos de uso e controle de consentimento para cookies
-                em paginas dedicadas.
+                A {BRAND.name} publica bases jur?dicas, pol?tica de privacidade, termos de uso e controle de consentimento para cookies
+                em p?ginas dedicadas.
               </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button asChild variant="outline" className="rounded-full border-[#ef3333]/25 text-[#b3273a] hover:bg-[#fff1f3]">
-                <Link to="/politica-de-privacidade">Politica de Privacidade</Link>
+                <Link to="/politica-de-privacidade">Pol?tica de Privacidade</Link>
               </Button>
               <Button asChild className="rounded-full bg-[#ef3333] text-white hover:bg-[#d42c2c]">
-                <Link to="/lgpd">Ver pagina LGPD</Link>
+                <Link to="/lgpd">Ver p?gina LGPD</Link>
               </Button>
             </div>
           </div>

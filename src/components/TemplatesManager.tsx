@@ -39,12 +39,12 @@ interface Template {
 const LEAD_VARIABLES = [
   { key: '{{nome_empresa}}', label: 'Nome da empresa', desc: 'Nome do lead' },
   { key: '{{categoria}}', label: 'Categoria', desc: 'Setor do lead' },
-  { key: '{{endereco}}', label: 'Endereco', desc: 'Endereco do lead' },
+  { key: '{{endereco}}', label: 'Endere?o', desc: 'Endere?o do lead' },
   { key: '{{telefone}}', label: 'Telefone', desc: 'Telefone do lead' },
   { key: '{{website}}', label: 'Website', desc: 'Site do lead' },
   { key: '{{rating}}', label: 'Rating Google', desc: 'Nota no Google' },
-  { key: '{{score}}', label: 'Score Geral', desc: 'Score da analise' },
-  { key: '{{link_proposta}}', label: 'Link da Proposta', desc: 'URL da apresentacao' },
+  { key: '{{score}}', label: 'Score Geral', desc: 'Score da an?lise' },
+  { key: '{{link_proposta}}', label: 'Link da Proposta', desc: 'URL da apresenta??o' },
 ];
 
 const MY_COMPANY_VARIABLES = [
@@ -58,13 +58,13 @@ const sectionCardClass = 'rounded-[22px] border border-[#ececf0] bg-white p-5 sh
 
 const getDefaultBodyByChannel = (channel: string) => {
   if (channel === 'whatsapp') {
-    return 'Ola! Sou da {{sua_empresa}}. Preparamos uma analise exclusiva para {{nome_empresa}}.\n\nVeja sua proposta: {{link_proposta}}';
+    return 'Ol?! Sou da {{sua_empresa}}. Preparamos uma an?lise exclusiva para {{nome_empresa}}.\n\nVeja sua proposta: {{link_proposta}}';
   }
   if (channel === 'email') {
-    return 'Ola, {{nome_empresa}}!\n\nAnalisamos o seu negocio e preparamos uma proposta personalizada com oportunidades praticas de crescimento.\n\nAcesse aqui: {{link_proposta}}\n\nAtenciosamente,\n{{sua_empresa}}';
+    return 'Ol?, {{nome_empresa}}!\n\nAnalisamos o seu neg?cio e preparamos uma proposta personalizada com oportunidades pr?ticas de crescimento.\n\nAcesse aqui: {{link_proposta}}\n\nAtenciosamente,\n{{sua_empresa}}';
   }
   if (channel === 'formulario') {
-    return 'Ola, {{nome_empresa}}! Para personalizarmos sua proposta, responda este formulario rapido:\n\nNome:\nWhatsApp:\nPrincipal desafio hoje:\nObjetivo para os proximos 90 dias:\n\nLink: {{link_proposta}}';
+    return 'Ol?, {{nome_empresa}}! Para personalizarmos sua proposta, responda este formul?rio r?pido:\n\nNome:\nWhatsApp:\nPrincipal desafio hoje:\nObjetivo para os pr?ximos 90 dias:\n\nLink: {{link_proposta}}';
   }
   return '';
 };
@@ -298,7 +298,7 @@ const TemplatesManager = () => {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
       setTemplates((prev) => prev.filter((t) => t.id !== id));
-      toast({ title: 'Template excluido' });
+      toast({ title: 'Template exclu?do' });
     }
   };
 
@@ -308,10 +308,10 @@ const TemplatesManager = () => {
       body: { mode: 'manual' },
     });
     if (error) {
-      toast({ title: 'Erro na otimizacao', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro na otimiza??o', description: error.message, variant: 'destructive' });
     } else {
       toast({
-        title: 'Otimizacao concluida',
+        title: 'Otimiza??o conclu?da',
         description: `${data?.groups_promoted || 0} grupo(s) atualizados.`,
       });
       fetchTemplates();
@@ -362,7 +362,7 @@ const TemplatesManager = () => {
   const getChannelLabel = (channel: string) => {
     if (channel === 'whatsapp') return 'WhatsApp';
     if (channel === 'email') return 'Email';
-    if (channel === 'formulario') return 'Formulario';
+    if (channel === 'formulario') return 'Formul?rio';
     return channel;
   };
 
@@ -389,7 +389,7 @@ const TemplatesManager = () => {
 
       if (!profile?.elevenlabs_voice_id) {
         toast({
-          title: 'Voice ID nao configurado',
+          title: 'Voice ID n?o configurado',
           description: 'Vá em Configuracoes e cole seu Voice ID do ElevenLabs.',
           variant: 'destructive',
         });
@@ -409,7 +409,7 @@ const TemplatesManager = () => {
         body: JSON.stringify({ text: previewText, voice_id: profile.elevenlabs_voice_id }),
       });
 
-      if (!response.ok) throw new Error('Falha ao gerar audio');
+      if (!response.ok) throw new Error('Falha ao gerar ?udio');
 
       const data = await response.json();
       if (data.error) throw new Error(data.error);
@@ -425,7 +425,7 @@ const TemplatesManager = () => {
       setAudioPlaying(true);
       await audio.play();
     } catch (err: any) {
-      toast({ title: 'Erro ao gerar audio', description: err.message, variant: 'destructive' });
+      toast({ title: 'Erro ao gerar ?udio', description: err.message, variant: 'destructive' });
     }
     setGeneratingAudio(false);
   };
@@ -444,7 +444,7 @@ const TemplatesManager = () => {
           variant="outline"
         >
           {optimizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mic className="mr-2 h-4 w-4" />}
-          {optimizing ? 'Otimizando variantes...' : 'Rodar otimizacao A/B agora'}
+          {optimizing ? 'Otimizando variantes...' : 'Rodar otimiza??o A/B agora'}
         </Button>
       )}
 
@@ -612,7 +612,7 @@ const TemplatesManager = () => {
             value="formulario"
             className="flex h-11 items-center gap-2 rounded-2xl text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-[#1A1A1A] data-[state=active]:shadow-[inset_0_0_0_1px_rgba(239,51,51,0.22)]"
           >
-            <ClipboardList className="h-4 w-4 text-[#EF3333]" /> Formulario ({formularioTemplates.length})
+            <ClipboardList className="h-4 w-4 text-[#EF3333]" /> Formul?rio ({formularioTemplates.length})
           </TabsTrigger>
           <TabsTrigger
             value="proposta"
@@ -646,7 +646,7 @@ const TemplatesManager = () => {
               Respostas do Formulário
             </DialogTitle>
             <DialogDescription>
-              Consulte as respostas recebidas para este template de formulario.
+              Consulte as respostas recebidas para este template de formul?rio.
             </DialogDescription>
           </DialogHeader>
           {responses.length === 0 ? (
@@ -684,7 +684,7 @@ const TemplatesManager = () => {
               {editingTemplate ? `Editar Template de ${getChannelLabel(formChannel)}` : `Novo Template de ${getChannelLabel(formChannel)}`}
             </DialogTitle>
             <DialogDescription>
-              Configure o conteudo e as variaveis do template para este canal.
+              Configure o conte?do e as vari?veis do template para este canal.
             </DialogDescription>
           </DialogHeader>
 
@@ -698,7 +698,7 @@ const TemplatesManager = () => {
                 <SelectContent>
                   <SelectItem value="whatsapp">WhatsApp</SelectItem>
                   <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="formulario">Formulario</SelectItem>
+                  <SelectItem value="formulario">Formul?rio</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -712,7 +712,7 @@ const TemplatesManager = () => {
             <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-[#fafafd] p-3">
               <div>
                 <Label className="text-sm font-medium">Template ativo</Label>
-                <p className="text-xs text-[#6d6d75]">Somente templates ativos entram na distribuicao A/B.</p>
+                <p className="text-xs text-[#6d6d75]">Somente templates ativos entram na distribui??o A/B.</p>
               </div>
               <Switch checked={formIsActive} onCheckedChange={setFormIsActive} />
             </div>
@@ -730,7 +730,7 @@ const TemplatesManager = () => {
                       className={fieldClass} 
                       value={formSubject} 
                       onChange={(e) => setFormSubject(e.target.value)} 
-                      placeholder="Ex: Analise exclusiva para {{nome_empresa}}" 
+                      placeholder="Ex: An?lise exclusiva para {{nome_empresa}}" 
                     />
                   </div>
                 </div>
@@ -800,13 +800,13 @@ const TemplatesManager = () => {
                 <div className="space-y-2">
                   <Label>Corpo da Mensagem *</Label>
                   <Textarea value={formBody} onChange={(e) => setFormBody(e.target.value)}
-                    placeholder={formChannel === 'whatsapp' ? 'Ola! Sou da {{sua_empresa}}...' : '<p>Ola!</p><p>Preparamos uma analise para {{nome_empresa}}...</p>'}
+                    placeholder={formChannel === 'whatsapp' ? 'Ol?! Sou da {{sua_empresa}}...' : '<p>Ol?!</p><p>Preparamos uma an?lise para {{nome_empresa}}...</p>'}
                     className="min-h-[200px] rounded-xl border-[#e6e6eb] bg-[#fcfcfd] font-mono text-sm focus-visible:ring-[#ef3333]" />
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-[#fafafd] p-3">
                   <div>
                     <Label className="text-sm font-medium">Incluir Link da Proposta</Label>
-                    <p className="text-xs text-[#6d6d75]">Adiciona automaticamente o link da apresentacao.</p>
+                    <p className="text-xs text-[#6d6d75]">Adiciona automaticamente o link da apresenta??o.</p>
                   </div>
                   <Switch checked={formIncludeLink} onCheckedChange={setFormIncludeLink} />
                 </div>
@@ -814,8 +814,8 @@ const TemplatesManager = () => {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-[#fafafd] p-3">
                       <div>
-                        <Label className="text-sm font-medium">Enviar como Audio</Label>
-                        <p className="text-xs text-[#6d6d75]">Converte o texto em audio com sua voz clonada (ElevenLabs).</p>
+                        <Label className="text-sm font-medium">Enviar como ?udio</Label>
+                        <p className="text-xs text-[#6d6d75]">Converte o texto em ?udio com sua voz clonada (ElevenLabs).</p>
                       </div>
                       <Switch checked={formSendAsAudio} onCheckedChange={setFormSendAsAudio} />
                     </div>
@@ -823,13 +823,13 @@ const TemplatesManager = () => {
                       <Button type="button" variant="outline" size="sm" className="h-10 w-full gap-2 rounded-xl border-[#e6e6eb] hover:bg-[#f8f8fa]"
                         onClick={handleAudioPreview} disabled={generatingAudio || !formBody.trim()}>
                         {generatingAudio ? <Loader2 className="h-4 w-4 animate-spin" /> : audioPlaying ? <Square className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                        {generatingAudio ? 'Gerando audio...' : audioPlaying ? 'Parar audio' : 'Ouvir preview do audio'}
+                        {generatingAudio ? 'Gerando ?udio...' : audioPlaying ? 'Parar ?udio' : 'Ouvir preview do ?udio'}
                       </Button>
                     )}
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label className="text-sm">Pre-visualizacao</Label>
+                  <Label className="text-sm">Pr?-visualiza??o</Label>
                   <Card className="rounded-xl border border-[#ececf0] bg-[#fafafd] p-4">
                     <p className="whitespace-pre-wrap text-sm text-[#1A1A1A]">{getPreviewText()}</p>
                   </Card>

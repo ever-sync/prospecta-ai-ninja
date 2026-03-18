@@ -68,6 +68,8 @@ export interface Business {
   contactCompleteness?: number;
   signalSummary?: LeadSignalSummary;
   onlinePresence?: OnlinePresenceSnapshot;
+  allPhones?: string[];
+  allEmails?: string[];
 }
 
 export interface SearchFilters {

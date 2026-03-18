@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarClock, CheckCircle2, CircleOff, Clock3, Flame, MessageSquareText, NotebookPen } from 'lucide-react';
+import { CalendarClock, CheckCircle2, CircleOff, Clock3, Flame, MessageSquareText, NotebookPen, UserRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
@@ -21,6 +21,7 @@ import {
 import { CRMLeadTimeline } from '@/components/crm/CRMLeadTimeline';
 import { CRMQuickActions } from '@/components/crm/CRMQuickActions';
 import { CRMTaskComposer } from '@/components/crm/CRMTaskComposer';
+import { LeadProfileSheet } from '@/components/crm/LeadProfileSheet';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -64,7 +65,7 @@ type CRMLeadDrawerProps = {
     outcomeNotes?: string | null;
   }) => Promise<boolean>;
   onCopyLink: () => Promise<void> | void;
-  onOpenSend: () => void;
+  onOpenSend: (phone?: string, phones?: string[]) => void;
   onOpenCampaign: () => void;
   onRegenerate: () => void;
 };
@@ -156,6 +157,9 @@ export const CRMLeadDrawer = ({
   const [savingNote, setSavingNote] = useState(false);
   const [outcomeReason, setOutcomeReason] = useState('outro');
   const [outcomeNotes, setOutcomeNotes] = useState('');
+  const [extraPhones, setExtraPhones] = useState<string[]>([]);
+  const [extraEmails, setExtraEmails] = useState<string[]>([]);
+  const [profileSheetOpen, setProfileSheetOpen] = useState(false);
 
   useEffect(() => {
     setOutcomeReason(lead?.outcome_reason || 'outro');
@@ -168,7 +172,7 @@ export const CRMLeadDrawer = ({
 
     const loadContext = async () => {
       setLoadingContext(true);
-      const [notesRes, campaignsRes, eventsRes] = await Promise.all([
+      const [notesRes, campaignsRes, eventsRes, analysisRes] = await Promise.all([
         supabase.from('lead_notes').select('id, content, created_at').eq('presentation_id', lead.presentation_id).order('created_at', { ascending: false }),
         supabase
           .from('campaign_presentations')
@@ -182,12 +186,20 @@ export const CRMLeadDrawer = ({
           .eq('presentation_id', lead.presentation_id)
           .order('created_at', { ascending: false })
           .limit(20),
+        supabase
+          .from('presentations')
+          .select('analysis_data')
+          .eq('id', lead.presentation_id)
+          .single(),
       ]);
 
       if (!active) return;
       setNotes(((notesRes.data || []) as CRMLeadNote[]) || []);
       setCampaigns(((campaignsRes.data || []) as CampaignSummary[]) || []);
       setEvents(((eventsRes.data || []) as ConversionRow[]) || []);
+      const ad = (analysisRes.data?.analysis_data || {}) as Record<string, unknown>;
+      setExtraPhones((ad.extra_phones as string[]) || []);
+      setExtraEmails((ad.extra_emails as string[]) || []);
       setLoadingContext(false);
     };
 
@@ -361,10 +373,19 @@ export const CRMLeadDrawer = ({
         <CRMQuickActions
           publicUrl={publicUrl}
           onCopyLink={onCopyLink}
-          onOpenSend={onOpenSend}
+          onOpenSend={() => onOpenSend(undefined, extraPhones)}
           onOpenCampaign={onOpenCampaign}
           onRegenerate={onRegenerate}
         />
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full justify-start rounded-xl"
+          onClick={() => setProfileSheetOpen(true)}
+        >
+          <UserRound className="mr-2 h-4 w-4" />
+          Ver perfil do lead
+        </Button>
       </section>
 
       <section className="space-y-3">
@@ -576,9 +597,27 @@ export const CRMLeadDrawer = ({
     </div>
   );
 
+  const profileSheet = (
+    <LeadProfileSheet
+      open={profileSheetOpen}
+      onOpenChange={setProfileSheetOpen}
+      businessName={lead.business_name || ''}
+      businessCategory={lead.business_category}
+      businessAddress={lead.business_address}
+      businessWebsite={lead.business_website}
+      primaryPhone={lead.business_phone}
+      primaryEmail={lead.business_email}
+      extraPhones={extraPhones}
+      extraEmails={extraEmails}
+      onSelectPhone={(phone) => { onOpenSend(phone, extraPhones); }}
+    />
+  );
+
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
+      <>
+        {profileSheet}
+        <Drawer open={open} onOpenChange={onOpenChange}>
         <DrawerContent className="max-h-[92vh] overflow-y-auto rounded-t-[28px] bg-white px-4 pb-8">
           <DrawerHeader className="px-0 pt-6 text-left">
             <DrawerTitle>{lead.business_name || 'Lead sem nome'}</DrawerTitle>
@@ -587,18 +626,22 @@ export const CRMLeadDrawer = ({
           {content}
         </DrawerContent>
       </Drawer>
+      </>
     );
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full overflow-y-auto border-l border-[#ececf0] bg-white px-6 pb-8 sm:max-w-2xl">
-        <SheetHeader className="text-left">
-          <SheetTitle>{lead.business_name || 'Lead sem nome'}</SheetTitle>
-          <SheetDescription>{lead.business_phone || 'Sem telefone'} • {lead.business_category || 'Sem categoria'}</SheetDescription>
-        </SheetHeader>
-        <div className={cn('mt-6', loadingContext && 'opacity-80')}>{content}</div>
-      </SheetContent>
-    </Sheet>
+    <>
+      {profileSheet}
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="right" className="w-full overflow-y-auto border-l border-[#ececf0] bg-white px-6 pb-8 sm:max-w-2xl">
+          <SheetHeader className="text-left">
+            <SheetTitle>{lead.business_name || 'Lead sem nome'}</SheetTitle>
+            <SheetDescription>{lead.business_phone || 'Sem telefone'} • {lead.business_category || 'Sem categoria'}</SheetDescription>
+          </SheetHeader>
+          <div className={cn('mt-6', loadingContext && 'opacity-80')}>{content}</div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 };

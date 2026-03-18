@@ -22,6 +22,7 @@ import {
   FileText,
   Eye,
   Bot,
+  Star,
 } from 'lucide-react';
 
 const WhatsAppIcon = ({ className, strokeWidth: _sw }: { className?: string; strokeWidth?: number }) => (
@@ -50,6 +51,7 @@ const SIDEBAR_STORAGE_KEY = 'prospecta.sidebar.collapsed';
 const menuItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { path: '/crm', label: 'CRM', icon: Users },
+  { path: '/clients', label: 'Clientes', icon: Star },
   { path: '/dna', label: 'DNA', icon: Fingerprint },
   { path: '/search', label: 'Scanner', icon: SearchIcon },
   { path: '/robots', label: 'Robôs', icon: Bot, comingSoon: true },
@@ -141,6 +143,11 @@ const routeMeta: Record<string, { eyebrow: string; title: string; description: s
     title: 'CRM',
     description: 'Organize follow-ups, fases e movimentacao de leads.',
   },
+  '/clients': {
+    eyebrow: 'Carteira',
+    title: 'Clientes',
+    description: 'Leads que aceitaram sua proposta e se tornaram clientes.',
+  },
   '/templates': {
     eyebrow: 'Playbooks',
     title: 'Templates',
@@ -167,7 +174,7 @@ const NavItem = ({ path, label, icon: Icon, collapsed, onNavigate, currentPath, 
       onClick={() => !comingSoon && onNavigate(path)}
       className={cn(
         'group relative flex w-full items-center rounded-2xl transition-all duration-200',
-        collapsed ? 'h-11 justify-center px-0' : 'h-11 justify-start gap-3 px-3.5',
+        collapsed ? 'h-11 justify-center px-0' : 'h-11 px-2.5',
         comingSoon
           ? 'cursor-not-allowed opacity-50'
           : active
@@ -175,16 +182,18 @@ const NavItem = ({ path, label, icon: Icon, collapsed, onNavigate, currentPath, 
           : 'text-[#b7b7bf] hover:bg-[#141418] hover:text-white'
       )}
     >
-      <Icon className={cn('h-[18px] w-[18px] shrink-0', active && !comingSoon ? 'text-[#EF3333]' : 'text-[#8e8e98]')} strokeWidth={1.8} />
+      <span className={cn('flex shrink-0 items-center justify-center', collapsed ? 'w-[18px]' : 'w-8')}>
+        <Icon className={cn('h-[18px] w-[18px]', active && !comingSoon ? 'text-[#EF3333]' : 'text-[#8e8e98]')} strokeWidth={1.8} />
+      </span>
       {!collapsed && (
         <>
-          <span className="flex-1 text-sm font-medium text-white">{label}</span>
+          <span className="flex-1 pl-2 text-left text-sm font-medium text-white">{label}</span>
           {comingSoon ? (
-            <span className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-[#EF3333] px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none text-white">
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-[#EF3333] px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none text-white">
               Em breve
             </span>
           ) : active ? (
-            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#EF3333]" />
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#EF3333]" />
           ) : null}
         </>
       )}
@@ -478,9 +487,9 @@ export const AppLayout = () => {
           )}
         </div>
 
-        <div className={cn('flex-1 overflow-hidden py-4', collapsed ? 'px-2' : 'px-3')} style={{ width: '100%' }}>
+        <div className="flex-1 w-full overflow-hidden px-2 py-4">
           {!collapsed && (
-            <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8f8f97]">
+            <p className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8f8f97]">
               Menu
             </p>
           )}
@@ -498,7 +507,7 @@ export const AppLayout = () => {
 
           <div className={cn('pt-5', collapsed ? 'mt-3 border-t border-[#1f1f25]' : 'mt-5')}>
             {!collapsed && (
-              <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8f8f97]">
+              <p className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8f8f97]">
                 Geral
               </p>
             )}
@@ -528,11 +537,12 @@ export const AppLayout = () => {
 
         <div className={cn('border-t border-[#1f1f25]', collapsed ? 'p-2' : 'p-3')}>
           <button
+            type="button"
             onClick={handleSignOut}
             title="Sair"
             className={cn(
               'flex w-full items-center rounded-2xl text-sm font-medium text-[#b7b7bf] transition-colors hover:bg-[#2a1216] hover:text-[#ff9ea8]',
-              collapsed ? 'h-11 justify-center px-0' : 'h-11 gap-3 px-3.5'
+              collapsed ? 'h-11 justify-center px-0' : 'h-11 gap-3 px-2.5'
             )}
           >
             <LogOut className="h-[18px] w-[18px] shrink-0" strokeWidth={1.8} />

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   BarChart3,
+  Clock,
   Download,
   Filter,
   Radar,
@@ -106,10 +107,41 @@ const sortBusinesses = (items: Business[], sortBy: SearchRefinementFilters["sort
   });
 };
 
+const SCANNER_CACHE_KEY = 'prospecta.scanner.last_search';
+
+type ScannerCache = {
+  businesses: Business[];
+  location: string;
+  niches: string[];
+  timestamp: number;
+};
+
+function readCache(): ScannerCache | null {
+  try {
+    const raw = localStorage.getItem(SCANNER_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as ScannerCache) : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatCacheAge(timestamp: number): string {
+  const diffMs = Date.now() - timestamp;
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 60) return `${minutes} min atrás`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h atrás`;
+  return `${Math.floor(hours / 24)}d atrás`;
+}
+
 const Index = () => {
-  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const initialCache = readCache();
+  const [businesses, setBusinesses] = useState<Business[]>(initialCache?.businesses ?? []);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [hasSearched, setHasSearched] = useState(!!initialCache);
+  const [cacheInfo, setCacheInfo] = useState<{ location: string; niches: string[]; timestamp: number } | null>(
+    initialCache ? { location: initialCache.location, niches: initialCache.niches, timestamp: initialCache.timestamp } : null
+  );
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [contactFilter, setContactFilter] = useState<"all" | "email" | "phone" | "any">("all");
@@ -148,6 +180,14 @@ const Index = () => {
 
       const results = (data.businesses || []) as Business[];
       setBusinesses(results);
+      const cache: ScannerCache = {
+        businesses: results,
+        location: filters.location,
+        niches: filters.niches,
+        timestamp: Date.now(),
+      };
+      try { localStorage.setItem(SCANNER_CACHE_KEY, JSON.stringify(cache)); } catch { /* quota */ }
+      setCacheInfo({ location: cache.location, niches: cache.niches, timestamp: cache.timestamp });
       toast({
         title: "Varredura concluida",
         description: `${results.length} empresa(s) encontrada(s) para leitura em ${filters.location}.`,
@@ -297,7 +337,11 @@ const Index = () => {
           business_website: business.website,
           business_category: business.category,
           business_rating: business.rating,
-          analysis_data: analysis,
+          analysis_data: {
+            ...analysis,
+            extra_phones: business.allPhones || (business.phone ? [business.phone] : []),
+            extra_emails: business.allEmails || (business.email ? [business.email] : []),
+          },
           status: "generating",
         };
 
@@ -723,6 +767,29 @@ const Index = () => {
             </Card>
           ) : (
             <div className="space-y-5">
+              {cacheInfo && !isLoading && (
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#ececf0] bg-[#fafafd] px-4 py-2.5">
+                  <div className="flex items-center gap-2 text-xs text-[#8a8a92]">
+                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      Última busca em <span className="font-medium text-[#1A1A1A]">{cacheInfo.location}</span>
+                      {' · '}{formatCacheAge(cacheInfo.timestamp)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="shrink-0 text-xs text-[#EF3333] hover:underline"
+                    onClick={() => {
+                      try { localStorage.removeItem(SCANNER_CACHE_KEY); } catch { /* noop */ }
+                      setBusinesses([]);
+                      setHasSearched(false);
+                      setCacheInfo(null);
+                    }}
+                  >
+                    Limpar
+                  </button>
+                </div>
+              )}
               <div className="grid gap-4 md:grid-cols-3">
                 <Card className="rounded-[24px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
                   <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Radar quente</p>

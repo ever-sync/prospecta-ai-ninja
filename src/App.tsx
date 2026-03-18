@@ -21,6 +21,7 @@ import Campaigns from "./pages/Campaigns";
 import Templates from "./pages/Templates";
 import Admin from "./pages/Admin";
 import RobotsSetup from "./pages/RobotsSetup";
+import Clients from "./pages/Clients";
 import PresentationView from "./pages/PresentationView";
 import NotFound from "./pages/NotFound";
 import FormView from "./pages/FormView";
@@ -55,6 +56,7 @@ const App = () => (
             <Route path="/dna" element={<DNA />} />
             <Route path="/presentations" element={<Presentations />} />
             <Route path="/campaigns" element={<Campaigns />} />
+            <Route path="/clients" element={<Clients />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin/planos" element={<Admin initialTab="planos" />} />

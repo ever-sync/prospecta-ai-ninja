@@ -287,7 +287,7 @@ export const SearchFilters = ({
           </div>
 
           <CollapsibleContent className="mt-4 space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1">
               <div className="space-y-2">
                 <Label htmlFor="district" className="text-sm font-medium text-[#1A1A1A]">
                   Bairro ou regiao
@@ -369,7 +369,7 @@ export const SearchFilters = ({
               </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-3">
               <div className="rounded-2xl border border-[#ececf0] bg-white p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -401,7 +401,7 @@ export const SearchFilters = ({
                 <p className="mt-1 text-xs leading-relaxed text-[#7c7c83]">
                   Define como os leads chegam ordenados na primeira leitura.
                 </p>
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {[
                     { value: "score_desc", label: "Maior oportunidade" },
                     { value: "rating_desc", label: "Melhor rating" },
@@ -427,7 +427,7 @@ export const SearchFilters = ({
               </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-3">
               {[
                 {
                   key: "requirePhone" as const,

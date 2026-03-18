@@ -287,6 +287,8 @@ function enrichBusinessFromResults(
   let email = business.email || "";
   let rating = business.rating ?? null;
   let address = business.address || location;
+  const allPhonesSet = new Set<string>(phone ? [phone] : []);
+  const allEmailsSet = new Set<string>(email ? [email] : []);
 
   for (const result of matches) {
     const resultText = getResultText(result);
@@ -295,15 +297,13 @@ function enrichBusinessFromResults(
       website = getWebsiteHost(result.url);
     }
 
-    if (!phone) {
-      const phones = extractPhones(resultText);
-      if (phones.length > 0) phone = phones[0];
-    }
+    const phones = extractPhones(resultText);
+    phones.forEach(p => allPhonesSet.add(p));
+    if (!phone && phones.length > 0) phone = phones[0];
 
-    if (!email) {
-      const emails = extractEmails(resultText);
-      if (emails.length > 0) email = emails[0];
-    }
+    const emails = extractEmails(resultText);
+    emails.forEach(e => allEmailsSet.add(e));
+    if (!email && emails.length > 0) email = emails[0];
 
     if (!rating) {
       rating = extractRating(resultText);
@@ -321,6 +321,8 @@ function enrichBusinessFromResults(
     email,
     rating,
     address,
+    allPhones: [...allPhonesSet],
+    allEmails: [...allEmailsSet],
   };
 }
 
@@ -385,7 +387,12 @@ function buildOnlinePresenceSnapshot(
   _scrape: null,
   fallbackEmail: string,
   fallbackPhone: string,
+  allPhones: string[] = [],
+  allEmails: string[] = [],
 ) {
+  const phonesFound = [...new Set([...allPhones, ...(fallbackPhone ? [fallbackPhone] : [])])];
+  const emailsFound = [...new Set([...allEmails, ...(fallbackEmail ? [fallbackEmail] : [])])];
+
   if (!website) {
     return {
       score: 8,
@@ -394,8 +401,8 @@ function buildOnlinePresenceSnapshot(
       summary: "Nao possui site proprio. A empresa depende quase toda de reputacao local e canais de terceiros.",
       strengths: fallbackPhone || fallbackEmail ? ["Existe um canal de contato direto."] : [],
       weaknesses: ["Nao possui site proprio", "Baixa autoridade fora do Google"],
-      emailsFound: fallbackEmail ? [fallbackEmail] : [],
-      phonesFound: fallbackPhone ? [fallbackPhone] : [],
+      emailsFound,
+      phonesFound,
       socialLinks: {},
       hasContactForm: false,
       hasHttps: false,
@@ -429,8 +436,8 @@ function buildOnlinePresenceSnapshot(
     summary: "Site encontrado. Presenca pode ser auditada para identificar oportunidades de melhoria.",
     strengths,
     weaknesses,
-    emailsFound: fallbackEmail ? [fallbackEmail] : [],
-    phonesFound: fallbackPhone ? [fallbackPhone] : [],
+    emailsFound,
+    phonesFound,
     socialLinks: {},
     hasContactForm: false,
     hasHttps: website.startsWith("https://"),
@@ -456,7 +463,7 @@ serve(async (req) => {
     const queryHint = buildSearchQueryHint(advancedFilters);
     const hasAdvancedFilters = hasAdvancedSearchFilters(advancedFilters);
     const targetLeadVolume = Math.max(advancedFilters.limitResults, hasAdvancedFilters ? 50 : 40);
-    const limitPerNiche = Math.min(30, Math.ceil(targetLeadVolume / niches.length));
+    const limitPerNiche = Math.min(15, Math.ceil(targetLeadVolume / niches.length));
 
     const searchPromises = niches.map(async (nicheKey: string) => {
       const nicheLabel = nicheLabels[nicheKey] || nicheKey;
@@ -490,7 +497,7 @@ serve(async (req) => {
             if (result.title) parts.push(`Titulo: ${result.title}`);
             if (result.url) parts.push(`URL: ${result.url}`);
             if (result.description) parts.push(`Descricao: ${result.description}`);
-            if (result.markdown) parts.push(`Conteudo:\n${result.markdown.substring(0, 3000)}`);
+            if (result.markdown) parts.push(`Conteudo:\n${result.markdown.substring(0, 900)}`);
             return parts.join("\n");
           })
           .join("\n\n");
@@ -582,20 +589,11 @@ ${searchContext}`;
           null,
           enriched.email || "",
           enriched.phone || "",
+          enriched.allPhones || [],
+          enriched.allEmails || [],
         ),
       };
     });
-
-    // Build online presence snapshot from search data only (no scraping to avoid timeouts)
-    businesses = businesses.map((business: any) => ({
-      ...business,
-      onlinePresence: buildOnlinePresenceSnapshot(
-        business.website || "",
-        null,
-        business.email || "",
-        business.phone || "",
-      ),
-    }));
 
     const filteredBusinesses = sortBusinessesForSearch(
       businesses.filter((business) => matchesAdvancedFilters(business, advancedFilters)),

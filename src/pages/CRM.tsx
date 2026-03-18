@@ -131,6 +131,8 @@ const CRM = () => {
   const [newStageColor, setNewStageColor] = useState('#3b82f6');
   const [creatingStage, setCreatingStage] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [preselectedPhone, setPreselectedPhone] = useState<string | undefined>(undefined);
+  const [sendExtraPhones, setSendExtraPhones] = useState<string[]>([]);
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
   const [regenDialogOpen, setRegenDialogOpen] = useState(false);
   const [regenPresentation, setRegenPresentation] = useState<FullPresentationRow | null>(null);
@@ -394,7 +396,7 @@ const CRM = () => {
         onAddNote={addNote}
         onUpdateOutcome={updateLeadOutcome}
         onCopyLink={handleCopyLink}
-        onOpenSend={() => setSendDialogOpen(true)}
+        onOpenSend={(phone, phones) => { setPreselectedPhone(phone); setSendExtraPhones(phones || []); setSendDialogOpen(true); }}
         onOpenCampaign={() => setCampaignDialogOpen(true)}
         onRegenerate={handleOpenRegenerate}
       />
@@ -405,6 +407,8 @@ const CRM = () => {
         publicUrl={selectedPublicUrl}
         businessName={selectedLead?.business_name || ''}
         businessPhone={selectedLead?.business_phone || ''}
+        extraPhones={sendExtraPhones}
+        preselectedPhone={preselectedPhone}
       />
 
       <AddToCampaignDialog

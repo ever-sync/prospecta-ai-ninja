@@ -438,7 +438,7 @@ export const AppLayout = () => {
     const collapsed = mobile ? false : isSidebarCollapsed;
 
     return (
-      <div className="flex h-full w-full flex-col">
+      <div className="flex h-full min-w-0 flex-1 flex-col">
         <div className={cn('border-b border-[#1f1f25]', collapsed ? 'px-2.5 py-4' : 'px-4 py-5')}>
           {collapsed ? (
             <div className="flex flex-col items-center gap-3">
@@ -478,7 +478,7 @@ export const AppLayout = () => {
           )}
         </div>
 
-        <div className={cn('flex-1 overflow-hidden py-4', collapsed ? 'px-2' : 'px-3')}>
+        <div className={cn('flex-1 overflow-hidden py-4', collapsed ? 'px-2' : 'px-3')} style={{ width: '100%' }}>
           {!collapsed && (
             <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8f8f97]">
               Menu

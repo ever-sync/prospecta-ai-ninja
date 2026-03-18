@@ -438,7 +438,7 @@ export const AppLayout = () => {
     const collapsed = mobile ? false : isSidebarCollapsed;
 
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex h-full w-full flex-col">
         <div className={cn('border-b border-[#1f1f25]', collapsed ? 'px-2.5 py-4' : 'px-4 py-5')}>
           {collapsed ? (
             <div className="flex flex-col items-center gap-3">

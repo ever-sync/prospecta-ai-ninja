@@ -22,6 +22,7 @@ import {
   FileText,
   Eye,
   Bot,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,7 +47,8 @@ const menuItems = [
   { path: '/crm', label: 'CRM', icon: Users },
   { path: '/dna', label: 'DNA', icon: Fingerprint },
   { path: '/search', label: 'Scanner', icon: SearchIcon },
-  { path: '/robots', label: 'Robôs', icon: Bot },
+  { path: '/robots', label: 'Robôs', icon: Bot, comingSoon: true },
+  { path: '/ai-atendimento', label: 'IA de Atendimento', icon: MessageSquare, comingSoon: true },
   { path: '/presentations', label: 'Apresentações', icon: FileBarChart },
   { path: '/campaigns', label: 'Campanhas', icon: Send },
   { path: '/templates', label: 'Templates', icon: FileStack },
@@ -69,6 +71,7 @@ type NavItemProps = {
   collapsed: boolean;
   onNavigate: (path: string) => void;
   currentPath: string;
+  comingSoon?: boolean;
 };
 
 type PlatformNotification = {
@@ -150,26 +153,34 @@ const routeMeta: Record<string, { eyebrow: string; title: string; description: s
   },
 };
 
-const NavItem = ({ path, label, icon: Icon, collapsed, onNavigate, currentPath }: NavItemProps) => {
+const NavItem = ({ path, label, icon: Icon, collapsed, onNavigate, currentPath, comingSoon }: NavItemProps) => {
   const active = currentPath === path;
 
   return (
     <button
       title={label}
-      onClick={() => onNavigate(path)}
+      onClick={() => !comingSoon && onNavigate(path)}
       className={cn(
         'group relative flex w-full items-center rounded-2xl transition-all duration-200',
         collapsed ? 'h-11 justify-center px-0' : 'h-11 gap-3 px-3.5',
-        active
+        comingSoon
+          ? 'cursor-not-allowed opacity-50'
+          : active
           ? 'bg-[#16161a] text-[#f5f5f7] shadow-[inset_0_0_0_1px_rgba(239,51,51,0.35)]'
           : 'text-[#b7b7bf] hover:bg-[#141418] hover:text-white'
       )}
     >
-      <Icon className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-[#EF3333]' : 'text-[#8e8e98]')} strokeWidth={1.8} />
+      <Icon className={cn('h-[18px] w-[18px] shrink-0', active && !comingSoon ? 'text-[#EF3333]' : 'text-[#8e8e98]')} strokeWidth={1.8} />
       {!collapsed && (
         <>
           <span className="truncate text-sm font-medium">{label}</span>
-          {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#EF3333]" />}
+          {comingSoon ? (
+            <span className="ml-auto rounded-full bg-[#EF3333] px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none text-white">
+              Em breve
+            </span>
+          ) : active ? (
+            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#EF3333]" />
+          ) : null}
         </>
       )}
     </button>

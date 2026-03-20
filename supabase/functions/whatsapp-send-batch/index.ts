@@ -23,6 +23,11 @@ type TemplateRow = {
   cta_trigger: string | null;
   channel: string;
   is_active: boolean;
+  // Meta approval fields
+  meta_template_name: string | null;
+  meta_template_status: string | null;
+  meta_template_language: string | null;
+  meta_variable_order: string[] | null;
 };
 
 type CampaignRow = {
@@ -35,9 +40,19 @@ type CampaignRow = {
 
 function normalizePhone(phone: string | null | undefined): string | null {
   if (!phone) return null;
-  const onlyNumbers = phone.replace(/\D/g, "");
-  if (!onlyNumbers) return null;
-  return onlyNumbers.startsWith("55") ? onlyNumbers : `55${onlyNumbers}`;
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return null;
+
+  const withDdi = digits.startsWith("55") ? digits : `55${digits}`;
+
+  // Brazilian numbers: 55 + DDD (10–99, 2 digits) + number (8 or 9 digits) = 12–13 digits total
+  if (withDdi.length < 12 || withDdi.length > 13) return null;
+
+  const ddd = parseInt(withDdi.substring(2, 4), 10);
+  // Valid Brazilian DDDs range from 11 to 99
+  if (ddd < 11 || ddd > 99) return null;
+
+  return withDdi;
 }
 
 function hashToIndex(value: string, max: number): number {
@@ -197,6 +212,14 @@ function addMinutesIso(minutes: number): string {
   return d.toISOString();
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// 500 ms between API sends — keeps Meta Cloud well within burst limits
+// (safe for all WABA tiers; unofficial APIs add their own typing delay)
+const META_SEND_DELAY_MS = 500;
+
 function composeFollowupMessage(
   businessName: string | null,
   publicUrl: string,
@@ -249,6 +272,82 @@ async function sendMetaMessage(
     status: response.status,
     providerMessageId: data?.messages?.[0]?.id,
   };
+}
+
+/**
+ * Send a pre-approved Meta template message (required for cold outreach / first contact).
+ * variableValues must be in the same order as meta_variable_order stored in DB.
+ */
+async function sendMetaTemplateMessage(
+  accessToken: string,
+  phoneNumberId: string,
+  to: string,
+  templateName: string,
+  language: string,
+  variableValues: string[],
+): Promise<{ ok: boolean; status: number; providerMessageId?: string; error?: string }> {
+  const components: any[] = [];
+  if (variableValues.length > 0) {
+    components.push({
+      type: "body",
+      parameters: variableValues.map((text) => ({ type: "text", text: text || "" })),
+    });
+  }
+
+  const response = await fetch(
+    `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: templateName,
+          language: { code: language || "pt_BR" },
+          ...(components.length > 0 ? { components } : {}),
+        },
+      }),
+    },
+  );
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return { ok: false, status: response.status, error: JSON.stringify(data) };
+  }
+
+  return {
+    ok: true,
+    status: response.status,
+    providerMessageId: data?.messages?.[0]?.id,
+  };
+}
+
+/** Resolve variable values from a lead/presentation row in the order stored in meta_variable_order */
+function resolveMetaVariableValues(
+  variableOrder: string[],
+  pres: any,
+  publicUrl: string,
+  senderName: string,
+): string[] {
+  const MAP: Record<string, string> = {
+    nome_empresa: pres.business_name || "",
+    link_proposta: publicUrl,
+    sua_empresa: senderName,
+    categoria: pres.business_category || "",
+    score: typeof pres?.analysis_data?.scores?.overall === "number"
+      ? String(pres.analysis_data.scores.overall)
+      : "",
+    rating: pres.business_rating != null ? String(pres.business_rating) : "",
+    endereco: pres.business_address || "",
+    telefone: pres.business_phone || "",
+    website: pres.business_website || "",
+  };
+  return variableOrder.map((key) => MAP[key] ?? "");
 }
 
 async function sendUnofficialMessage(
@@ -316,7 +415,7 @@ async function loadTemplatesForCampaign(svc: any, campaign: CampaignRow): Promis
   const { data: selectedTemplate } = await svc
     .from("message_templates")
     .select(
-      "id, body, subject, send_as_audio, include_proposal_link, experiment_group, variant_key, target_persona, campaign_objective, cta_trigger, channel, is_active",
+      "id, body, subject, send_as_audio, include_proposal_link, experiment_group, variant_key, target_persona, campaign_objective, cta_trigger, channel, is_active, meta_template_name, meta_template_status, meta_template_language, meta_variable_order",
     )
     .eq("id", campaign.template_id)
     .single();
@@ -329,7 +428,7 @@ async function loadTemplatesForCampaign(svc: any, campaign: CampaignRow): Promis
   const { data: allVariants } = await svc
     .from("message_templates")
     .select(
-      "id, body, subject, send_as_audio, include_proposal_link, experiment_group, variant_key, target_persona, campaign_objective, cta_trigger, channel, is_active",
+      "id, body, subject, send_as_audio, include_proposal_link, experiment_group, variant_key, target_persona, campaign_objective, cta_trigger, channel, is_active, meta_template_name, meta_template_status, meta_template_language, meta_variable_order",
     )
     .eq("experiment_group", selected.experiment_group)
     .eq("channel", selected.channel || "whatsapp")
@@ -373,20 +472,34 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     });
 
+    // Parse body first — needed to extract user_id for service-role calls
+    const bodyData = await req.json();
     const {
       campaign_id,
       threshold = DEFAULT_THRESHOLD,
       force_api = false,
       send_followups = false,
-    } = await req.json();
+    } = bodyData;
 
     if (!campaign_id) throw new Error("campaign_id is required");
 
-    const {
-      data: { user },
-      error: userError,
-    } = await userClient.auth.getUser();
-    if (userError || !user) throw new Error("Unauthorized");
+    // Support internal calls from campaign-scheduler using service role key
+    const isServiceRoleCall =
+      serviceKey &&
+      authHeader === `Bearer ${serviceKey}` &&
+      typeof bodyData.user_id === "string";
+
+    let userId: string;
+    if (isServiceRoleCall) {
+      userId = bodyData.user_id;
+    } else {
+      const {
+        data: { user },
+        error: userError,
+      } = await userClient.auth.getUser();
+      if (userError || !user) throw new Error("Unauthorized");
+      userId = user.id;
+    }
 
     const { data: campaignData, error: campaignError } = await svc
       .from("campaigns")
@@ -396,7 +509,7 @@ Deno.serve(async (req) => {
     if (campaignError || !campaignData) throw new Error("Campaign not found");
 
     const campaign = campaignData as CampaignRow;
-    if (campaign.user_id !== user.id) throw new Error("Forbidden");
+    if (campaign.user_id !== userId) throw new Error("Forbidden");
     if (campaign.channel !== "whatsapp") {
       throw new Error("Campaign channel must be whatsapp");
     }
@@ -406,7 +519,7 @@ Deno.serve(async (req) => {
       .select(
         "company_name, proposal_link_domain, whatsapp_connection_type, whatsapp_official_access_token, whatsapp_official_phone_number_id, whatsapp_unofficial_api_url, whatsapp_unofficial_api_token, whatsapp_unofficial_instance",
       )
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .maybeSingle();
     const profile = (profileData as any) || {};
     const senderName = profile.company_name || "Nossa Empresa";
@@ -421,36 +534,62 @@ Deno.serve(async (req) => {
     const unofficialInstance = (profile.whatsapp_unofficial_instance || "").trim() || null;
     const providerName = waConnectionType === "meta_official" ? "meta_cloud" : "other";
 
+    /**
+     * Send a WhatsApp message, preferring approved Meta template messages for official API.
+     * When templateInfo is provided and the template is approved, sends as type:"template".
+     * Falls back to free-form text (works only within 24h session window).
+     */
     const sendWhatsAppMessage = async (
       to: string,
       message: string,
-    ): Promise<{ ok: boolean; status: number; providerMessageId?: string; error?: string }> => {
+      pres?: any,
+      publicUrl?: string,
+      templateInfo?: {
+        metaTemplateName: string | null;
+        metaTemplateStatus: string | null;
+        metaTemplateLanguage: string | null;
+        metaVariableOrder: string[] | null;
+      },
+    ): Promise<{ ok: boolean; status: number; providerMessageId?: string; error?: string; usedTemplate?: boolean }> => {
       if (waConnectionType === "meta_official") {
         if (!metaToken || !phoneNumberId) {
-          return {
-            ok: false,
-            status: 400,
-            error: "missing_meta_credentials",
-          };
+          return { ok: false, status: 400, error: "missing_meta_credentials" };
         }
+
+        // Use approved template message if available (required for cold outreach)
+        if (
+          templateInfo?.metaTemplateName &&
+          templateInfo.metaTemplateStatus === "approved" &&
+          Array.isArray(templateInfo.metaVariableOrder) &&
+          pres &&
+          publicUrl
+        ) {
+          const variableValues = resolveMetaVariableValues(
+            templateInfo.metaVariableOrder,
+            pres,
+            publicUrl,
+            senderName,
+          );
+          const result = await sendMetaTemplateMessage(
+            metaToken,
+            phoneNumberId,
+            to,
+            templateInfo.metaTemplateName,
+            templateInfo.metaTemplateLanguage || "pt_BR",
+            variableValues,
+          );
+          return { ...result, usedTemplate: true };
+        }
+
+        // Fallback: free-form text (only works within 24h session window)
         return sendMetaMessage(metaToken, phoneNumberId, to, message);
       }
 
       if (!unofficialApiUrl) {
-        return {
-          ok: false,
-          status: 400,
-          error: "missing_unofficial_api_url",
-        };
+        return { ok: false, status: 400, error: "missing_unofficial_api_url" };
       }
 
-      return sendUnofficialMessage(
-        unofficialApiUrl,
-        unofficialApiToken,
-        unofficialInstance,
-        to,
-        message,
-      );
+      return sendUnofficialMessage(unofficialApiUrl, unofficialApiToken, unofficialInstance, to, message);
     };
     const { selected: selectedTemplate, variants } = await loadTemplatesForCampaign(svc, campaign);
 
@@ -543,7 +682,7 @@ Deno.serve(async (req) => {
             .eq("id", cp.id);
 
           await svc.from("campaign_message_attempts").insert({
-            user_id: user.id,
+            user_id: userId,
             campaign_presentation_id: cp.id,
             campaign_id: campaign.id,
             presentation_id: pres.id,
@@ -602,7 +741,7 @@ Deno.serve(async (req) => {
             .eq("id", cp.id);
 
           await svc.from("campaign_message_attempts").insert({
-            user_id: user.id,
+            user_id: userId,
             campaign_presentation_id: cp.id,
             campaign_id: campaign.id,
             presentation_id: pres.id,
@@ -635,6 +774,7 @@ Deno.serve(async (req) => {
             source: "whatsapp_retry",
             metadata: { attempt_no: attemptNo, retry_of: retryRow.id },
           });
+          if (waConnectionType === "meta_official") await sleep(META_SEND_DELAY_MS);
           sent++;
           continue;
         }
@@ -650,7 +790,7 @@ Deno.serve(async (req) => {
           .eq("id", cp.id);
 
         await svc.from("campaign_message_attempts").insert({
-          user_id: user.id,
+          user_id: userId,
           campaign_presentation_id: cp.id,
           campaign_id: campaign.id,
           presentation_id: pres.id,
@@ -748,13 +888,22 @@ Deno.serve(async (req) => {
           source: "followup",
         });
 
-        const message = composeFollowupMessage(pres.business_name, trackedUrl, cp.followup_step || 0);
+        const message = getFollowupMessage(pres.business_name, trackedUrl, cp.followup_step || 0);
         const attemptNo = await getNextAttemptNo(svc, cp.id);
         const sentAt = new Date().toISOString();
         const nextStep = (cp.followup_step || 0) + 1;
         const nextFollowupAt = nextStep < 2 ? addDaysIso(2) : null;
 
-        const sendResult = await sendWhatsAppMessage(fullPhone, message);
+        // For Meta official: reuse the campaign template (already approved) instead of
+        // free-form text, which fails outside the 24h customer service window.
+        const followupTemplateInfo = {
+          metaTemplateName: chosenVariant?.meta_template_name || selectedTemplate?.meta_template_name || null,
+          metaTemplateStatus: chosenVariant?.meta_template_status || selectedTemplate?.meta_template_status || null,
+          metaTemplateLanguage: chosenVariant?.meta_template_language || selectedTemplate?.meta_template_language || null,
+          metaVariableOrder: (chosenVariant?.meta_variable_order || selectedTemplate?.meta_variable_order) as string[] | null,
+        };
+
+        const sendResult = await sendWhatsAppMessage(fullPhone, message, pres, trackedUrl, followupTemplateInfo);
         if (sendResult.ok) {
           await svc
             .from("campaign_presentations")
@@ -768,7 +917,7 @@ Deno.serve(async (req) => {
             .eq("id", cp.id);
 
           await svc.from("campaign_message_attempts").insert({
-            user_id: user.id,
+            user_id: userId,
             campaign_presentation_id: cp.id,
             campaign_id: campaign.id,
             presentation_id: pres.id,
@@ -802,10 +951,11 @@ Deno.serve(async (req) => {
             metadata: { attempt_no: attemptNo, followup_step: nextStep },
           });
 
+          if (waConnectionType === "meta_official") await sleep(META_SEND_DELAY_MS);
           sentCount++;
         } else {
           await svc.from("campaign_message_attempts").insert({
-            user_id: user.id,
+            user_id: userId,
             campaign_presentation_id: cp.id,
             campaign_id: campaign.id,
             presentation_id: pres.id,
@@ -907,16 +1057,18 @@ Deno.serve(async (req) => {
         source: "campaign",
       });
 
-      const baseMessageTemplate =
-        chosenVariant?.body ||
-        selectedTemplate?.body ||
-        "Olá! Preparamos uma análise personalizada para sua empresa: {{link_proposta}}";
       const message = replaceVariables(
         chosenVariant?.body || selectedTemplate?.body || DEFAULT_WA_MESSAGE_TEMPLATE,
         pres,
         publicUrl,
         senderName,
       );
+      const templateInfo = {
+        metaTemplateName: chosenVariant?.meta_template_name || selectedTemplate?.meta_template_name || null,
+        metaTemplateStatus: chosenVariant?.meta_template_status || selectedTemplate?.meta_template_status || null,
+        metaTemplateLanguage: chosenVariant?.meta_template_language || selectedTemplate?.meta_template_language || null,
+        metaVariableOrder: (chosenVariant?.meta_variable_order || selectedTemplate?.meta_variable_order) as string[] | null,
+      };
       const attemptNo = await getNextAttemptNo(svc, cp.id);
 
       if (!fullPhone) {
@@ -931,7 +1083,7 @@ Deno.serve(async (req) => {
           .eq("id", cp.id);
 
         await svc.from("campaign_message_attempts").insert({
-          user_id: user.id,
+          user_id: userId,
           campaign_presentation_id: cp.id,
           campaign_id: campaign.id,
           presentation_id: pres.id,
@@ -955,10 +1107,12 @@ Deno.serve(async (req) => {
       };
 
       for (let retry = 0; retry < 2; retry++) {
-        const result = await sendWhatsAppMessage(fullPhone, message);
+        const result = await sendWhatsAppMessage(fullPhone, message, pres, publicUrl, templateInfo);
         finalResult = result;
         if (result.ok) break;
         if (!isTransientStatus(result.status) || retry === 1) break;
+        // Brief pause before retry
+        if (waConnectionType === "meta_official") await sleep(META_SEND_DELAY_MS);
       }
 
       const nowIso = new Date().toISOString();
@@ -978,7 +1132,7 @@ Deno.serve(async (req) => {
           .eq("id", cp.id);
 
         await svc.from("campaign_message_attempts").insert({
-          user_id: user.id,
+          user_id: userId,
           campaign_presentation_id: cp.id,
           campaign_id: campaign.id,
           presentation_id: pres.id,
@@ -1012,6 +1166,7 @@ Deno.serve(async (req) => {
           metadata: { attempt_no: attemptNo },
         });
 
+        if (waConnectionType === "meta_official") await sleep(META_SEND_DELAY_MS);
         sentCount++;
       } else {
         const transient = isTransientStatus(finalResult.status);
@@ -1026,7 +1181,7 @@ Deno.serve(async (req) => {
           .eq("id", cp.id);
 
         await svc.from("campaign_message_attempts").insert({
-          user_id: user.id,
+          user_id: userId,
           campaign_presentation_id: cp.id,
           campaign_id: campaign.id,
           presentation_id: pres.id,

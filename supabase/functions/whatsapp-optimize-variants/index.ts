@@ -33,24 +33,226 @@ function plusDaysIso(base: Date, days: number): string {
   return d.toISOString();
 }
 
+async function optimizeForUser(
+  svc: ReturnType<typeof createClient>,
+  userId: string,
+  lookbackDays: number,
+  minSample: number,
+  runMode: "auto" | "manual",
+  dryRun: boolean,
+  force: boolean,
+) {
+  if (runMode === "auto" && !force) {
+    const { data: lastRun } = await svc
+      .from("whatsapp_optimization_runs")
+      .select("created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastRun?.created_at) {
+      const lastAt = new Date(lastRun.created_at).getTime();
+      if (Date.now() - lastAt < 7 * 24 * 60 * 60 * 1000) {
+        return {
+          skipped: true,
+          reason: "cadence_not_due",
+          last_run_at: lastRun.created_at,
+          next_run_at: plusDaysIso(new Date(lastRun.created_at), 7),
+        };
+      }
+    }
+  }
+
+  const { data: templateRows } = await svc
+    .from("message_templates")
+    .select("id, name, channel, experiment_group, variant_key, is_active")
+    .eq("user_id", userId)
+    .eq("channel", "whatsapp")
+    .not("experiment_group", "is", null);
+
+  const variants = (templateRows || []) as VariantRow[];
+  if (variants.length === 0) {
+    return { skipped: true, reason: "no_ab_variants" };
+  }
+
+  const variantIds = variants.map((v) => v.id);
+  const since = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: eventsByVariant } = await svc
+    .from("message_conversion_events")
+    .select("event_type, template_id, variant_id")
+    .eq("user_id", userId)
+    .eq("channel", "whatsapp")
+    .in("event_type", ["sent", "accepted"])
+    .gte("created_at", since)
+    .in("variant_id", variantIds);
+
+  const { data: eventsByTemplate } = await svc
+    .from("message_conversion_events")
+    .select("event_type, template_id, variant_id")
+    .eq("user_id", userId)
+    .eq("channel", "whatsapp")
+    .in("event_type", ["sent", "accepted"])
+    .gte("created_at", since)
+    .in("template_id", variantIds)
+    .is("variant_id", null);
+
+  const eventRows = [...(eventsByVariant || []), ...(eventsByTemplate || [])];
+  const statsMap = new Map<string, { sent: number; accepted: number }>();
+  for (const id of variantIds) statsMap.set(id, { sent: 0, accepted: 0 });
+
+  for (const event of eventRows) {
+    const vid = event.variant_id || event.template_id;
+    if (!vid) continue;
+    const row = statsMap.get(vid);
+    if (!row) continue;
+    if (event.event_type === "sent") row.sent++;
+    if (event.event_type === "accepted") row.accepted++;
+  }
+
+  const groupMap = new Map<string, VariantRow[]>();
+  for (const variant of variants) {
+    if (!variant.experiment_group) continue;
+    const list = groupMap.get(variant.experiment_group) || [];
+    list.push(variant);
+    groupMap.set(variant.experiment_group, list);
+  }
+
+  const decisions: Array<{
+    experiment_group: string;
+    winner_variant_id: string;
+    winner_variant_key: string;
+    winner_acceptance_rate: number;
+    sample_sent: number;
+    paused_variant_ids: string[];
+    candidates: VariantStats[];
+  }> = [];
+
+  for (const [group, groupVariants] of groupMap.entries()) {
+    if (groupVariants.length < 2) continue;
+
+    const candidates: VariantStats[] = groupVariants.map((variant) => {
+      const stats = statsMap.get(variant.id) || { sent: 0, accepted: 0 };
+      const acceptanceRate = stats.sent > 0
+        ? Number((stats.accepted / stats.sent).toFixed(4))
+        : 0;
+      return { ...variant, sent: stats.sent, accepted: stats.accepted, acceptance_rate: acceptanceRate };
+    }).filter((v) => v.sent >= minSample);
+
+    if (candidates.length < 2) continue;
+
+    candidates.sort((a, b) => {
+      if (b.acceptance_rate !== a.acceptance_rate) return b.acceptance_rate - a.acceptance_rate;
+      if (b.accepted !== a.accepted) return b.accepted - a.accepted;
+      if (b.sent !== a.sent) return b.sent - a.sent;
+      return a.variant_key.localeCompare(b.variant_key);
+    });
+
+    const winner = candidates[0];
+    const pausedVariantIds = groupVariants
+      .filter((v) => v.id !== winner.id && v.is_active)
+      .map((v) => v.id);
+
+    decisions.push({
+      experiment_group: group,
+      winner_variant_id: winner.id,
+      winner_variant_key: winner.variant_key,
+      winner_acceptance_rate: winner.acceptance_rate,
+      sample_sent: winner.sent,
+      paused_variant_ids: pausedVariantIds,
+      candidates,
+    });
+
+    if (!dryRun) {
+      await svc
+        .from("message_templates")
+        .update({ is_active: false })
+        .eq("user_id", userId)
+        .eq("channel", "whatsapp")
+        .eq("experiment_group", group)
+        .neq("id", winner.id)
+        .eq("is_active", true);
+
+      await svc
+        .from("message_templates")
+        .update({ is_active: true })
+        .eq("id", winner.id);
+    }
+  }
+
+  if (!dryRun) {
+    await svc.from("whatsapp_optimization_runs").insert({
+      user_id: userId,
+      mode: runMode,
+      lookback_days: lookbackDays,
+      min_sample: minSample,
+      groups_evaluated: groupMap.size,
+      groups_promoted: decisions.length,
+      metadata: { since, decisions },
+    });
+  }
+
+  return {
+    success: true,
+    dry_run: dryRun,
+    mode: runMode,
+    lookback_days: lookbackDays,
+    min_sent_per_variant: minSample,
+    groups_evaluated: groupMap.size,
+    groups_promoted: decisions.length,
+    decisions,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Unauthorized");
+    const authHeader = req.headers.get("Authorization") || "";
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
     const svc = createClient(supabaseUrl, serviceKey, {
       auth: { persistSession: false },
+    });
+
+    // Service-role scheduled call: run for ALL users with A/B variants
+    const isServiceRoleCall = serviceKey && authHeader === `Bearer ${serviceKey}`;
+    if (isServiceRoleCall) {
+      const body = await req.json().catch(() => ({}));
+      const lookbackDays = clampInt(body.lookback_days ?? 14, 14, 7, 90);
+      const minSample = clampInt(body.min_sent_per_variant ?? 20, 20, 5, 500);
+      const dryRun = body.dry_run === true;
+
+      const { data: userRows } = await svc
+        .from("message_templates")
+        .select("user_id")
+        .eq("channel", "whatsapp")
+        .not("experiment_group", "is", null);
+
+      const allUserIds = [...new Set((userRows || []).map((r: any) => r.user_id as string))];
+      const allResults: any[] = [];
+
+      for (const uid of allUserIds) {
+        const result = await optimizeForUser(svc, uid, lookbackDays, minSample, "auto", dryRun, false);
+        allResults.push({ user_id: uid, ...result });
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, users_processed: allUserIds.length, results: allResults }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (!authHeader) throw new Error("Unauthorized");
+
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
     });
 
     const {
@@ -71,189 +273,10 @@ Deno.serve(async (req) => {
     } = await userClient.auth.getUser();
     if (authError || !user) throw new Error("Unauthorized");
 
-    if (runMode === "auto" && !force) {
-      const { data: lastRun } = await svc
-        .from("whatsapp_optimization_runs")
-        .select("created_at")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (lastRun?.created_at) {
-        const lastAt = new Date(lastRun.created_at).getTime();
-        const now = Date.now();
-        const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-        if (now - lastAt < sevenDaysMs) {
-          return new Response(
-            JSON.stringify({
-              success: true,
-              skipped: true,
-              reason: "cadence_not_due",
-              last_run_at: lastRun.created_at,
-              next_run_at: plusDaysIso(new Date(lastRun.created_at), 7),
-            }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
-        }
-      }
-    }
-
-    const { data: templateRows } = await svc
-      .from("message_templates")
-      .select("id, name, channel, experiment_group, variant_key, is_active")
-      .eq("user_id", user.id)
-      .eq("channel", "whatsapp")
-      .not("experiment_group", "is", null);
-
-    const variants = (templateRows || []) as VariantRow[];
-    if (variants.length === 0) {
-      return new Response(
-        JSON.stringify({ success: true, skipped: true, reason: "no_ab_variants" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const variantIds = variants.map((v) => v.id);
-    const since = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000).toISOString();
-
-    const { data: eventsByVariant } = await svc
-      .from("message_conversion_events")
-      .select("event_type, template_id, variant_id")
-      .eq("user_id", user.id)
-      .eq("channel", "whatsapp")
-      .in("event_type", ["sent", "accepted"])
-      .gte("created_at", since)
-      .in("variant_id", variantIds);
-
-    const { data: eventsByTemplate } = await svc
-      .from("message_conversion_events")
-      .select("event_type, template_id, variant_id")
-      .eq("user_id", user.id)
-      .eq("channel", "whatsapp")
-      .in("event_type", ["sent", "accepted"])
-      .gte("created_at", since)
-      .in("template_id", variantIds)
-      .is("variant_id", null);
-
-    const eventRows = [...(eventsByVariant || []), ...(eventsByTemplate || [])];
-    const statsMap = new Map<string, { sent: number; accepted: number }>();
-    for (const id of variantIds) {
-      statsMap.set(id, { sent: 0, accepted: 0 });
-    }
-
-    for (const event of eventRows) {
-      const variantId = event.variant_id || event.template_id;
-      if (!variantId) continue;
-      const row = statsMap.get(variantId);
-      if (!row) continue;
-      if (event.event_type === "sent") row.sent++;
-      if (event.event_type === "accepted") row.accepted++;
-    }
-
-    const groupMap = new Map<string, VariantRow[]>();
-    for (const variant of variants) {
-      if (!variant.experiment_group) continue;
-      const list = groupMap.get(variant.experiment_group) || [];
-      list.push(variant);
-      groupMap.set(variant.experiment_group, list);
-    }
-
-    const decisions: Array<{
-      experiment_group: string;
-      winner_variant_id: string;
-      winner_variant_key: string;
-      winner_acceptance_rate: number;
-      sample_sent: number;
-      paused_variant_ids: string[];
-      candidates: VariantStats[];
-    }> = [];
-
-    for (const [group, groupVariants] of groupMap.entries()) {
-      if (groupVariants.length < 2) continue;
-
-      const candidates: VariantStats[] = groupVariants.map((variant) => {
-        const stats = statsMap.get(variant.id) || { sent: 0, accepted: 0 };
-        const acceptanceRate = stats.sent > 0
-          ? Number((stats.accepted / stats.sent).toFixed(4))
-          : 0;
-        return {
-          ...variant,
-          sent: stats.sent,
-          accepted: stats.accepted,
-          acceptance_rate: acceptanceRate,
-        };
-      }).filter((v) => v.sent >= minSample);
-
-      if (candidates.length < 2) continue;
-
-      candidates.sort((a, b) => {
-        if (b.acceptance_rate !== a.acceptance_rate) {
-          return b.acceptance_rate - a.acceptance_rate;
-        }
-        if (b.accepted !== a.accepted) return b.accepted - a.accepted;
-        if (b.sent !== a.sent) return b.sent - a.sent;
-        return a.variant_key.localeCompare(b.variant_key);
-      });
-
-      const winner = candidates[0];
-      const pausedVariantIds = groupVariants
-        .filter((v) => v.id !== winner.id && v.is_active)
-        .map((v) => v.id);
-
-      decisions.push({
-        experiment_group: group,
-        winner_variant_id: winner.id,
-        winner_variant_key: winner.variant_key,
-        winner_acceptance_rate: winner.acceptance_rate,
-        sample_sent: winner.sent,
-        paused_variant_ids: pausedVariantIds,
-        candidates,
-      });
-
-      if (!dry_run) {
-        await svc
-          .from("message_templates")
-          .update({ is_active: false })
-          .eq("user_id", user.id)
-          .eq("channel", "whatsapp")
-          .eq("experiment_group", group)
-          .neq("id", winner.id)
-          .eq("is_active", true);
-
-        await svc
-          .from("message_templates")
-          .update({ is_active: true })
-          .eq("id", winner.id);
-      }
-    }
-
-    if (!dry_run) {
-      await svc.from("whatsapp_optimization_runs").insert({
-        user_id: user.id,
-        mode: runMode,
-        lookback_days: lookbackDays,
-        min_sample: minSample,
-        groups_evaluated: groupMap.size,
-        groups_promoted: decisions.length,
-        metadata: {
-          since,
-          decisions,
-        },
-      });
-    }
+    const result = await optimizeForUser(svc, user.id, lookbackDays, minSample, runMode, dry_run, force);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        dry_run,
-        mode: runMode,
-        lookback_days: lookbackDays,
-        min_sent_per_variant: minSample,
-        groups_evaluated: groupMap.size,
-        groups_promoted: decisions.length,
-        decisions,
-      }),
+      JSON.stringify(result),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error) {

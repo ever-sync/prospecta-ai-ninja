@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
 
     const { error } = await supabase
       .from('presentations')
-      .update({ lead_response: response })
+      .update({ lead_response: response, status: 'responded' })
       .eq('public_id', public_id);
 
     if (error) throw error;

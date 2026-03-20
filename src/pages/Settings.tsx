@@ -24,6 +24,13 @@ import {
   CheckCircle2,
   XCircle,
   Flame,
+  Copy,
+  ChevronDown,
+  ChevronUp,
+  Wifi,
+  WifiOff,
+  Phone,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,7 +50,6 @@ import { formatBrazilPhone, formatCpfCnpj, validateBrazilPhone } from '@/lib/br-
 
 const fieldClass = 'h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]';
 const cardClass = 'rounded-[22px] border border-[#ececf0] bg-white p-6 shadow-[0_10px_24px_rgba(18,18,22,0.05)]';
-const MAX_AI_KEYS = 2;
 
 const SETTINGS_TABS = ['empresa', 'faturamento', 'integracoes', 'apis'] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
@@ -106,6 +112,7 @@ const Settings = () => {
   const [whatsAppConnectionType, setWhatsAppConnectionType] = useState<WhatsAppConnectionType>('unofficial');
   const [officialAccessToken, setOfficialAccessToken] = useState('');
   const [officialPhoneNumberId, setOfficialPhoneNumberId] = useState('');
+  const [officialWabaId, setOfficialWabaId] = useState('');
   const [unofficialApiUrl, setUnofficialApiUrl] = useState('');
   const [unofficialApiToken, setUnofficialApiToken] = useState('');
   const [unofficialInstance, setUnofficialInstance] = useState('');
@@ -120,6 +127,18 @@ const Settings = () => {
   const [savingFirecrawlKey, setSavingFirecrawlKey] = useState(false);
   const [showFirecrawlGuide, setShowFirecrawlGuide] = useState(false);
 
+  type MetaConnectionStatus = 'idle' | 'testing' | 'connected' | 'error';
+  const [metaStatus, setMetaStatus] = useState<MetaConnectionStatus>('idle');
+  const [metaStatusInfo, setMetaStatusInfo] = useState<{
+    displayPhoneNumber?: string;
+    verifiedName?: string;
+    qualityRating?: string;
+    error?: string;
+    webhookUrl?: string;
+    verifyToken?: string;
+  }>({});
+  const [showMetaGuide, setShowMetaGuide] = useState(false);
+
   const [apiKeys, setApiKeys] = useState<UserAiApiKey[]>([]);
   const [loadingApiKeys, setLoadingApiKeys] = useState(false);
   const [savingApiKey, setSavingApiKey] = useState(false);
@@ -129,12 +148,10 @@ const Settings = () => {
   const [providerApiKey, setProviderApiKey] = useState('');
 
   const providerAlreadyConnected = useMemo(() => apiKeys.some((item) => item.provider === apiProvider), [apiKeys, apiProvider]);
-  const limitReachedForNewProvider = apiKeys.length >= MAX_AI_KEYS && !providerAlreadyConnected;
   const canSaveApiKey =
     providerApiKey.trim().length > 0 &&
     (apiProvider !== 'other' || customProviderName.trim().length > 0) &&
-    !savingApiKey &&
-    !limitReachedForNewProvider;
+    !savingApiKey;
 
   useEffect(() => {
     if (!user) return;
@@ -155,6 +172,7 @@ const Settings = () => {
           setWhatsAppConnectionType((data.whatsapp_connection_type as WhatsAppConnectionType) || 'unofficial');
           setOfficialAccessToken(data.whatsapp_official_access_token || '');
           setOfficialPhoneNumberId(data.whatsapp_official_phone_number_id || '');
+          setOfficialWabaId(data.whatsapp_business_account_id || '');
           setUnofficialApiUrl(data.whatsapp_unofficial_api_url || '');
           setUnofficialApiToken(data.whatsapp_unofficial_api_token || '');
           setUnofficialInstance(data.whatsapp_unofficial_instance || '');
@@ -319,15 +337,6 @@ const Settings = () => {
       return;
     }
 
-    if (limitReachedForNewProvider) {
-      toast({
-        title: 'Limite atingido',
-        description: 'Voc? pode conectar no m?ximo 2 provedores de IA.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setSavingApiKey(true);
     const { error } = await supabase.from('user_ai_api_keys').upsert(
       {
@@ -445,6 +454,7 @@ const Settings = () => {
       whatsapp_connection_type: whatsAppConnectionType,
       whatsapp_official_access_token: officialAccessToken.trim() || null,
       whatsapp_official_phone_number_id: officialPhoneNumberId.trim() || null,
+      whatsapp_business_account_id: officialWabaId.trim() || null,
       whatsapp_unofficial_api_url: unofficialApiUrl.trim() || null,
       whatsapp_unofficial_api_token: unofficialApiToken.trim() || null,
       whatsapp_unofficial_instance: unofficialInstance.trim() || null,
@@ -471,6 +481,50 @@ const Settings = () => {
       window.dispatchEvent(new CustomEvent('onboarding:refetch'));
     }
     setSavingIntegrations(false);
+  };
+
+  const handleTestMetaConnection = async () => {
+    const token = officialAccessToken.trim();
+    const phoneId = officialPhoneNumberId.trim();
+    if (!token || !phoneId) {
+      toast({ title: 'Campos obrigatorios', description: 'Preencha o Access Token e o Phone Number ID antes de testar.', variant: 'destructive' });
+      return;
+    }
+    setMetaStatus('testing');
+    setMetaStatusInfo({});
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-meta-whatsapp', {
+        body: { accessToken: token, phoneNumberId: phoneId },
+      });
+      if (error) throw error;
+      if (data?.valid) {
+        setMetaStatus('connected');
+        setMetaStatusInfo({
+          displayPhoneNumber: data.displayPhoneNumber,
+          verifiedName: data.verifiedName,
+          qualityRating: data.qualityRating,
+          webhookUrl: data.webhookUrl,
+          verifyToken: data.verifyToken,
+        });
+        toast({ title: 'Conexao validada!', description: `Numero ${data.displayPhoneNumber || phoneId} conectado com sucesso.` });
+      } else {
+        setMetaStatus('error');
+        setMetaStatusInfo({ error: data?.error || 'Credenciais invalidas.', webhookUrl: data?.webhookUrl, verifyToken: data?.verifyToken });
+        toast({ title: 'Falha na conexao', description: data?.error || 'Verifique o token e o Phone Number ID.', variant: 'destructive' });
+      }
+    } catch (err: any) {
+      setMetaStatus('error');
+      setMetaStatusInfo({ error: err?.message || 'Erro ao testar conexao.' });
+      toast({ title: 'Erro', description: err?.message || 'Nao foi possivel conectar a API da Meta.', variant: 'destructive' });
+    }
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({ title: 'Copiado!', description: `${label} copiado para a area de transferencia.` });
+    }).catch(() => {
+      toast({ title: 'Erro', description: 'Nao foi possivel copiar.', variant: 'destructive' });
+    });
   };
 
   const handleRemoveFirecrawlKey = async () => {
@@ -785,27 +839,166 @@ const Settings = () => {
                   </div>
 
                   {whatsAppConnectionType === 'meta_official' ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label className="text-sm text-[#1A1A1A]">Meta Access Token</Label>
-                        <Input
-                          type="password"
-                          className={fieldClass}
-                          value={officialAccessToken}
-                          onChange={(e) => setOfficialAccessToken(e.target.value)}
-                          placeholder="Cole o token oficial da Meta"
-                        />
+                    <div className="md:col-span-2 space-y-4">
+                      {/* Credentials */}
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label className="text-sm text-[#1A1A1A]">Meta Access Token</Label>
+                          <Input
+                            type="password"
+                            className={fieldClass}
+                            value={officialAccessToken}
+                            onChange={(e) => { setOfficialAccessToken(e.target.value); setMetaStatus('idle'); }}
+                            placeholder="Cole o token permanente da Meta"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm text-[#1A1A1A]">Phone Number ID</Label>
+                          <Input
+                            className={fieldClass}
+                            value={officialPhoneNumberId}
+                            onChange={(e) => { setOfficialPhoneNumberId(e.target.value); setMetaStatus('idle'); }}
+                            placeholder="Ex: 123456789012345"
+                          />
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                          <Label className="text-sm text-[#1A1A1A]">
+                            WABA ID <span className="text-[#9b9ba3] font-normal">(WhatsApp Business Account ID — necessario para aprovar templates)</span>
+                          </Label>
+                          <Input
+                            className={fieldClass}
+                            value={officialWabaId}
+                            onChange={(e) => setOfficialWabaId(e.target.value)}
+                            placeholder="Ex: 102098765432100"
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm text-[#1A1A1A]">Phone Number ID</Label>
-                        <Input
-                          className={fieldClass}
-                          value={officialPhoneNumberId}
-                          onChange={(e) => setOfficialPhoneNumberId(e.target.value)}
-                          placeholder="Ex: 123456789012345"
-                        />
+
+                      {/* Test button + status */}
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleTestMetaConnection}
+                          disabled={metaStatus === 'testing' || !officialAccessToken.trim() || !officialPhoneNumberId.trim()}
+                          className="h-9 rounded-xl border-[#e0e0e8] gap-2"
+                        >
+                          {metaStatus === 'testing'
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <Wifi className="h-4 w-4" />}
+                          Testar conexao
+                        </Button>
+
+                        {metaStatus === 'connected' && (
+                          <div className="flex items-center gap-2 rounded-xl border border-[#cde8d9] bg-[#eef8f3] px-3 py-1.5">
+                            <CheckCircle2 className="h-4 w-4 text-[#1f8f47]" />
+                            <span className="text-sm font-medium text-[#1f6e38]">
+                              {metaStatusInfo.displayPhoneNumber
+                                ? `${metaStatusInfo.verifiedName || 'Conectado'} · ${metaStatusInfo.displayPhoneNumber}`
+                                : 'Conectado'}
+                            </span>
+                            {metaStatusInfo.qualityRating && (
+                              <Badge className="rounded-full border-[#cde8d9] bg-white text-[#2a7a50] text-[10px] px-2">
+                                {metaStatusInfo.qualityRating}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+
+                        {metaStatus === 'error' && (
+                          <div className="flex items-center gap-2 rounded-xl border border-[#f2d4d8] bg-[#fff3f5] px-3 py-1.5">
+                            <WifiOff className="h-4 w-4 text-[#b2374b]" />
+                            <span className="text-sm text-[#8c2535]">{metaStatusInfo.error || 'Credenciais invalidas'}</span>
+                          </div>
+                        )}
                       </div>
-                    </>
+
+                      {/* Webhook info (shown after test or always when credentials filled) */}
+                      {(metaStatus === 'connected' || metaStatus === 'error') && metaStatusInfo.webhookUrl && (
+                        <div className="rounded-2xl border border-[#e8e8ef] bg-[#f5f5fa] p-4 space-y-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8b8b92]">Configure no painel Meta Developer</p>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-[#5a5a62]">URL do Webhook</Label>
+                            <div className="flex gap-2">
+                              <Input readOnly value={metaStatusInfo.webhookUrl} className="h-9 rounded-xl border-[#dcdce4] bg-white text-xs font-mono text-[#3a3a42]" />
+                              <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-xl border-[#dcdce4]" onClick={() => copyToClipboard(metaStatusInfo.webhookUrl!, 'URL do Webhook')}>
+                                <Copy className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                          {metaStatusInfo.verifyToken && (
+                            <div className="space-y-2">
+                              <Label className="text-xs text-[#5a5a62]">Verify Token</Label>
+                              <div className="flex gap-2">
+                                <Input readOnly value={metaStatusInfo.verifyToken} className="h-9 rounded-xl border-[#dcdce4] bg-white text-xs font-mono text-[#3a3a42]" />
+                                <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-xl border-[#dcdce4]" onClick={() => copyToClipboard(metaStatusInfo.verifyToken!, 'Verify Token')}>
+                                  <Copy className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                          <p className="text-[11px] text-[#8b8b92]">No Meta for Developers: App → WhatsApp → Configuracao → Webhooks → Editar → cole a URL e o Verify Token → Verificar → ative o campo <strong>messages</strong>.</p>
+                        </div>
+                      )}
+
+                      {/* APP_SECRET warning — required for delivery receipts */}
+                      <div className="rounded-2xl border border-[#f5c842]/60 bg-[#fffbeb] p-4 space-y-2">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="h-4 w-4 shrink-0 text-[#d97706] mt-0.5" />
+                          <p className="text-xs font-semibold text-[#92400e]">Recibos de entrega desativados sem o App Secret</p>
+                        </div>
+                        <p className="text-[11px] text-[#78350f] leading-relaxed">
+                          Para receber confirmacoes de entrega e leitura das mensagens, configure o segredo do app Meta como variavel de ambiente no Supabase:
+                        </p>
+                        <ol className="text-[11px] text-[#78350f] space-y-1 list-none">
+                          {[
+                            'No Meta for Developers: App → Configuracoes → Basico → copie o "Segredo do Aplicativo".',
+                            'No Supabase: Settings → Edge Functions → Secrets → + Add secret.',
+                            'Nome: META_WHATSAPP_APP_SECRET  |  Valor: (o segredo copiado)',
+                            'Salve. Os status "Entregue" e "Lido" passarao a aparecer no painel.',
+                          ].map((step, i) => (
+                            <li key={i} className="flex gap-2">
+                              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#fde68a] text-[9px] font-bold text-[#92400e]">{i + 1}</span>
+                              <span>{step}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+
+                      {/* Setup guide toggle */}
+                      <button
+                        type="button"
+                        onClick={() => setShowMetaGuide((v) => !v)}
+                        className="flex items-center gap-1.5 text-xs text-[#6060c8] hover:text-[#4040a8] font-medium"
+                      >
+                        {showMetaGuide ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        {showMetaGuide ? 'Ocultar guia de configuracao' : 'Como obter as credenciais Meta?'}
+                      </button>
+
+                      {showMetaGuide && (
+                        <div className="rounded-2xl border border-[#e4e4f0] bg-[#f8f8fd] p-4 text-sm text-[#44444c] space-y-3">
+                          <p className="font-semibold text-[#1A1A1A]">Passo a passo — Meta WhatsApp Cloud API</p>
+                          <ol className="space-y-2 list-none">
+                            {[
+                              'Acesse developers.facebook.com e crie um App do tipo "Business".',
+                              'No app, va em "WhatsApp" → "Configuracao" e adicione um numero de telefone (pode ser o numero real da empresa).',
+                              'Copie o "Phone Number ID" que aparece na pagina de configuracao — cole no campo acima.',
+                              'Gere um Token de Acesso Permanente: va em "Configuracoes do Sistema" → "Usuarios do Sistema" → adicione um usuario com permissao de administrador → gere o token com escopo "whatsapp_business_messaging".',
+                              'Cole o token permanente no campo "Meta Access Token" acima.',
+                              'Clique em "Testar conexao" para validar. Se der OK, salve as integracoes.',
+                              'Depois de salvar, clique novamente em "Testar conexao" para ver a URL do Webhook e o Verify Token.',
+                              'No painel Meta: WhatsApp → Configuracao → Webhooks → Editar → cole a URL e o Verify Token → ative o campo "messages".',
+                            ].map((step, i) => (
+                              <li key={i} className="flex gap-2.5">
+                                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#e8e8f8] text-[10px] font-bold text-[#5050b0]">{i + 1}</span>
+                                <span className="leading-relaxed">{step}</span>
+                              </li>
+                            ))}
+                          </ol>
+                          <p className="text-xs text-[#8b8b92] pt-1">O custo de mensagens e cobrado diretamente pela Meta. As primeiras 1.000 conversas por mes sao gratuitas.</p>
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <>
                       <div className="space-y-2">
@@ -1084,10 +1277,10 @@ const Settings = () => {
                     <Bot className="h-5 w-5 text-[#EF3333]" />
                     Chaves de API de IA
                   </h3>
-                  <p className="mt-1 text-sm text-[#6d6d75]">Conecte ate 2 provedores de IA. O custo das APIs e cobrado diretamente pelos provedores — voce tem controle total. Configure sua chave Firecrawl na aba Integracoes.</p>
+                  <p className="mt-1 text-sm text-[#6d6d75]">Conecte quantos provedores de IA quiser. O custo das APIs e cobrado diretamente pelos provedores — voce tem controle total. Configure sua chave Firecrawl na aba Integracoes.</p>
                 </div>
                 <Badge variant="outline" className="rounded-full border-[#f2d4d8] bg-[#fff3f5] text-[#9b2a3d]">
-                  {apiKeys.length}/{MAX_AI_KEYS} conectadas
+                  {apiKeys.length} conectada{apiKeys.length !== 1 ? 's' : ''}
                 </Badge>
               </div>
 
@@ -1131,10 +1324,6 @@ const Settings = () => {
                       placeholder="Ex: Together, Anthropic API..."
                     />
                   </div>
-                )}
-
-                {limitReachedForNewProvider && (
-                  <p className="mt-3 text-xs text-[#bc374e]">Limite de 2 provedores atingido. Remova um para adicionar outro.</p>
                 )}
 
                 <div className="mt-4 flex flex-wrap items-center gap-3">

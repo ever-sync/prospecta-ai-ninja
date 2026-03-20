@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, Image, Link2, MessageSquare, Mail, Loader2, FileText, Mic, Square, Volume2, Pencil, ClipboardList } from 'lucide-react';
+import { Plus, Trash2, Save, Image, Link2, MessageSquare, Mail, Loader2, FileText, Mic, Square, Volume2, Pencil, ClipboardList, Send, CheckCircle2, Clock, XCircle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,6 +34,10 @@ interface Template {
   cta_trigger: string | null;
   is_active: boolean;
   created_at: string;
+  meta_template_name: string | null;
+  meta_template_status: string;
+  meta_template_language: string;
+  meta_variable_order: string[] | null;
 }
 
 const LEAD_VARIABLES = [
@@ -105,6 +109,11 @@ const TemplatesManager = () => {
   const [sendingTest, setSendingTest] = useState(false);
   const [audioRef] = useState<{ current: HTMLAudioElement | null }>({ current: null });
   const [myProfile, setMyProfile] = useState<{ company_name: string | null; phone: string | null; email: string | null } | null>(null);
+  const [formMetaTemplateName, setFormMetaTemplateName] = useState('');
+  const [submittingMeta, setSubmittingMeta] = useState(false);
+  const [checkingMeta, setCheckingMeta] = useState(false);
+  const [metaPreview, setMetaPreview] = useState<{ metaBody: string; variableOrder: string[] } | null>(null);
+  const [showMetaSection, setShowMetaSection] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -169,6 +178,9 @@ const TemplatesManager = () => {
     setFormIsActive(true);
     setFormSchema(defaultFormSchema());
     setFormSchemaId(null);
+    setFormMetaTemplateName('');
+    setMetaPreview(null);
+    setShowMetaSection(false);
     setShowEditor(true);
   };
 
@@ -188,6 +200,9 @@ const TemplatesManager = () => {
     setFormCampaignObjective(t.campaign_objective || '');
     setFormCtaTrigger(t.cta_trigger || '');
     setFormIsActive(t.is_active ?? true);
+    setFormMetaTemplateName(t.meta_template_name || '');
+    setMetaPreview(null);
+    setShowMetaSection(false);
     if (t.channel === 'formulario') {
       const { data } = await supabase.from('form_schemas').select('*').eq('template_id', t.id).maybeSingle();
       if (data) {
@@ -300,6 +315,68 @@ const TemplatesManager = () => {
       setTemplates((prev) => prev.filter((t) => t.id !== id));
       toast({ title: 'Template exclu?do' });
     }
+  };
+
+  const getMetaStatusBadge = (status: string) => {
+    if (status === 'approved') return { label: 'Aprovado', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <CheckCircle2 className="h-3 w-3" /> };
+    if (status === 'pending') return { label: 'Pendente', color: 'bg-amber-50 text-amber-700 border-amber-200', icon: <Clock className="h-3 w-3" /> };
+    if (status === 'rejected') return { label: 'Rejeitado', color: 'bg-red-50 text-red-700 border-red-200', icon: <XCircle className="h-3 w-3" /> };
+    if (status === 'disabled' || status === 'paused') return { label: status === 'paused' ? 'Pausado' : 'Desativado', color: 'bg-orange-50 text-orange-700 border-orange-200', icon: <XCircle className="h-3 w-3" /> };
+    if (status === 'in_appeal') return { label: 'Em Recurso', color: 'bg-purple-50 text-purple-700 border-purple-200', icon: <Clock className="h-3 w-3" /> };
+    return null; // not_submitted — don't show badge
+  };
+
+  const handleMetaPreview = async () => {
+    if (!editingTemplate) return;
+    const { data, error } = await invokeEdgeFunction<{ metaBody: string; variableOrder: string[] }>('manage-meta-templates', {
+      body: { action: 'preview', template_id: editingTemplate.id },
+    });
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+    setMetaPreview(data || null);
+  };
+
+  const handleSubmitMetaTemplate = async () => {
+    if (!editingTemplate) return;
+
+    // Meta policy: MARKETING templates must include an opt-out instruction.
+    // Templates without it are typically rejected. Warn the user before submitting.
+    const bodyNorm = (formBody || editingTemplate.body || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const hasOptOut = /parar|stop|cancelar|descadastrar|nao receber|nao quero|remover/.test(bodyNorm);
+
+    if (!hasOptOut) {
+      toast({
+        title: 'Opt-out obrigatório',
+        description: 'Adicione uma instrução de opt-out no corpo do template (ex: "Responda PARAR para não receber mais"). A Meta rejeita templates MARKETING sem ela.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSubmittingMeta(true);
+    const { data, error } = await invokeEdgeFunction<{ success: boolean; status: string; metaBody: string; variableOrder: string[]; error?: string }>('manage-meta-templates', {
+      body: { action: 'submit', template_id: editingTemplate.id, template_name: formMetaTemplateName || undefined },
+    });
+    setSubmittingMeta(false);
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+    if (!data?.success) { toast({ title: 'Erro da Meta', description: data?.error || 'Falha ao submeter template.', variant: 'destructive' }); return; }
+    toast({ title: 'Template submetido!', description: `Status: ${data.status}. A Meta pode levar horas para aprovar.` });
+    fetchTemplates();
+  };
+
+  const handleCheckMetaStatus = async () => {
+    if (!editingTemplate) return;
+    setCheckingMeta(true);
+    const { data, error } = await invokeEdgeFunction<{ success: boolean; status: string; error?: string }>('manage-meta-templates', {
+      body: { action: 'check', template_id: editingTemplate.id },
+    });
+    setCheckingMeta(false);
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+    if (!data?.success) { toast({ title: 'Erro', description: data?.error, variant: 'destructive' }); return; }
+    toast({ title: 'Status atualizado', description: `Status atual: ${data.status}` });
+    fetchTemplates();
   };
 
   const handleOptimizeVariants = async () => {
@@ -492,6 +569,14 @@ const TemplatesManager = () => {
                       Audio
                     </Badge>
                   )}
+                  {t.channel === 'whatsapp' && (() => {
+                    const mb = getMetaStatusBadge(t.meta_template_status);
+                    return mb ? (
+                      <Badge variant="outline" className={`shrink-0 rounded-full text-xs flex items-center gap-1 border ${mb.color}`}>
+                        {mb.icon}{mb.label}
+                      </Badge>
+                    ) : null;
+                  })()}
                 </div>
                 {t.subject && <p className="mb-1 text-xs text-[#6d6d75]">Assunto: {t.subject}</p>}
                 {(t.target_persona || t.campaign_objective) && (
@@ -829,11 +914,113 @@ const TemplatesManager = () => {
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label className="text-sm">Pr?-visualiza??o</Label>
+                  <Label className="text-sm">Pré-visualização</Label>
                   <Card className="rounded-xl border border-[#ececf0] bg-[#fafafd] p-4">
                     <p className="whitespace-pre-wrap text-sm text-[#1A1A1A]">{getPreviewText()}</p>
                   </Card>
                 </div>
+
+                {formChannel === 'whatsapp' && editingTemplate && (
+                  <div className="rounded-xl border border-[#e0e7f0] bg-[#f7f9ff] overflow-hidden">
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold text-[#2a4a7f] hover:bg-[#edf2ff] transition-colors"
+                      onClick={() => setShowMetaSection((v) => !v)}
+                    >
+                      <span className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-[#25D366]" />
+                        Aprovação Meta (API Oficial)
+                        {(() => {
+                          const mb = getMetaStatusBadge(editingTemplate.meta_template_status);
+                          return mb ? (
+                            <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mb.color}`}>
+                              {mb.icon}{mb.label}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full border border-[#d5dce8] bg-[#eef1f7] px-2 py-0.5 text-[10px] font-semibold text-[#5f6d87]">
+                              Não submetido
+                            </span>
+                          );
+                        })()}
+                      </span>
+                      {showMetaSection ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+
+                    {showMetaSection && (
+                      <div className="space-y-3 border-t border-[#e0e7f0] p-4">
+                        <p className="text-xs text-[#5f6d87]">
+                          Templates precisam ser aprovados pela Meta para campanhas de envio frio (cold outreach).
+                          Após aprovação, o envio usará automaticamente o formato de template.
+                        </p>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-[#5f6d87]">Nome do template (snake_case, único por WABA)</Label>
+                          <Input
+                            className="h-9 rounded-lg border-[#d5dce8] bg-white text-sm focus-visible:ring-[#3b82f6]"
+                            value={formMetaTemplateName}
+                            onChange={(e) => setFormMetaTemplateName(e.target.value)}
+                            placeholder="ex: proposta_restaurantes_v1"
+                          />
+                          <p className="text-[10px] text-[#8a8a92]">Deixe em branco para gerar automaticamente a partir do nome do template.</p>
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 rounded-lg border-[#d5dce8] bg-white text-xs text-[#3b5ea6] hover:bg-[#edf2ff]"
+                          onClick={handleMetaPreview}
+                        >
+                          Pré-visualizar formato Meta (&#123;&#123;1&#125;&#125;, &#123;&#123;2&#125;&#125;...)
+                        </Button>
+
+                        {metaPreview && (
+                          <div className="rounded-lg border border-[#d5dce8] bg-white p-3 space-y-1.5">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-[#8a8a92]">Corpo no formato Meta</p>
+                            <p className="whitespace-pre-wrap text-sm text-[#1A1A1A] font-mono">{metaPreview.metaBody}</p>
+                            {metaPreview.variableOrder.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {metaPreview.variableOrder.map((v, i) => (
+                                  <span key={v} className="rounded-md border border-[#d5dce8] bg-[#f0f4ff] px-2 py-0.5 text-[10px] font-mono text-[#3b5ea6]">
+                                    {`{{${i + 1}}}`} = {v}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-9 rounded-lg bg-[#25D366] text-white hover:bg-[#1da955] gap-1.5"
+                            onClick={handleSubmitMetaTemplate}
+                            disabled={submittingMeta}
+                          >
+                            {submittingMeta ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                            {editingTemplate.meta_template_status === 'not_submitted' || !editingTemplate.meta_template_status
+                              ? 'Enviar para aprovação'
+                              : 'Reenviar'}
+                          </Button>
+                          {editingTemplate.meta_template_status && editingTemplate.meta_template_status !== 'not_submitted' && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-9 rounded-lg border-[#d5dce8] bg-white text-[#3b5ea6] hover:bg-[#edf2ff] gap-1.5"
+                              onClick={handleCheckMetaStatus}
+                              disabled={checkingMeta}
+                            >
+                              {checkingMeta ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                              Verificar status
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>

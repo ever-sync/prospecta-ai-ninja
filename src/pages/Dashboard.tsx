@@ -907,8 +907,8 @@ const Dashboard = () => {
         </motion.div>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1.04fr_0.96fr]">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, duration: 0.3 }}>
+      <div className="grid gap-5">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, duration: 0.3 }} className="hidden">
           <Card className="rounded-[28px] border border-[#ececf0] bg-white shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
             <CardHeader className="pb-4">
               <div className="flex items-start justify-between gap-4">

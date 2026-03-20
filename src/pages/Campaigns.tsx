@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Megaphone, Plus, Trash2, Send, Clock, Loader2, Calendar, CheckCircle2, BarChart3, Pencil, Eye, RefreshCw } from 'lucide-react';
+import { Megaphone, Plus, Trash2, Send, Clock, Loader2, Calendar, CheckCircle2, BarChart3, Pencil, Eye, RefreshCw, CheckCheck, BookOpen, XCircle, AlertTriangle } from 'lucide-react';
 import CampaignPreviewDialog from '@/components/CampaignPreviewDialog';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,9 @@ interface Campaign {
   created_at: string;
   total: number;
   sent_count: number;
+  delivered_count: number;
+  read_count: number;
+  failed_count: number;
   accepted: number;
   rejected: number;
   views: number;
@@ -169,6 +172,8 @@ const Campaigns = () => {
   const [availablePresentations, setAvailablePresentations] = useState<PresentationOption[]>([]);
   const [selectedPresentationIds, setSelectedPresentationIds] = useState<Set<string>>(new Set());
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
+  const [failuresCampaignId, setFailuresCampaignId] = useState<string | null>(null);
+  const [failureRows, setFailureRows] = useState<{ business_name: string; business_phone: string; error_reason: string }[]>([]);
 
   // Preview state
   const [previewLeads, setPreviewLeads] = useState<PreviewLead[]>([]);
@@ -220,10 +225,10 @@ const Campaigns = () => {
     for (const c of campaignRows) {
       const { data: cpRows } = await supabase
         .from('campaign_presentations')
-        .select('presentation_id, send_status')
+        .select('presentation_id, send_status, delivery_status')
         .eq('campaign_id', c.id);
 
-      const presentationIds = (cpRows || []).map(r => r.presentation_id);
+      const presentationIds = (cpRows || []).map((r: any) => r.presentation_id);
       let accepted = 0;
       let rejected = 0;
 
@@ -242,6 +247,7 @@ const Campaigns = () => {
         .eq('campaign_id', c.id)
         .eq('event_type', 'opened');
 
+      const rows = (cpRows || []) as any[];
       enriched.push({
         id: c.id,
         name: c.name,
@@ -252,8 +258,11 @@ const Campaigns = () => {
         scheduled_at: c.scheduled_at,
         sent_at: c.sent_at,
         created_at: c.created_at,
-        total: cpRows?.length || 0,
-        sent_count: (cpRows || []).filter(r => r.send_status === 'sent').length,
+        total: rows.length,
+        sent_count: rows.filter(r => r.send_status === 'sent').length,
+        delivered_count: rows.filter(r => r.delivery_status === 'delivered' || r.delivery_status === 'read').length,
+        read_count: rows.filter(r => r.delivery_status === 'read').length,
+        failed_count: rows.filter(r => r.send_status === 'failed').length,
         accepted,
         rejected,
         views: viewsCount || 0,
@@ -566,10 +575,17 @@ const Campaigns = () => {
 
         if (!apiError && apiData?.mode === 'api') {
           handledByApi = true;
-          toast({
-            title: 'Envio API concluido',
-            description: `${apiData?.sent || 0} enviados, ${apiData?.failed || 0} falhas.`,
-          });
+          const sent = apiData?.sent || 0;
+          const failed = apiData?.failed || 0;
+          if (failed === 0) {
+            toast({ title: 'Envio concluído', description: `${sent} mensagem(ns) enviada(s) com sucesso.` });
+          } else {
+            toast({
+              title: `Envio concluído com falhas`,
+              description: `${sent} enviadas · ${failed} falharam. Veja os detalhes no card da campanha.`,
+              variant: failed > sent ? 'destructive' : 'default',
+            });
+          }
         } else if (apiError) {
           console.error('whatsapp-send-batch error, fallback manual:', apiError);
         }
@@ -722,6 +738,47 @@ const Campaigns = () => {
     }
     toast({ title: 'Follow-up executado', description: `${data?.sent || 0} mensagem(ns) enviada(s).` });
     fetchCampaigns();
+  };
+
+  const openFailures = async (campaignId: string) => {
+    // Load failed campaign_presentations joined with presentation name/phone and last attempt error
+    const { data: cpFailed } = await supabase
+      .from('campaign_presentations')
+      .select('presentation_id')
+      .eq('campaign_id', campaignId)
+      .eq('send_status', 'failed');
+
+    if (!cpFailed || cpFailed.length === 0) { setFailureRows([]); setFailuresCampaignId(campaignId); return; }
+
+    const presIds = cpFailed.map((r: any) => r.presentation_id);
+    const { data: presRows } = await supabase
+      .from('presentations')
+      .select('id, business_name, business_phone')
+      .in('id', presIds);
+
+    const { data: attemptRows } = await supabase
+      .from('campaign_message_attempts')
+      .select('presentation_id, error_reason, created_at')
+      .eq('campaign_id', campaignId)
+      .eq('status', 'failed')
+      .in('presentation_id', presIds)
+      .order('created_at', { ascending: false });
+
+    const lastErrorByPres = new Map<string, string>();
+    for (const a of (attemptRows || []) as any[]) {
+      if (!lastErrorByPres.has(a.presentation_id)) {
+        lastErrorByPres.set(a.presentation_id, a.error_reason || 'Erro desconhecido');
+      }
+    }
+
+    const rows = ((presRows || []) as any[]).map(p => ({
+      business_name: p.business_name || 'Sem nome',
+      business_phone: p.business_phone || '—',
+      error_reason: lastErrorByPres.get(p.id) || 'Erro desconhecido',
+    }));
+
+    setFailureRows(rows);
+    setFailuresCampaignId(campaignId);
   };
 
   const statusBadge = (status: string) => {
@@ -941,6 +998,63 @@ const Campaigns = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Failures Dialog */}
+      <Dialog open={!!failuresCampaignId} onOpenChange={(o) => { if (!o) setFailuresCampaignId(null); }}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto rounded-[22px] border border-[#ececf0] bg-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#1A1A1A]">
+              <AlertTriangle className="h-5 w-5 text-[#c2620a]" />
+              Falhas de Envio
+            </DialogTitle>
+            <DialogDescription>Leads que não receberam a mensagem e o motivo do erro.</DialogDescription>
+          </DialogHeader>
+          {failureRows.length === 0 ? (
+            <p className="py-6 text-center text-sm text-[#6d6d75]">Nenhuma falha registrada.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {/* Summary by error type */}
+              {(() => {
+                const counts = failureRows.reduce((acc, r) => {
+                  const key = r.error_reason;
+                  acc[key] = (acc[key] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>);
+                return (
+                  <div className="mb-3 flex flex-wrap gap-1.5">
+                    {Object.entries(counts).map(([reason, count]) => (
+                      <span key={reason} className="rounded-full border border-[#f5d8c8] bg-[#fff8f4] px-2.5 py-0.5 text-[11px] font-medium text-[#c2620a]">
+                        {count}× {reason}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })()}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Empresa</TableHead>
+                    <TableHead className="text-xs">Telefone</TableHead>
+                    <TableHead className="text-xs">Erro</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {failureRows.map((r, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-sm font-medium">{r.business_name}</TableCell>
+                      <TableCell className="text-sm text-[#6d6d75]">{r.business_phone}</TableCell>
+                      <TableCell className="text-xs text-[#c2620a]">{r.error_reason}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFailuresCampaignId(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Preview Dialog */}
       <CampaignPreviewDialog
         open={showPreview}
@@ -976,7 +1090,7 @@ const Campaigns = () => {
                   {c.description && <p className="text-sm text-[#6e6e76] mb-3">{c.description}</p>}
 
                   {/* Metrics */}
-                  <div className={`grid grid-cols-3 gap-3 ${c.channel === 'email' ? 'sm:grid-cols-6' : 'sm:grid-cols-5'}`}>
+                  <div className={`grid gap-2 ${c.channel === 'whatsapp' ? 'grid-cols-4 sm:grid-cols-7' : 'grid-cols-3 sm:grid-cols-6'}`}>
                     <div className="text-center p-2 rounded-xl bg-[#f7f7fa]">
                       <p className="text-xl font-bold text-[#1A1A1A]">{c.total}</p>
                       <p className="text-xs text-[#7b7b83]">Leads</p>
@@ -985,6 +1099,24 @@ const Campaigns = () => {
                       <p className="text-xl font-bold text-[#1A1A1A]">{c.sent_count}</p>
                       <p className="text-xs text-[#7b7b83]">Enviadas</p>
                     </div>
+                    {c.channel === 'whatsapp' && (
+                      <>
+                        <div className="text-center p-2 rounded-xl bg-[#f0faf4]">
+                          <p className="text-xl font-bold text-[#1a7a4a]">{c.delivered_count}</p>
+                          <p className="text-xs text-[#7b7b83] flex items-center justify-center gap-0.5"><CheckCheck className="w-3 h-3" /> Entregues</p>
+                        </div>
+                        <div className="text-center p-2 rounded-xl bg-[#eef5ff]">
+                          <p className="text-xl font-bold text-[#2563b0]">{c.read_count}</p>
+                          <p className="text-xs text-[#7b7b83] flex items-center justify-center gap-0.5"><BookOpen className="w-3 h-3" /> Lidas</p>
+                        </div>
+                        {c.failed_count > 0 && (
+                          <div className="text-center p-2 rounded-xl bg-[#fff5f0]">
+                            <p className="text-xl font-bold text-[#c2620a]">{c.failed_count}</p>
+                            <p className="text-xs text-[#7b7b83] flex items-center justify-center gap-0.5"><XCircle className="w-3 h-3" /> Falhas</p>
+                          </div>
+                        )}
+                      </>
+                    )}
                     {c.channel === 'email' && (
                       <div className="text-center p-2 rounded-xl bg-[#f0f4ff]">
                         <p className="text-xl font-bold text-[#3b5fc2]">{c.views}</p>
@@ -994,10 +1126,6 @@ const Campaigns = () => {
                     <div className="text-center p-2 rounded-xl bg-[#fff3f5]">
                       <p className="text-xl font-bold text-[#EF3333]">{c.accepted}</p>
                       <p className="text-xs text-[#7b7b83]">Aceitas</p>
-                    </div>
-                    <div className="text-center p-2 rounded-xl bg-[#fff0f2]">
-                      <p className="text-xl font-bold text-[#c23a4f]">{c.rejected}</p>
-                      <p className="text-xs text-[#7b7b83]">Recusadas</p>
                     </div>
                     <div className="text-center p-2 rounded-xl bg-[#f7f7fa]">
                       <p className="text-xl font-bold text-[#1A1A1A]">
@@ -1040,6 +1168,12 @@ const Campaigns = () => {
                     <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#e6e6eb] hover:bg-[#f8f8fa]" onClick={() => handleRunFollowup(c.id)}>
                       <Clock className="w-3.5 h-3.5" />
                       Follow-up
+                    </Button>
+                  )}
+                  {c.failed_count > 0 && (
+                    <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#f5d8c8] bg-[#fff8f4] text-[#c2620a] hover:bg-[#fff0e6]" onClick={() => openFailures(c.id)}>
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      {c.failed_count} falha(s)
                     </Button>
                   )}
                   <Button variant="ghost" size="sm" className="h-9 rounded-xl gap-1.5 text-[#8a8a92] hover:bg-[#fff1f3] hover:text-[#bc374e]" onClick={() => handleDelete(c.id)}>

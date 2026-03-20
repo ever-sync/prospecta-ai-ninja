@@ -98,18 +98,65 @@ Deno.serve(async (req) => {
 
     const payload = rawBody ? JSON.parse(rawBody) : {};
     const statuses: any[] = [];
+    const incomingMessages: any[] = [];
 
     for (const entry of payload?.entry || []) {
       for (const change of entry?.changes || []) {
         for (const status of change?.value?.statuses || []) {
           statuses.push(status);
         }
+        for (const msg of change?.value?.messages || []) {
+          incomingMessages.push(msg);
+        }
       }
     }
 
-    if (statuses.length === 0) {
+    // Process incoming WhatsApp replies from leads
+    for (const msg of incomingMessages) {
+      const fromPhone = msg?.from as string | undefined;
+      if (!fromPhone) continue;
+
+      // Normalize: ensure starts with 55 and is 12-13 digits
+      const digits = fromPhone.replace(/\D/g, "");
+      const normalized = digits.startsWith("55") ? digits : `55${digits}`;
+
+      // Find presentation by business_phone matching this number
+      const { data: presRows } = await supabase
+        .from("presentations")
+        .select("id, user_id, status, pipeline_stage_id, business_category, analysis_data")
+        .or(`business_phone.eq.${normalized},business_phone.eq.+${normalized},business_phone.eq.${digits}`)
+        .neq("status", "responded")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      const pres = presRows?.[0];
+      if (!pres) continue;
+
+      await supabase
+        .from("presentations")
+        .update({ status: "responded" })
+        .eq("id", pres.id);
+
+      await supabase.from("message_conversion_events").insert({
+        event_type: "whatsapp_reply",
+        presentation_id: pres.id,
+        user_id: pres.user_id,
+        channel: "whatsapp",
+        pipeline_stage_id: pres.pipeline_stage_id,
+        niche: pres.business_category,
+        score_bucket: scoreBucket(pres.analysis_data),
+        source: "whatsapp_status_webhook",
+        metadata: {
+          from_phone: fromPhone,
+          message_type: msg?.type,
+          text: msg?.text?.body?.substring(0, 200),
+        },
+      });
+    }
+
+    if (statuses.length === 0 && incomingMessages.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, processed: 0, message: "No statuses in payload" }),
+        JSON.stringify({ success: true, processed: 0, message: "No statuses or messages in payload" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }

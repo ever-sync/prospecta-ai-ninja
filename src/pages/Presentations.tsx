@@ -155,12 +155,18 @@ const Presentations = () => {
     document.body.appendChild(printFrame);
   };
 
-  const handleRegenerate = async (
-    template: string,
-    tone: string,
-    customInstructions: string,
-    customColors?: { textColor: string; buttonColor: string; bgColor: string }
-  ) => {
+  const handleRegenerate = async (options: {
+    customInstructions: string;
+    responseMode: string;
+    provider?: string;
+    formSchemaId?: string;
+    formTemplateName?: string;
+    formTemplateBody?: string;
+    formSlug?: string;
+    formFields?: any[];
+    whatsappPhone?: string;
+    whatsappButtonLabel?: string;
+  }) => {
     const p = regenDialog.presentation;
     if (!p || !user) return;
 
@@ -175,6 +181,9 @@ const Presentations = () => {
         supabase.from('client_logos').select('company_name, logo_url').eq('user_id', user.id),
       ]);
 
+      const dnaData = dnaRes.data as any;
+      const profileData = profileRes.data as any;
+
       const { data: genData, error: genError } = await invokeEdgeFunction<GeneratePresentationResponse>('generate-presentation', {
         body: {
           analysis: p.analysis_data,
@@ -186,22 +195,21 @@ const Presentations = () => {
             category: p.business_category,
             rating: p.business_rating,
           },
-          dna: {
-            ...dnaRes.data,
-            ...(customColors
-              ? {
-                  custom_text_color: customColors.textColor,
-                  custom_button_color: customColors.buttonColor,
-                  custom_bg_color: customColors.bgColor,
-                }
-              : {}),
-          },
-          profile: profileRes.data,
+          dna: dnaData,
+          profile: options.whatsappPhone ? { ...profileData, phone: options.whatsappPhone } : profileData,
           testimonials: testimonialsRes.data,
           clientLogos: clientLogosRes.data,
-          template,
-          tone,
-          customInstructions,
+          template: dnaData?.presentation_template || 'modern-dark',
+          tone: dnaData?.presentation_tone || 'professional',
+          customInstructions: options.customInstructions,
+          responseMode: options.responseMode,
+          provider: options.provider,
+          formTemplateName: options.formTemplateName,
+          formTemplateBody: options.formTemplateBody,
+          formSlug: options.formSlug,
+          formSchemaId: options.formSchemaId,
+          formFields: options.formFields,
+          whatsappButtonLabel: options.whatsappButtonLabel,
           publicId: p.public_id,
         },
       });

@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
+  Cpu,
   Globe,
   Loader2,
   MapPin,
@@ -22,11 +23,22 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Business } from "@/types/business";
 import { useToast } from "@/hooks/use-toast";
 import { ApproachSuggestion } from "@/components/ApproachSuggestion";
 import { deriveLeadSignalSummary } from "@/lib/lead-scoring";
 import { getEdgeFunctionErrorMessage, invokeEdgeFunction } from "@/lib/invoke-edge-function";
+import { supabase } from "@/integrations/supabase/client";
+
+type ApiProvider = 'gemini' | 'claude_code' | 'groq' | 'openai' | 'other';
+const PROVIDER_LABELS: Record<ApiProvider, string> = {
+  gemini: 'Gemini',
+  claude_code: 'Claude (Anthropic)',
+  groq: 'Groq',
+  openai: 'OpenAI',
+  other: 'Outro',
+};
 
 interface BusinessAnalysisPanelProps {
   business: Business;
@@ -138,10 +150,29 @@ export const BusinessAnalysisPanel = ({
 }: BusinessAnalysisPanelProps) => {
   const [cache, setCache] = useState<AnalysisCache>({});
   const [loading, setLoading] = useState<string | null>(null);
+  const [apiKeys, setApiKeys] = useState<{ id: string; provider: ApiProvider; custom_provider: string | null }[]>([]);
+  const [analysisProvider, setAnalysisProvider] = useState('');
   const activeBusinessIdRef = useRef(business.id);
   const { toast } = useToast();
 
   const signal = useMemo(() => deriveLeadSignalSummary(business), [business]);
+
+  useEffect(() => {
+    const loadKeys = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('user_ai_api_keys')
+        .select('id, provider, custom_provider')
+        .eq('user_id', user.id)
+        .order('created_at');
+      if (data && data.length > 0) {
+        setApiKeys(data as any);
+        setAnalysisProvider((prev) => prev || (data as any)[0].provider);
+      }
+    };
+    loadKeys();
+  }, []);
 
   useEffect(() => {
     activeBusinessIdRef.current = business.id;
@@ -156,7 +187,7 @@ export const BusinessAnalysisPanel = ({
 
     try {
       const { data, error } = await invokeEdgeFunction<{ result?: any; error?: string }>("analyze-business", {
-        body: { business, mode },
+        body: { business, mode, provider: analysisProvider || undefined },
       });
 
       if (error) throw error;
@@ -188,7 +219,7 @@ export const BusinessAnalysisPanel = ({
       const { data, error } = await invokeEdgeFunction<{ analysis?: HeavyAnalysisData; error?: string }>(
         "deep-analyze",
         {
-          body: { business },
+          body: { business, provider: analysisProvider || undefined },
         },
       );
 
@@ -300,6 +331,30 @@ export const BusinessAnalysisPanel = ({
           </Button>
         </div>
       </div>
+
+      {apiKeys.length > 1 && (
+        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-[#ececf0] bg-[#fafafc] px-4 py-2.5">
+          <Cpu className="h-4 w-4 shrink-0 text-[#8b8b92]" />
+          <span className="text-xs font-medium text-[#6d6d75] shrink-0">Motor de IA:</span>
+          <Select value={analysisProvider} onValueChange={setAnalysisProvider}>
+            <SelectTrigger className="h-7 rounded-lg border-[#e6e6eb] bg-white text-xs px-2 py-0 w-44">
+              <SelectValue placeholder="Selecione..." />
+            </SelectTrigger>
+            <SelectContent>
+              {apiKeys.map((item) => {
+                const label = item.provider === 'other' && item.custom_provider
+                  ? item.custom_provider
+                  : PROVIDER_LABELS[item.provider];
+                return (
+                  <SelectItem key={item.id} value={item.provider} className="text-xs">
+                    {label}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <div className="rounded-[22px] border border-[#ececf0] bg-[#fafafc] p-4">

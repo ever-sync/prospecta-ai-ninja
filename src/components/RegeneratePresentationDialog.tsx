@@ -5,13 +5,23 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, RefreshCw, MessageCircle, ClipboardList } from 'lucide-react';
+import { Loader2, RefreshCw, MessageCircle, ClipboardList, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+
+type ApiProvider = 'gemini' | 'claude_code' | 'groq' | 'openai' | 'other';
+const PROVIDER_LABELS: Record<ApiProvider, string> = {
+  gemini: 'Gemini',
+  claude_code: 'Claude (Anthropic)',
+  groq: 'Groq',
+  openai: 'OpenAI',
+  other: 'Outro',
+};
 
 interface RegenOptions {
   customInstructions: string;
   responseMode: string;
+  provider?: string;
   formSchemaId?: string;
   formTemplateName?: string;
   formTemplateBody?: string;
@@ -59,9 +69,30 @@ export const RegeneratePresentationDialog = ({
   const [forms, setForms] = useState<FormSchema[]>([]);
   const [selectedFormId, setSelectedFormId] = useState('');
 
+  // Provider selection
+  const [apiKeys, setApiKeys] = useState<{ id: string; provider: ApiProvider; custom_provider: string | null }[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState('');
+
   useEffect(() => {
-    if (open) loadForms();
+    if (open) {
+      loadForms();
+      loadApiKeys();
+    }
   }, [open]);
+
+  const loadApiKeys = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from('user_ai_api_keys')
+      .select('id, provider, custom_provider')
+      .eq('user_id', user.id)
+      .order('created_at');
+    if (data && data.length > 0) {
+      setApiKeys(data as any);
+      setSelectedProvider((prev) => prev || (data as any)[0].provider);
+    }
+  };
 
   const loadForms = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -103,6 +134,7 @@ export const RegeneratePresentationDialog = ({
       await onRegenerate({
         customInstructions,
         responseMode,
+        provider: selectedProvider || undefined,
         formSchemaId: responseMode === 'form' ? selectedFormId : undefined,
         formTemplateName: responseMode === 'form' ? selectedForm?.title : undefined,
         formTemplateBody: responseMode === 'form' ? fieldLabels : undefined,
@@ -132,6 +164,33 @@ export const RegeneratePresentationDialog = ({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Provider selector */}
+          {apiKeys.length > 1 && (
+            <div className="space-y-1.5">
+              <Label className="text-sm flex items-center gap-1.5">
+                <Cpu className="w-3.5 h-3.5 text-muted-foreground" />
+                Motor de IA
+              </Label>
+              <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+                <SelectTrigger className="bg-background border-border">
+                  <SelectValue placeholder="Selecione o provedor..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {apiKeys.map((item) => {
+                    const label = item.provider === 'other' && item.custom_provider
+                      ? item.custom_provider
+                      : PROVIDER_LABELS[item.provider];
+                    return (
+                      <SelectItem key={item.id} value={item.provider}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* CTA selector */}
           <div className="space-y-2">
             <Label className="text-foreground">Call to Action</Label>

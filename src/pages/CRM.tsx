@@ -269,6 +269,7 @@ const CRM = () => {
   const handleRegenerate = async (options: {
     customInstructions: string;
     responseMode: string;
+    provider?: string;
     formSchemaId?: string;
     formTemplateName?: string;
     formTemplateBody?: string;
@@ -313,6 +314,7 @@ const CRM = () => {
           tone: (dnaRes.data as any)?.presentation_tone || 'professional',
           customInstructions: options.customInstructions,
           responseMode: options.responseMode,
+          provider: options.provider,
           formTemplateName: options.formTemplateName,
           formTemplateBody: options.formTemplateBody,
           formSlug: options.formSlug,

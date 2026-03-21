@@ -24,7 +24,6 @@ export default defineConfig(({ mode }) => ({
           if (id.includes("xlsx")) return "xlsx-vendor";
           if (id.includes("recharts")) return "charts-vendor";
           if (id.includes("framer-motion")) return "motion-vendor";
-          if (id.includes("@supabase")) return "supabase-vendor";
           if (
             id.includes("@radix-ui") ||
             id.includes("class-variance-authority") ||

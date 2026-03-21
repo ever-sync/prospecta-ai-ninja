@@ -225,6 +225,11 @@
 - Reproduced a runtime failure where `vendor-*.js` tried to access `forwardRef` from an uninitialized `react-vendor` chunk.
 - Identified the root cause as a circular dependency created by the custom `manualChunks` split between `vendor` and `react-vendor`.
 - Removed the dedicated React vendor bucket, rebuilt successfully, and added a regression test to block reintroduction of the `react-vendor` split.
+
+### 2026-03-21 - Bugfix: Supabase vendor cycle removed from Vite build
+- Reproduced a second runtime failure where `supabase-vendor-*.js` tried to read an uninitialized helper imported from `vendor-*.js`.
+- Identified the root cause as another circular dependency created by the custom `manualChunks` split between `vendor` and `supabase-vendor`.
+- Removed the dedicated Supabase vendor bucket, rebuilt successfully, and extended the regression test to block reintroduction of both `react-vendor` and `supabase-vendor`.
 - Extracted the saved-view, campaign form, add-presentations, failures, and operation-history dialogs into dedicated components under `src/components/campaigns/`.
 - Removed another large JSX block from `Campaigns.tsx`, keeping the page centered on state orchestration and dispatcher actions instead of dialog markup.
 - Re-ran the full local verification after the extraction and kept `npm test` plus `npm run build` green with the split-chunk build still healthy.

@@ -63,6 +63,7 @@ const menuItems = [
 
 const generalItems = [
   { path: '/settings', label: 'Configurações', icon: Settings },
+  { path: '/documentation', label: 'Documentação', icon: FileText },
 ];
 
 const planBadgeConfig: Record<string, { label: string; className: string }> = {
@@ -129,19 +130,19 @@ const routeMeta: Record<string, { eyebrow: string; title: string; description: s
     description: 'Configure a base de autoridade usada para personalizar cada proposta.',
   },
   '/presentations': {
-    eyebrow: 'Conte?do Comercial',
-    title: 'Apresenta??es',
+    eyebrow: 'Conteúdo Comercial',
+    title: 'Apresentações',
     description: 'Gerencie propostas prontas, respostas e próximos envios.',
   },
   '/campaigns': {
-    eyebrow: 'Orquestra??o',
+    eyebrow: 'Orquestração',
     title: 'Campanhas',
-    description: 'Ative cad?ncias e acompanhe o desempenho de disparo.',
+    description: 'Ative cadências e acompanhe o desempenho de disparo.',
   },
   '/crm': {
     eyebrow: 'Pipeline',
     title: 'CRM',
-    description: 'Organize follow-ups, fases e movimenta??o de leads.',
+    description: 'Organize follow-ups, fases e movimentação de leads.',
   },
   '/clients': {
     eyebrow: 'Carteira',
@@ -151,12 +152,17 @@ const routeMeta: Record<string, { eyebrow: string; title: string; description: s
   '/templates': {
     eyebrow: 'Playbooks',
     title: 'Templates',
-    description: 'Ajuste os assets que sustentam mensagens e formul?rios.',
+    description: 'Ajuste os assets que sustentam mensagens e formulários.',
   },
   '/settings': {
-    eyebrow: 'Configura??o',
+    eyebrow: 'Configuração',
     title: 'Ajustes da Conta',
     description: 'Controle plano, faturamento e configurações operacionais.',
+  },
+  '/documentation': {
+    eyebrow: 'Base de Conhecimento',
+    title: 'Documentação',
+    description: 'Guias operacionais, integrações e referências da plataforma.',
   },
   '/admin': {
     eyebrow: 'Controle Interno',
@@ -382,7 +388,7 @@ export const AppLayout = () => {
         };
 
         const resolved = config[item.event_type] || {
-          title: `Atualiza??o da proposta${businessName}`,
+          title: `Atualização da proposta${businessName}`,
           description: 'A plataforma registrou um novo evento nesse lead.',
           icon: Clock3,
           iconClassName: 'bg-[#f5f5f7] text-[#66666d]',
@@ -627,7 +633,7 @@ export const AppLayout = () => {
                   <div className="border-b border-[#ececf0] px-4 py-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-[#1A1A1A]">Notifica??es</p>
+                        <p className="text-sm font-semibold text-[#1A1A1A]">Notificações</p>
                         <p className="mt-0.5 text-xs text-[#7a7a82]">Propostas, respostas e envios recentes da plataforma.</p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -659,7 +665,7 @@ export const AppLayout = () => {
                         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#f5f5f7] text-[#7a7a82]">
                           <Bell className="h-5 w-5" />
                         </div>
-                        <p className="mt-4 text-sm font-semibold text-[#1A1A1A]">Nenhuma notifica??o ainda</p>
+                        <p className="mt-4 text-sm font-semibold text-[#1A1A1A]">Nenhuma notificação ainda</p>
                         <p className="mt-1 text-xs leading-5 text-[#7a7a82]">Quando a plataforma gerar, enviar, abrir ou receber resposta em propostas, tudo aparece aqui.</p>
                       </div>
                     ) : (

@@ -91,10 +91,12 @@ export type Database = {
       }
       campaigns: {
         Row: {
+          blocking_reason: string | null
           channel: string
           created_at: string | null
           description: string | null
           id: string
+          last_blocked_at: string | null
           name: string
           scheduled_at: string | null
           sent_at: string | null
@@ -104,10 +106,12 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          blocking_reason?: string | null
           channel?: string
           created_at?: string | null
           description?: string | null
           id?: string
+          last_blocked_at?: string | null
           name: string
           scheduled_at?: string | null
           sent_at?: string | null
@@ -117,10 +121,12 @@ export type Database = {
           user_id: string
         }
         Update: {
+          blocking_reason?: string | null
           channel?: string
           created_at?: string | null
           description?: string | null
           id?: string
+          last_blocked_at?: string | null
           name?: string
           scheduled_at?: string | null
           sent_at?: string | null
@@ -135,6 +141,53 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "message_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_operation_events: {
+        Row: {
+          campaign_id: string
+          channel: string
+          created_at: string
+          event_type: string
+          id: string
+          message: string | null
+          metadata: Json
+          reason_code: string | null
+          source: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id: string
+          channel?: string
+          created_at?: string
+          event_type: string
+          id?: string
+          message?: string | null
+          metadata?: Json
+          reason_code?: string | null
+          source?: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string
+          channel?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          message?: string | null
+          metadata?: Json
+          reason_code?: string | null
+          source?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_operation_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
         ]
@@ -662,43 +715,94 @@ export type Database = {
       }
       profiles: {
         Row: {
+          campaign_reply_to_email: string | null
+          campaign_sender_email: string | null
+          campaign_sender_name: string | null
+          campaign_webhook_secret: string | null
+          campaign_webhook_url: string | null
           company_logo_url: string | null
           company_name: string | null
           created_at: string | null
           document_number: string | null
           document_type: string | null
+          email_sender_domain: string | null
+          email_sender_error: string | null
+          email_sender_last_checked_at: string | null
+          email_sender_provider: string | null
+          email_sender_status: string | null
+          email_sender_verified_at: string | null
           elevenlabs_voice_id: string | null
           email: string | null
+          firecrawl_api_key: string | null
           full_name: string | null
           id: string
           phone: string | null
+          proposal_link_domain: string | null
           user_id: string
+          whatsapp_business_account_id: string | null
+          whatsapp_connection_type: string | null
+          whatsapp_official_access_token: string | null
+          whatsapp_official_phone_number_id: string | null
         }
         Insert: {
+          campaign_reply_to_email?: string | null
+          campaign_sender_email?: string | null
+          campaign_sender_name?: string | null
+          campaign_webhook_secret?: string | null
+          campaign_webhook_url?: string | null
           company_logo_url?: string | null
           company_name?: string | null
           created_at?: string | null
           document_number?: string | null
           document_type?: string | null
+          email_sender_domain?: string | null
+          email_sender_error?: string | null
+          email_sender_last_checked_at?: string | null
+          email_sender_provider?: string | null
+          email_sender_status?: string | null
+          email_sender_verified_at?: string | null
           elevenlabs_voice_id?: string | null
           email?: string | null
+          firecrawl_api_key?: string | null
           full_name?: string | null
           id?: string
           phone?: string | null
+          proposal_link_domain?: string | null
           user_id: string
+          whatsapp_business_account_id?: string | null
+          whatsapp_connection_type?: string | null
+          whatsapp_official_access_token?: string | null
+          whatsapp_official_phone_number_id?: string | null
         }
         Update: {
+          campaign_reply_to_email?: string | null
+          campaign_sender_email?: string | null
+          campaign_sender_name?: string | null
+          campaign_webhook_secret?: string | null
+          campaign_webhook_url?: string | null
           company_logo_url?: string | null
           company_name?: string | null
           created_at?: string | null
           document_number?: string | null
           document_type?: string | null
+          email_sender_domain?: string | null
+          email_sender_error?: string | null
+          email_sender_last_checked_at?: string | null
+          email_sender_provider?: string | null
+          email_sender_status?: string | null
+          email_sender_verified_at?: string | null
           elevenlabs_voice_id?: string | null
           email?: string | null
+          firecrawl_api_key?: string | null
           full_name?: string | null
           id?: string
           phone?: string | null
+          proposal_link_domain?: string | null
           user_id?: string
+          whatsapp_business_account_id?: string | null
+          whatsapp_connection_type?: string | null
+          whatsapp_official_access_token?: string | null
+          whatsapp_official_phone_number_id?: string | null
         }
         Relationships: []
       }

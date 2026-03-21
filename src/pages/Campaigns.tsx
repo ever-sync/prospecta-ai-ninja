@@ -1,26 +1,36 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Megaphone, Plus, Trash2, Send, Clock, Loader2, Calendar, CheckCircle2, BarChart3, Pencil, Eye, RefreshCw, CheckCheck, BookOpen, XCircle, AlertTriangle } from 'lucide-react';
+import { BookOpen, Loader2, Megaphone, Plus } from 'lucide-react';
 import CampaignPreviewDialog from '@/components/CampaignPreviewDialog';
+import { CampaignAddPresentationsDialog } from '@/components/campaigns/CampaignAddPresentationsDialog';
+import { CampaignCard } from '@/components/campaigns/CampaignCard';
+import { CampaignFiltersToolbar } from '@/components/campaigns/CampaignFiltersToolbar';
+import { CampaignFailuresDialog } from '@/components/campaigns/CampaignFailuresDialog';
+import { CampaignFormDialog } from '@/components/campaigns/CampaignFormDialog';
+import { CampaignOperationHistoryDialog } from '@/components/campaigns/CampaignOperationHistoryDialog';
+import { CampaignSavedViewDialog } from '@/components/campaigns/CampaignSavedViewDialog';
+import { CampaignSummaryCards } from '@/components/campaigns/CampaignSummaryCards';
+import { CampaignUrgentPanel } from '@/components/campaigns/CampaignUrgentPanel';
+import { CampaignViewsCard } from '@/components/campaigns/CampaignViewsCard';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { buildCRMHref } from '@/lib/crm/deriveLeadState';
-import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
+import { buildCampaignWebhookPayload } from '../../supabase/functions/_shared/campaign-webhook.js';
+import { getCampaignDispatchTarget, isDispatchableCampaignChannel } from '../../supabase/functions/_shared/campaign-routing.js';
+import { pickVariantForLead, scoreBucket } from '../../supabase/functions/_shared/campaign-variants.js';
+import { getEdgeFunctionErrorMessage, invokeEdgeFunction } from '@/lib/invoke-edge-function';
+import { buildCampaignSavedView, getDefaultCampaignSavedViews, isCampaignSavedViewActive, moveCampaignSavedView, normalizeCampaignSavedViewName, parseCampaignSavedViews, upsertCampaignSavedView } from '@/lib/campaigns/saved-views';
 import { useNavigate } from 'react-router-dom';
 
 interface Campaign {
+  blocking_reason?: string | null;
   id: string;
+  last_blocked_at?: string | null;
+  latest_operation_event?: CampaignOperationEventRow | null;
   name: string;
   description: string;
   status: string;
@@ -39,12 +49,59 @@ interface Campaign {
   views: number;
 }
 
+type EmailProfileStatus = {
+  campaign_sender_email: string | null;
+  email_sender_status: string | null;
+  email_sender_error: string | null;
+};
+
+type EmailSenderConfig = {
+  senderEmail: string;
+  status: 'not_configured' | 'pending' | 'ready' | 'blocked';
+  error: string;
+};
+
+type CampaignChannelConfig = {
+  webhookReady: boolean;
+  whatsAppOfficialReady: boolean;
+};
+
+type CampaignViewFilter = 'all' | 'attention' | 'completed';
+type CampaignChannelFilter = 'all' | 'whatsapp' | 'email' | 'webhook';
+type CampaignStatusFilter = 'all' | 'draft' | 'scheduled' | 'sending' | 'sent' | 'cancelled';
+type CampaignSortOption = 'priority' | 'recent' | 'oldest' | 'leads' | 'conversion';
+type CampaignFilterSnapshot = {
+  view: CampaignViewFilter;
+  channel: CampaignChannelFilter;
+  status: CampaignStatusFilter;
+  search: string;
+  sort: CampaignSortOption;
+};
+
 interface PresentationOption {
   id: string;
   public_id: string;
   business_name: string;
   business_phone: string;
   lead_response: string;
+}
+
+interface CampaignOperationEventRow {
+  campaign_id?: string;
+  id: string;
+  created_at: string;
+  event_type: string;
+  source: string;
+  reason_code?: string | null;
+  message?: string | null;
+  metadata?: any;
+}
+
+interface CampaignSavedView {
+  id: string;
+  name: string;
+  created_at: string;
+  filters: CampaignFilterSnapshot;
 }
 
 interface TemplateRow {
@@ -78,9 +135,44 @@ interface PreviewLead {
   subject?: string;
   templateId?: string | null;
   variantId?: string | null;
+  webhookPayloadPreview?: string;
 }
 
 const HYBRID_API_THRESHOLD = 15;
+const CAMPAIGN_FILTERS_STORAGE_KEY = 'campaigns:list-filters';
+const CAMPAIGN_SAVED_VIEWS_STORAGE_KEY = 'campaigns:saved-views';
+
+const readStoredCampaignFilters = (): {
+  view: CampaignViewFilter;
+  channel: CampaignChannelFilter;
+  status: CampaignStatusFilter;
+  search: string;
+  sort: CampaignSortOption;
+} => {
+  if (typeof window === 'undefined') {
+    return { view: 'all', channel: 'all', status: 'all', search: '', sort: 'priority' };
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CAMPAIGN_FILTERS_STORAGE_KEY);
+    if (!raw) return { view: 'all', channel: 'all', status: 'all', search: '', sort: 'priority' };
+    const parsed = JSON.parse(raw);
+    return {
+      view: parsed?.view || 'all',
+      channel: parsed?.channel || 'all',
+      status: parsed?.status || 'all',
+      search: parsed?.search || '',
+      sort: parsed?.sort || 'priority',
+    };
+  } catch {
+    return { view: 'all', channel: 'all', status: 'all', search: '', sort: 'priority' };
+  }
+};
+
+const readStoredCampaignSavedViews = (): CampaignSavedView[] => {
+  if (typeof window === 'undefined') return [];
+  return parseCampaignSavedViews(window.localStorage.getItem(CAMPAIGN_SAVED_VIEWS_STORAGE_KEY)) as CampaignSavedView[];
+};
 
 const resolvePublicBaseOrigin = (domain?: string | null) => {
   const fallback = 'https://envpro.com.br';
@@ -90,75 +182,344 @@ const resolvePublicBaseOrigin = (domain?: string | null) => {
   return `https://${value}`;
 };
 
-const scoreBucket = (analysisData: any): 'low' | 'medium' | 'high' | 'unknown' => {
-  const score = analysisData?.scores?.overall;
-  if (typeof score !== 'number') return 'unknown';
-  if (score < 40) return 'low';
-  if (score < 70) return 'medium';
-  return 'high';
-};
-
-const normalizeText = (value?: string | null) =>
-  (value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-
-const variantPriorityScore = (
-  variant: TemplateRow,
-  lead: Pick<PreviewLead, 'business_category' | 'analysis_data'>
-) => {
-  const persona = normalizeText(variant.target_persona);
-  const objective = normalizeText(variant.campaign_objective);
-  const trigger = normalizeText(variant.cta_trigger);
-  const leadCategory = normalizeText(lead.business_category);
-  const bucket = scoreBucket(lead.analysis_data);
-
-  let score = 0;
-  if (persona) {
-    if (leadCategory && persona.includes(leadCategory)) score += 4;
-    if (persona.includes(bucket) || persona.includes(`score:${bucket}`)) score += 4;
-  }
-  if (objective.includes('recuperar') && bucket === 'low') score += 1;
-  if (objective.includes('escala') && bucket === 'high') score += 1;
-  if (trigger.includes('urgencia') && bucket !== 'high') score += 1;
-  if (trigger.includes('prova social') && bucket === 'medium') score += 1;
-  return score;
-};
-
-const pickVariantForLead = (
-  lead: Pick<PreviewLead, 'id' | 'business_category' | 'analysis_data'>,
-  variants: TemplateRow[],
-  fallback: TemplateRow | null
-) => {
-  if (variants.length === 0) return fallback;
-  if (variants.length === 1) return variants[0];
-
-  const scored = variants.map((variant) => ({
-    variant,
-    score: variantPriorityScore(variant, lead),
-  }));
-
-  const topScore = Math.max(...scored.map(row => row.score));
-  const top = scored.filter(row => row.score === topScore).map(row => row.variant);
-  return top[hashToIndex(lead.id, top.length)] || fallback;
-};
-
-const hashToIndex = (value: string, max: number) => {
-  if (max <= 1) return 0;
-  let hash = 0;
-  for (let i = 0; i < value.length; i++) {
-    hash = (hash << 5) - hash + value.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash) % max;
-};
-
 const plusDaysIso = (days: number) => {
   const d = new Date();
   d.setDate(d.getDate() + days);
   return d.toISOString();
 };
+
+const formatFailureReason = (reason?: string | null) => {
+  switch (reason) {
+    case 'missing_business_email':
+      return 'Lead sem email comercial cadastrado';
+    case 'email_sender_not_ready':
+      return 'Remetente do cliente ainda nao validado no Resend';
+    case 'missing_meta_credentials':
+      return 'Credenciais da Meta ausentes';
+    case 'missing_webhook_target':
+      return 'Webhook da campanha nao configurado';
+    case 'invalid_phone':
+      return 'Telefone invalido para WhatsApp';
+    default:
+      return reason || 'Erro desconhecido';
+  }
+};
+
+const formatBlockingReason = (reason?: string | null) => {
+  switch (reason) {
+    case 'email-sender-not-ready':
+      return 'Campanha cancelada porque o remetente do cliente ainda nao estava validado.';
+    case 'missing-meta-credentials':
+      return 'Campanha cancelada porque a Meta oficial nao estava configurada para o WhatsApp.';
+    case 'missing-webhook-target':
+      return 'Campanha cancelada porque o webhook da campanha nao estava configurado.';
+    case 'unsupported-channel':
+      return 'Campanha cancelada porque o canal nao e suportado pelo dispatcher.';
+    default:
+      return reason || 'Campanha cancelada sem motivo operacional registrado.';
+  }
+};
+
+const formatOperationEventType = (eventType: string) => {
+  switch (eventType) {
+    case 'blocked':
+      return 'Bloqueio';
+    case 'cancelled':
+      return 'Cancelamento';
+    case 'dispatch_failed':
+      return 'Falha operacional';
+    case 'dispatch_completed':
+      return 'Envio concluido';
+    case 'manual_action':
+      return 'Acao manual';
+    default:
+      return eventType;
+  }
+};
+
+const formatOperationReason = (reason?: string | null) => {
+  switch (reason) {
+    case 'email-sender-not-ready':
+      return 'Remetente do cliente ainda nao validado';
+    case 'missing-meta-credentials':
+      return 'Meta oficial incompleta';
+    case 'missing-webhook-target':
+      return 'Webhook nao configurado';
+    case 'unsupported-channel':
+      return 'Canal nao suportado';
+    case 'plan-limit-emails':
+      return 'Limite do plano para email atingido';
+    case 'dispatch-error':
+      return 'Falha ao acionar o dispatcher';
+    case 'manual-resend':
+      return 'Campanha resetada para reenvio';
+    default:
+      return reason || 'Sem codigo operacional';
+  }
+};
+
+const summarizeOperationEvent = (row?: CampaignOperationEventRow | null) => {
+  if (!row) return '';
+  return row.message || formatOperationReason(row.reason_code);
+};
+
+const getOperationEventTone = (row?: CampaignOperationEventRow | null) => {
+  if (!row) return 'neutral' as const;
+  if (row.event_type === 'dispatch_completed') return 'success' as const;
+  if (row.event_type === 'manual_action') return 'neutral' as const;
+  return 'attention' as const;
+};
+
+const operationEventBadgeClass = (tone: 'success' | 'attention' | 'neutral') => {
+  if (tone === 'success') return 'rounded-full border-[#cde8d9] bg-[#f0faf4] text-[#2d7a4a]';
+  if (tone === 'attention') return 'rounded-full border-[#f5d8c8] bg-[#fff8f4] text-[#c2620a]';
+  return 'rounded-full border-[#e6e6eb] bg-[#fafafd] text-[#7b7b83]';
+};
+
+const campaignViewFilterLabel = (value: CampaignViewFilter) => {
+  if (value === 'attention') return 'Acao necessaria';
+  if (value === 'completed') return 'Concluidas';
+  return 'Todas';
+};
+
+const campaignChannelFilterLabel = (value: CampaignChannelFilter) => {
+  if (value === 'whatsapp') return 'WhatsApp';
+  if (value === 'email') return 'Email';
+  if (value === 'webhook') return 'Webhook / n8n';
+  return 'Todos os canais';
+};
+
+const campaignStatusFilterLabel = (value: CampaignStatusFilter) => {
+  if (value === 'draft') return 'Rascunho';
+  if (value === 'scheduled') return 'Agendada';
+  if (value === 'sending') return 'Enviando';
+  if (value === 'sent') return 'Enviada';
+  if (value === 'cancelled') return 'Cancelada';
+  return 'Todos os status';
+};
+
+const campaignSortOptionLabel = (value: CampaignSortOption) => {
+  if (value === 'recent') return 'Mais recentes';
+  if (value === 'oldest') return 'Mais antigas';
+  if (value === 'leads') return 'Mais leads';
+  if (value === 'conversion') return 'Maior conversao';
+  return 'Prioridade operacional';
+};
+
+const buildSuggestedCampaignViewName = (filters: {
+  view: CampaignViewFilter;
+  channel: CampaignChannelFilter;
+  status: CampaignStatusFilter;
+  search: string;
+  sort: CampaignSortOption;
+}) => {
+  const parts: string[] = [];
+
+  if (filters.view !== 'all') parts.push(campaignViewFilterLabel(filters.view));
+  if (filters.channel !== 'all') parts.push(campaignChannelFilterLabel(filters.channel));
+  if (filters.status !== 'all') parts.push(campaignStatusFilterLabel(filters.status));
+  if (filters.sort !== 'priority') parts.push(campaignSortOptionLabel(filters.sort));
+  if (filters.search.trim()) parts.push(filters.search.trim());
+
+  return normalizeCampaignSavedViewName(parts.join(' / ') || 'Minha visao');
+};
+
+const campaignMatchesFilterSnapshot = (
+  campaign: Campaign,
+  filters: CampaignFilterSnapshot,
+  emailConfig: EmailSenderConfig,
+  channelConfig: CampaignChannelConfig,
+) => {
+  if (filters.view === 'attention' && !campaignNeedsAttention(campaign, emailConfig, channelConfig)) {
+    return false;
+  }
+
+  if (filters.view === 'completed' && getOperationEventTone(campaign.latest_operation_event) !== 'success') {
+    return false;
+  }
+
+  if (filters.channel !== 'all' && campaign.channel !== filters.channel) {
+    return false;
+  }
+
+  if (filters.status !== 'all' && campaign.status !== filters.status) {
+    return false;
+  }
+
+  const normalizedSearch = filters.search.trim().toLowerCase();
+  if (normalizedSearch) {
+    return (
+      campaign.name.toLowerCase().includes(normalizedSearch) ||
+      campaign.description.toLowerCase().includes(normalizedSearch)
+    );
+  }
+
+  return true;
+};
+
+const getCampaignRecency = (campaign: Campaign) => {
+  const timestamp =
+    campaign.latest_operation_event?.created_at ||
+    campaign.last_blocked_at ||
+    campaign.sent_at ||
+    campaign.scheduled_at ||
+    campaign.created_at;
+  return timestamp ? new Date(timestamp).getTime() : 0;
+};
+
+const getCampaignConversionRate = (campaign: Campaign) => {
+  if (!campaign.total) return 0;
+  return campaign.accepted / campaign.total;
+};
+
+const campaignNeedsAttention = (
+  campaign: Campaign,
+  emailConfig: EmailSenderConfig,
+  channelConfig: CampaignChannelConfig,
+) => {
+  if (campaign.blocking_reason) return true;
+  if (campaign.latest_operation_event && getOperationEventTone(campaign.latest_operation_event) === 'attention') return true;
+  if (campaign.failed_count > 0) return true;
+  if (campaign.channel === 'email' && emailConfig.senderEmail && emailConfig.status !== 'ready') return true;
+  if (campaign.channel === 'webhook' && !channelConfig.webhookReady) return true;
+  if (campaign.channel === 'whatsapp' && campaign.status === 'scheduled' && !channelConfig.whatsAppOfficialReady) return true;
+  return false;
+};
+
+const campaignNeedsConfiguration = (
+  campaign: Campaign,
+  emailConfig: EmailSenderConfig,
+  channelConfig: CampaignChannelConfig,
+) => {
+  if (campaign.channel === 'email' && emailConfig.senderEmail && emailConfig.status !== 'ready') return true;
+  if (campaign.channel === 'webhook' && !channelConfig.webhookReady) return true;
+  if (campaign.channel === 'whatsapp' && campaign.status === 'scheduled' && !channelConfig.whatsAppOfficialReady) return true;
+  return false;
+};
+
+const campaignIsBlocked = (campaign: Campaign) =>
+  !!campaign.blocking_reason ||
+  campaign.latest_operation_event?.event_type === 'blocked' ||
+  campaign.latest_operation_event?.event_type === 'cancelled';
+
+const campaignHasFailure = (campaign: Campaign) =>
+  campaign.latest_operation_event?.event_type === 'dispatch_failed' ||
+  (!!campaign.failed_count && !campaignIsBlocked(campaign));
+
+const getCampaignPriority = (
+  campaign: Campaign,
+  emailConfig: EmailSenderConfig,
+  channelConfig: CampaignChannelConfig,
+) => {
+  if (campaign.blocking_reason) return 100;
+  if (campaign.channel === 'email' && emailConfig.senderEmail && emailConfig.status !== 'ready') return 95;
+  if (campaign.channel === 'webhook' && !channelConfig.webhookReady) return 95;
+  if (campaign.channel === 'whatsapp' && campaign.status === 'scheduled' && !channelConfig.whatsAppOfficialReady) return 95;
+  if (campaign.latest_operation_event?.event_type === 'blocked' || campaign.latest_operation_event?.event_type === 'cancelled') return 90;
+  if (campaign.latest_operation_event?.event_type === 'dispatch_failed') return 85;
+  if (campaign.failed_count > 0) return 80;
+  if (campaign.status === 'sending') return 70;
+  if (campaign.status === 'scheduled') return 50;
+  if (campaign.latest_operation_event?.event_type === 'dispatch_completed') return 20;
+  return 10;
+};
+
+const describeChannelReadiness = ({
+  channel,
+  scheduledAt,
+  emailConfig,
+  channelConfig,
+}: {
+  channel: string;
+  scheduledAt?: string;
+  emailConfig: EmailSenderConfig;
+  channelConfig: CampaignChannelConfig;
+}) => {
+  const isScheduled = !!scheduledAt;
+
+  if (channel === 'email') {
+    if (!emailConfig.senderEmail) {
+      return {
+        ready: true,
+        tone: 'neutral' as const,
+        title: 'Email pronto para campanha',
+        detail: 'Sem remetente customizado configurado. O envio pode usar o remetente padrao.',
+      };
+    }
+    if (emailConfig.status === 'ready') {
+      return {
+        ready: true,
+        tone: 'ready' as const,
+        title: 'Remetente validado',
+        detail: 'O dominio do cliente esta pronto para envio de campanhas por email.',
+      };
+    }
+    return {
+      ready: false,
+      tone: 'blocked' as const,
+      title: isScheduled ? 'Agendamento bloqueado' : 'Remetente exige validacao',
+      detail: emailConfig.error || 'Valide o dominio do remetente em Configuracoes > Integracoes > E-Mail.',
+    };
+  }
+
+  if (channel === 'webhook') {
+    return channelConfig.webhookReady
+      ? {
+          ready: true,
+          tone: 'ready' as const,
+          title: 'Webhook configurado',
+          detail: 'A URL do webhook esta pronta para receber os leads da campanha.',
+        }
+      : {
+          ready: false,
+          tone: 'blocked' as const,
+          title: isScheduled ? 'Agendamento bloqueado' : 'Webhook ausente',
+          detail: 'Configure a URL do webhook em Configuracoes > Integracoes antes de usar esse canal.',
+        };
+  }
+
+  if (channel === 'whatsapp' && isScheduled) {
+    return channelConfig.whatsAppOfficialReady
+      ? {
+          ready: true,
+          tone: 'ready' as const,
+          title: 'Meta oficial pronta',
+          detail: 'O numero oficial da Meta esta configurado para disparos agendados.',
+        }
+      : {
+          ready: false,
+          tone: 'blocked' as const,
+          title: 'Agendamento bloqueado',
+          detail: 'Campanhas agendadas de WhatsApp exigem Access Token e Phone Number ID configurados.',
+        };
+  }
+
+  return {
+    ready: true,
+    tone: 'neutral' as const,
+    title: 'Canal disponivel',
+    detail: 'Nenhum bloqueio operacional detectado para esse canal.',
+  };
+};
+
+const emailSenderStatusLabel = (status: EmailSenderConfig['status']) => {
+  if (status === 'ready') return 'Remetente pronto';
+  if (status === 'pending') return 'DNS pendente';
+  if (status === 'blocked') return 'Remetente bloqueado';
+  return 'Remetente padrao';
+};
+
+const emailSenderStatusClass = (status: EmailSenderConfig['status']) => {
+  if (status === 'ready') return 'rounded-full border-[#cde8d9] bg-[#f0faf4] text-[#2d7a4a]';
+  if (status === 'pending') return 'rounded-full border-[#f5c842]/40 bg-[#fffbeb] text-[#8b5e00]';
+  if (status === 'blocked') return 'rounded-full border-[#f2d4d8] bg-[#fff3f5] text-[#8c2535]';
+  return 'rounded-full border-[#e6e6eb] bg-[#fafafd] text-[#7b7b83]';
+};
+
+const channelReadinessBadgeClass = (ready: boolean) =>
+  ready
+    ? 'rounded-full border-[#cde8d9] bg-[#f0faf4] text-[#2d7a4a]'
+    : 'rounded-full border-[#f2d4d8] bg-[#fff3f5] text-[#8c2535]';
 
 const Campaigns = () => {
   const navigate = useNavigate();
@@ -174,6 +535,8 @@ const Campaigns = () => {
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
   const [failuresCampaignId, setFailuresCampaignId] = useState<string | null>(null);
   const [failureRows, setFailureRows] = useState<{ business_name: string; business_phone: string; error_reason: string }[]>([]);
+  const [historyCampaignId, setHistoryCampaignId] = useState<string | null>(null);
+  const [operationRows, setOperationRows] = useState<CampaignOperationEventRow[]>([]);
 
   // Preview state
   const [previewLeads, setPreviewLeads] = useState<PreviewLead[]>([]);
@@ -182,6 +545,24 @@ const Campaigns = () => {
   const [sending, setSending] = useState(false);
   const [sendAsAudio, setSendAsAudio] = useState(false);
   const [voiceId, setVoiceId] = useState<string | null>(null);
+  const [campaignViewFilter, setCampaignViewFilter] = useState<CampaignViewFilter>(() => readStoredCampaignFilters().view);
+  const [channelFilter, setChannelFilter] = useState<CampaignChannelFilter>(() => readStoredCampaignFilters().channel);
+  const [statusFilter, setStatusFilter] = useState<CampaignStatusFilter>(() => readStoredCampaignFilters().status);
+  const [searchTerm, setSearchTerm] = useState(() => readStoredCampaignFilters().search);
+  const [sortOption, setSortOption] = useState<CampaignSortOption>(() => readStoredCampaignFilters().sort);
+  const [savedViews, setSavedViews] = useState<CampaignSavedView[]>(() => readStoredCampaignSavedViews());
+  const [showSaveViewDialog, setShowSaveViewDialog] = useState(false);
+  const [editingSavedViewId, setEditingSavedViewId] = useState<string | null>(null);
+  const [savedViewName, setSavedViewName] = useState('');
+  const [emailSenderConfig, setEmailSenderConfig] = useState<EmailSenderConfig>({
+    senderEmail: '',
+    status: 'not_configured',
+    error: '',
+  });
+  const [channelConfig, setChannelConfig] = useState<CampaignChannelConfig>({
+    webhookReady: false,
+    whatsAppOfficialReady: false,
+  });
 
   // Create / Edit form
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
@@ -192,12 +573,62 @@ const Campaigns = () => {
   const [formTemplateId, setFormTemplateId] = useState('');
   const [creating, setCreating] = useState(false);
 
+  const resetCampaignForm = () => {
+    setEditingCampaign(null);
+    setFormName('');
+    setFormDesc('');
+    setFormChannel('whatsapp');
+    setFormSchedule('');
+    setFormTemplateId('');
+  };
+
   useEffect(() => {
     if (user) {
       fetchCampaigns();
       fetchTemplates();
+      fetchEmailSenderConfig();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(
+      CAMPAIGN_FILTERS_STORAGE_KEY,
+      JSON.stringify({
+        view: campaignViewFilter,
+        channel: channelFilter,
+        status: statusFilter,
+        search: searchTerm,
+        sort: sortOption,
+      }),
+    );
+  }, [campaignViewFilter, channelFilter, statusFilter, searchTerm, sortOption]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(CAMPAIGN_SAVED_VIEWS_STORAGE_KEY, JSON.stringify(savedViews));
+  }, [savedViews]);
+
+  const fetchEmailSenderConfig = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('campaign_sender_email, email_sender_status, email_sender_error, campaign_webhook_url, whatsapp_official_access_token, whatsapp_official_phone_number_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const profile = data as EmailProfileStatus | null;
+    setEmailSenderConfig({
+      senderEmail: profile?.campaign_sender_email || '',
+      status: (profile?.email_sender_status as EmailSenderConfig['status'] | null) ||
+        (profile?.campaign_sender_email ? 'pending' : 'not_configured'),
+      error: profile?.email_sender_error || '',
+    });
+    setChannelConfig({
+      webhookReady: !!(data as any)?.campaign_webhook_url,
+      whatsAppOfficialReady: !!(data as any)?.whatsapp_official_access_token && !!(data as any)?.whatsapp_official_phone_number_id,
+    });
+  };
 
   const fetchTemplates = async () => {
     if (!user) return;
@@ -207,6 +638,77 @@ const Campaigns = () => {
       .eq('user_id', user.id)
       .order('name');
     setTemplates((data as TemplateRow[]) || []);
+  };
+
+  const ensureScheduledChannelReady = (channel: string, scheduledAt?: string) => {
+    const isScheduled = !!scheduledAt;
+    if (!isScheduled) return true;
+
+    if (channel === 'webhook' && !channelConfig.webhookReady) {
+      toast({
+        title: 'Webhook obrigatorio para agendamento',
+        description: 'Configure o webhook da campanha em Configuracoes > Integracoes antes de agendar esse canal.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    if (channel === 'whatsapp' && !channelConfig.whatsAppOfficialReady) {
+      toast({
+        title: 'Meta obrigatoria para agendamento',
+        description: 'Campanhas agendadas de WhatsApp exigem Access Token e Phone Number ID configurados.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    if (channel === 'email' && emailSenderConfig.senderEmail && emailSenderConfig.status !== 'ready') {
+      toast({
+        title: 'Remetente de email ainda nao validado',
+        description:
+          emailSenderConfig.error ||
+          'Valide o dominio do remetente em Configuracoes > Integracoes > E-Mail antes de agendar campanhas.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const logCampaignOperationEvent = async ({
+    campaignId,
+    channel,
+    eventType,
+    source,
+    reasonCode,
+    message,
+    metadata,
+  }: {
+    campaignId: string;
+    channel: string;
+    eventType: string;
+    source: string;
+    reasonCode?: string | null;
+    message?: string | null;
+    metadata?: Record<string, any>;
+  }) => {
+    if (!user) return;
+
+    const { error } = await supabase.from('campaign_operation_events').insert({
+      user_id: user.id,
+      campaign_id: campaignId,
+      channel: isDispatchableCampaignChannel(channel) ? channel : 'unknown',
+      event_type: eventType,
+      source,
+      reason_code: reasonCode || null,
+      message: message || null,
+      metadata: metadata || {},
+    } as any);
+
+    if (error) {
+      console.warn('Falha ao registrar evento operacional da campanha:', error);
+    }
   };
 
   const fetchCampaigns = async () => {
@@ -219,6 +721,22 @@ const Campaigns = () => {
       .order('created_at', { ascending: false });
 
     if (!campaignRows) { setLoading(false); return; }
+
+    const campaignIds = campaignRows.map((row) => row.id);
+    const latestOperationByCampaign = new Map<string, CampaignOperationEventRow>();
+    if (campaignIds.length > 0) {
+      const { data: operationRows } = await supabase
+        .from('campaign_operation_events')
+        .select('id, campaign_id, created_at, event_type, source, reason_code, message, metadata')
+        .in('campaign_id', campaignIds)
+        .order('created_at', { ascending: false });
+
+      for (const row of ((operationRows as CampaignOperationEventRow[]) || [])) {
+        if (row.campaign_id && !latestOperationByCampaign.has(row.campaign_id)) {
+          latestOperationByCampaign.set(row.campaign_id, row);
+        }
+      }
+    }
 
     // Get metrics for each campaign
     const enriched: Campaign[] = [];
@@ -249,7 +767,10 @@ const Campaigns = () => {
 
       const rows = (cpRows || []) as any[];
       enriched.push({
+        blocking_reason: (c as any).blocking_reason || null,
         id: c.id,
+        last_blocked_at: (c as any).last_blocked_at || null,
+        latest_operation_event: latestOperationByCampaign.get(c.id) || null,
         name: c.name,
         description: c.description || '',
         status: c.status,
@@ -276,6 +797,15 @@ const Campaigns = () => {
   const handleCreate = async () => {
     if (!user || !formName.trim()) return;
 
+    if (!isDispatchableCampaignChannel(formChannel)) {
+      toast({
+        title: 'Canal indisponivel',
+        description: 'Escolha um canal de envio válido.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!canUse('campaigns')) {
       toast({
         title: 'Limite atingido',
@@ -285,10 +815,16 @@ const Campaigns = () => {
       return;
     }
 
+    if (!ensureScheduledChannelReady(formChannel, formSchedule)) {
+      return;
+    }
+
     setCreating(true);
 
     const { error } = await supabase.from('campaigns').insert({
+      blocking_reason: null,
       user_id: user.id,
+      last_blocked_at: null,
       name: formName.trim(),
       description: formDesc.trim(),
       channel: formChannel,
@@ -302,11 +838,7 @@ const Campaigns = () => {
     } else {
       toast({ title: 'Campanha criada!' });
       setShowCreate(false);
-      setFormName('');
-      setFormDesc('');
-      setFormChannel('whatsapp');
-      setFormSchedule('');
-      setFormTemplateId('');
+      resetCampaignForm();
       fetchCampaigns();
     }
     setCreating(false);
@@ -334,8 +866,24 @@ const Campaigns = () => {
 
   const handleUpdate = async () => {
     if (!editingCampaign || !formName.trim()) return;
+
+    if (!isDispatchableCampaignChannel(formChannel)) {
+      toast({
+        title: 'Canal indisponivel',
+        description: 'Escolha um canal de envio válido.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!ensureScheduledChannelReady(formChannel, formSchedule)) {
+      return;
+    }
+
     setCreating(true);
     const { error } = await supabase.from('campaigns').update({
+      blocking_reason: null,
+      last_blocked_at: null,
       name: formName.trim(),
       description: formDesc.trim(),
       channel: formChannel,
@@ -347,8 +895,7 @@ const Campaigns = () => {
     } else {
       toast({ title: 'Campanha atualizada!' });
       setShowCreate(false);
-      setEditingCampaign(null);
-      setFormName(''); setFormDesc(''); setFormChannel('whatsapp'); setFormSchedule(''); setFormTemplateId('');
+      resetCampaignForm();
       fetchCampaigns();
     }
     setCreating(false);
@@ -357,7 +904,15 @@ const Campaigns = () => {
   const handleForceSend = async (c: Campaign) => {
     // Reset send_status of all campaign_presentations so they can be resent
     await supabase.from('campaign_presentations').update({ send_status: null } as any).eq('campaign_id', c.id);
-    await supabase.from('campaigns').update({ status: 'draft' } as any).eq('id', c.id);
+    await supabase.from('campaigns').update({ status: 'draft', blocking_reason: null, last_blocked_at: null } as any).eq('id', c.id);
+    await logCampaignOperationEvent({
+      campaignId: c.id,
+      channel: c.channel,
+      eventType: 'manual_action',
+      source: 'campaign_card',
+      reasonCode: 'manual-resend',
+      message: 'Campanha resetada manualmente para reenvio.',
+    });
     await fetchCampaigns();
     handleSendCampaign({ ...c, status: 'draft', sent_count: 0 });
   };
@@ -416,9 +971,63 @@ const Campaigns = () => {
       return;
     }
 
+    if (campaign.channel === 'email') {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('campaign_sender_email, email_sender_status, email_sender_error')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const emailProfile = profile as EmailProfileStatus | null;
+      if (emailProfile?.campaign_sender_email && emailProfile.email_sender_status !== 'ready') {
+        const blockMessage =
+          emailProfile.email_sender_error ||
+          'Valide o dominio do remetente em Configuracoes > Integracoes > E-Mail antes de enviar campanhas.';
+
+        toast({
+          title: 'Remetente ainda nao validado',
+          description: blockMessage,
+          variant: 'destructive',
+        });
+        await logCampaignOperationEvent({
+          campaignId: campaign.id,
+          channel: campaign.channel,
+          eventType: 'blocked',
+          source: 'manual_preflight',
+          reasonCode: 'email-sender-not-ready',
+          message: blockMessage,
+          metadata: {
+            sender_email: emailProfile.campaign_sender_email,
+            sender_status: emailProfile.email_sender_status,
+          },
+        });
+        navigate('/settings?tab=integracoes');
+        return;
+      }
+    }
+
+    if (campaign.channel === 'webhook' && !channelConfig.webhookReady) {
+      const blockMessage = 'Configure o webhook da campanha em Configuracoes > Integracoes antes de enviar esse canal.';
+      toast({
+        title: 'Webhook nao configurado',
+        description: blockMessage,
+        variant: 'destructive',
+      });
+      await logCampaignOperationEvent({
+        campaignId: campaign.id,
+        channel: campaign.channel,
+        eventType: 'blocked',
+        source: 'manual_preflight',
+        reasonCode: 'missing-webhook-target',
+        message: blockMessage,
+      });
+      navigate('/settings?tab=integracoes');
+      return;
+    }
+
     const { data: cpRows } = await supabase
       .from('campaign_presentations')
-      .select('id, presentation_id')
+      .select('id, presentation_id, send_status, sent_at, delivery_status, followup_step, next_followup_at, provider_message_id, variant_id')
       .eq('campaign_id', campaign.id)
       .eq('send_status', 'pending');
 
@@ -488,6 +1097,7 @@ const Campaigns = () => {
 
     const previews = presentations.map((pres: any) => {
       const cpId = cpIdByPresentation.get(pres.id) || '';
+      const cpRow = (cpRows || []).find((row) => row.presentation_id === pres.id);
       const chosenVariant = pickVariantForLead(
         {
           id: pres.id,
@@ -501,7 +1111,11 @@ const Campaigns = () => {
         cid: campaign.id,
         cpid: cpId,
         ch: campaign.channel,
-        src: campaign.channel === 'whatsapp' ? 'campaign_whatsapp' : 'campaign_email',
+        src: campaign.channel === 'whatsapp'
+          ? 'campaign_whatsapp'
+          : campaign.channel === 'email'
+            ? 'campaign_email'
+            : 'campaign_webhook',
       });
       if ((campaign as any).template_id) tracking.set('tid', (campaign as any).template_id);
       if (chosenVariant?.id) tracking.set('vid', chosenVariant.id);
@@ -516,6 +1130,47 @@ const Campaigns = () => {
       } else {
         message = `Olá! Tudo bem?\n\nSou da ${profile?.company_name || 'nossa empresa'} e preparei uma análise personalizada para ${pres.business_name}.\n\nAcesse aqui: ${publicUrl}`;
       }
+
+      let webhookPayloadPreview: string | undefined;
+      if (campaign.channel === 'webhook') {
+        const webhookPayload = buildCampaignWebhookPayload({
+          eventId: `${campaign.id}:${cpId || pres.id}`,
+          attemptId: `preview:${campaign.id}:${pres.id}`,
+          dispatchedAt: new Date().toISOString(),
+          source: 'campaign_preview',
+          campaign: {
+            id: campaign.id,
+            name: campaign.name,
+            channel: campaign.channel,
+            status: campaign.status,
+            description: campaign.description,
+            scheduled_at: campaign.scheduled_at,
+            sent_at: campaign.sent_at,
+            template_id: (campaign as any).template_id || null,
+          },
+          campaignPresentation: {
+            id: cpId,
+            send_status: cpRow?.send_status || 'pending',
+            sent_at: cpRow?.sent_at || null,
+            delivery_status: cpRow?.delivery_status || 'pending',
+            followup_step: cpRow?.followup_step || 0,
+            next_followup_at: cpRow?.next_followup_at || null,
+            provider_message_id: cpRow?.provider_message_id || null,
+            variant_id: chosenVariant?.id || null,
+          },
+          presentation: pres,
+          profile: {
+            company_name: profile?.company_name || null,
+            proposal_link_domain: profile?.proposal_link_domain || null,
+          },
+          publicUrl,
+          messagePreview: message,
+          subjectPreview: subject || null,
+        });
+        webhookPayloadPreview = JSON.stringify(webhookPayload, null, 2);
+        message = webhookPayloadPreview;
+      }
+
       return {
         id: pres.id,
         campaignPresentationId: cpId,
@@ -530,6 +1185,7 @@ const Campaigns = () => {
         subject,
         templateId: (campaign as any).template_id || null,
         variantId: chosenVariant?.id || null,
+        webhookPayloadPreview,
       };
     });
 
@@ -543,18 +1199,39 @@ const Campaigns = () => {
     setSending(true);
 
     const campaign = previewCampaign;
+    const dispatchTarget = getCampaignDispatchTarget(campaign.channel);
+    let whatsappHandledByApi = false;
 
-    if (campaign.channel === 'email') {
+    if (!dispatchTarget) {
+      await logCampaignOperationEvent({
+        campaignId: campaign.id,
+        channel: campaign.channel,
+        eventType: 'blocked',
+        source: 'manual_dispatch',
+        reasonCode: 'unsupported-channel',
+        message: 'A campanha nao pode ser enviada porque o canal nao e suportado.',
+      });
+      toast({
+        title: 'Canal indisponivel',
+        description: 'Escolha um canal de envio válido.',
+        variant: 'destructive',
+      });
+      setSending(false);
+      return;
+    }
+
+    if (dispatchTarget === 'email') {
       const { data, error } = await invokeEdgeFunction<{ sent?: number }>('send-campaign-emails', {
         body: { campaign_id: campaign.id },
       });
       if (error) {
-        toast({ title: 'Erro ao enviar emails', description: error.message, variant: 'destructive' });
+        const emailErrorMessage = await getEdgeFunctionErrorMessage(error);
+        toast({ title: 'Erro ao enviar emails', description: emailErrorMessage, variant: 'destructive' });
         setSending(false);
         return;
       }
       toast({ title: 'Emails enviados!', description: `${data?.sent || 0} email(s) enviado(s)` });
-    } else if (campaign.channel === 'whatsapp') {
+    } else if (dispatchTarget === 'whatsapp') {
       const { data: optimizeData, error: optimizeError } = await invokeEdgeFunction<{ groups_promoted?: number }>('whatsapp-optimize-variants', {
         body: { mode: 'auto' },
       });
@@ -573,8 +1250,13 @@ const Campaigns = () => {
           body: { campaign_id: campaign.id, threshold: HYBRID_API_THRESHOLD },
         });
 
+        const apiErrorMessage = apiError ? await getEdgeFunctionErrorMessage(apiError) : '';
+        const isMissingMetaCredentials =
+          apiErrorMessage.includes('Access Token') && apiErrorMessage.includes('Phone Number ID');
+
         if (!apiError && apiData?.mode === 'api') {
           handledByApi = true;
+          whatsappHandledByApi = true;
           const sent = apiData?.sent || 0;
           const failed = apiData?.failed || 0;
           if (failed === 0) {
@@ -586,6 +1268,14 @@ const Campaigns = () => {
               variant: failed > sent ? 'destructive' : 'default',
             });
           }
+        } else if (isMissingMetaCredentials) {
+          toast({
+            title: 'Integracao Meta incompleta',
+            description: apiErrorMessage || 'Configure o Access Token e o Phone Number ID antes de enviar campanhas.',
+            variant: 'destructive',
+          });
+          setSending(false);
+          return;
         } else if (apiError) {
           console.error('whatsapp-send-batch error, fallback manual:', apiError);
         }
@@ -714,14 +1404,51 @@ const Campaigns = () => {
         }
       }
     }
+    } else if (dispatchTarget === 'webhook') {
+      const { data, error } = await invokeEdgeFunction<{ sent?: number }>('send-campaign-webhooks', {
+        body: { campaign_id: campaign.id },
+      });
+
+      if (error) {
+        const errorMessage = await getEdgeFunctionErrorMessage(error);
+        toast({
+          title: 'Erro ao enviar webhook',
+          description: errorMessage || 'Configure a URL do webhook do n8n em Integrações.',
+          variant: 'destructive',
+        });
+        setSending(false);
+        return;
+      }
+
+      toast({ title: 'Webhook enviado!', description: `${data?.sent || 0} lead(s) enviado(s) para o n8n.` });
     }
 
     await supabase
       .from('campaigns')
-      .update({ status: 'sent', sent_at: new Date().toISOString() })
+      .update({ status: 'sent', sent_at: new Date().toISOString(), blocking_reason: null, last_blocked_at: null })
       .eq('id', campaign.id);
 
-    toast({ title: 'Campanha enviada!', description: `${previewLeads.length} mensagen(s) enviada(s)` });
+    if (dispatchTarget === 'whatsapp' && !whatsappHandledByApi) {
+      await logCampaignOperationEvent({
+        campaignId: campaign.id,
+        channel: campaign.channel,
+        eventType: 'dispatch_completed',
+        source: 'manual_dispatch',
+        message: `${previewLeads.length} lead(s) processado(s) no envio manual.`,
+        metadata: {
+          total_preview_leads: previewLeads.length,
+          dispatch_target: dispatchTarget,
+          send_as_audio: sendAsAudio,
+        },
+      });
+    }
+
+    toast({
+      title: 'Campanha enviada!',
+      description: campaign.channel === 'webhook'
+        ? `${previewLeads.length} lead(s) processado(s)`
+        : `${previewLeads.length} mensagen(s) enviada(s)`,
+    });
     setShowPreview(false);
     setPreviewCampaign(null);
     setSending(false);
@@ -733,7 +1460,8 @@ const Campaigns = () => {
       body: { campaign_id: campaignId, send_followups: true },
     });
     if (error) {
-      toast({ title: 'Erro no follow-up', description: error.message, variant: 'destructive' });
+      const message = await getEdgeFunctionErrorMessage(error);
+      toast({ title: 'Erro no follow-up', description: message, variant: 'destructive' });
       return;
     }
     toast({ title: 'Follow-up executado', description: `${data?.sent || 0} mensagem(ns) enviada(s).` });
@@ -781,6 +1509,18 @@ const Campaigns = () => {
     setFailuresCampaignId(campaignId);
   };
 
+  const openOperationHistory = async (campaignId: string) => {
+    const { data } = await supabase
+      .from('campaign_operation_events')
+      .select('id, created_at, event_type, source, reason_code, message, metadata')
+      .eq('campaign_id', campaignId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    setOperationRows((data as CampaignOperationEventRow[]) || []);
+    setHistoryCampaignId(campaignId);
+  };
+
   const statusBadge = (status: string) => {
     switch (status) {
       case 'draft': return <Badge className="rounded-full border border-[#e7e7ec] bg-[#f7f7fa] text-[#5f5f68]">Rascunho</Badge>;
@@ -796,10 +1536,17 @@ const Campaigns = () => {
     switch (ch) {
       case 'whatsapp': return '📱 WhatsApp';
       case 'email': return '📧 Email';
-      case 'webhook': return '🔗 Webhook';
+      case 'webhook': return '🔗 Webhook / n8n';
       default: return ch;
     }
   };
+
+  const formReadiness = describeChannelReadiness({
+    channel: formChannel,
+    scheduledAt: formSchedule,
+    emailConfig: emailSenderConfig,
+    channelConfig,
+  });
 
   const overview = useMemo(() => {
     const totalCampaigns = campaigns.length;
@@ -810,6 +1557,198 @@ const Campaigns = () => {
     const conversion = totalLeads > 0 ? Math.round((totalAccepted / totalLeads) * 100) : 0;
     return { totalCampaigns, active, sent, totalLeads, conversion };
   }, [campaigns]);
+
+  const currentFilterSnapshot = useMemo<CampaignFilterSnapshot>(
+    () => ({
+      view: campaignViewFilter,
+      channel: channelFilter,
+      status: statusFilter,
+      search: searchTerm.trim(),
+      sort: sortOption,
+    }),
+    [campaignViewFilter, channelFilter, statusFilter, searchTerm, sortOption],
+  );
+
+  const filteredCampaigns = useMemo(() => {
+    return campaigns.filter((campaign) =>
+      campaignMatchesFilterSnapshot(campaign, currentFilterSnapshot, emailSenderConfig, channelConfig),
+    );
+  }, [campaigns, currentFilterSnapshot, emailSenderConfig, channelConfig]);
+
+  const defaultSavedViews = useMemo(() => getDefaultCampaignSavedViews() as CampaignSavedView[], []);
+
+  const defaultSavedViewCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        defaultSavedViews.map((savedView) => [
+          savedView.id,
+          campaigns.filter((campaign) =>
+            campaignMatchesFilterSnapshot(campaign, savedView.filters, emailSenderConfig, channelConfig),
+          ).length,
+        ]),
+      ) as Record<string, number>,
+    [defaultSavedViews, campaigns, emailSenderConfig, channelConfig],
+  );
+
+  const userSavedViewCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        savedViews.map((savedView) => [
+          savedView.id,
+          campaigns.filter((campaign) =>
+            campaignMatchesFilterSnapshot(campaign, savedView.filters, emailSenderConfig, channelConfig),
+          ).length,
+        ]),
+      ) as Record<string, number>,
+    [savedViews, campaigns, emailSenderConfig, channelConfig],
+  );
+
+  const sortedFilteredCampaigns = useMemo(() => {
+    return [...filteredCampaigns].sort((left, right) => {
+      if (sortOption === 'recent') {
+        return getCampaignRecency(right) - getCampaignRecency(left);
+      }
+
+      if (sortOption === 'oldest') {
+        return getCampaignRecency(left) - getCampaignRecency(right);
+      }
+
+      if (sortOption === 'leads') {
+        const leadDiff = (right.total || 0) - (left.total || 0);
+        if (leadDiff !== 0) return leadDiff;
+        return getCampaignRecency(right) - getCampaignRecency(left);
+      }
+
+      if (sortOption === 'conversion') {
+        const conversionDiff = getCampaignConversionRate(right) - getCampaignConversionRate(left);
+        if (conversionDiff !== 0) return conversionDiff;
+        return getCampaignRecency(right) - getCampaignRecency(left);
+      }
+
+      const priorityDiff =
+        getCampaignPriority(right, emailSenderConfig, channelConfig) -
+        getCampaignPriority(left, emailSenderConfig, channelConfig);
+      if (priorityDiff !== 0) return priorityDiff;
+      return getCampaignRecency(right) - getCampaignRecency(left);
+    });
+  }, [filteredCampaigns, emailSenderConfig, channelConfig, sortOption]);
+
+  const urgentCampaigns = useMemo(() => {
+    return [...campaigns]
+      .filter((campaign) => campaignNeedsAttention(campaign, emailSenderConfig, channelConfig))
+      .sort((left, right) => {
+        const priorityDiff =
+          getCampaignPriority(right, emailSenderConfig, channelConfig) -
+          getCampaignPriority(left, emailSenderConfig, channelConfig);
+        if (priorityDiff !== 0) return priorityDiff;
+        return getCampaignRecency(right) - getCampaignRecency(left);
+      })
+      .slice(0, 3);
+  }, [campaigns, emailSenderConfig, channelConfig]);
+
+  const filterCounts = useMemo(() => {
+    const attention = campaigns.filter((campaign) => campaignNeedsAttention(campaign, emailSenderConfig, channelConfig)).length;
+    const completed = campaigns.filter((campaign) => getOperationEventTone(campaign.latest_operation_event) === 'success').length;
+    return {
+      all: campaigns.length,
+      attention,
+      completed,
+    };
+  }, [campaigns, emailSenderConfig, channelConfig]);
+
+  const hasCustomFilters =
+    campaignViewFilter !== 'all' ||
+    channelFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    searchTerm.trim().length > 0 ||
+    sortOption !== 'priority';
+
+  const activeSavedViewId = useMemo(
+    () => savedViews.find((savedView) => isCampaignSavedViewActive(savedView, currentFilterSnapshot))?.id || null,
+    [savedViews, currentFilterSnapshot],
+  );
+
+  const activeDefaultViewId = useMemo(
+    () => defaultSavedViews.find((savedView) => isCampaignSavedViewActive(savedView, currentFilterSnapshot))?.id || null,
+    [defaultSavedViews, currentFilterSnapshot],
+  );
+
+  const openSaveCurrentViewDialog = () => {
+    setEditingSavedViewId(null);
+    setSavedViewName(buildSuggestedCampaignViewName(currentFilterSnapshot));
+    setShowSaveViewDialog(true);
+  };
+
+  const openRenameSavedViewDialog = (savedView: CampaignSavedView) => {
+    setEditingSavedViewId(savedView.id);
+    setSavedViewName(savedView.name);
+    setShowSaveViewDialog(true);
+  };
+
+  const applySavedView = (savedView: CampaignSavedView) => {
+    setCampaignViewFilter(savedView.filters.view);
+    setChannelFilter(savedView.filters.channel);
+    setStatusFilter(savedView.filters.status);
+    setSearchTerm(savedView.filters.search);
+    setSortOption(savedView.filters.sort);
+  };
+
+  const handleSaveCurrentView = () => {
+    const normalizedName = normalizeCampaignSavedViewName(savedViewName);
+    if (!normalizedName) {
+      toast({
+        title: 'Nome obrigatorio',
+        description: 'Defina um nome curto para reutilizar esta visao depois.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const editingSavedView = editingSavedViewId
+      ? savedViews.find((savedView) => savedView.id === editingSavedViewId) || null
+      : null;
+
+    setSavedViews((current) =>
+      upsertCampaignSavedView(
+        current,
+        buildCampaignSavedView({
+          id: editingSavedViewId || undefined,
+          name: normalizedName,
+          filters: editingSavedView?.filters || currentFilterSnapshot,
+        }) as CampaignSavedView,
+      ) as CampaignSavedView[],
+    );
+    setShowSaveViewDialog(false);
+    setEditingSavedViewId(null);
+    setSavedViewName('');
+    toast({
+      title: editingSavedViewId ? 'Visao renomeada' : 'Visao salva',
+      description: editingSavedViewId
+        ? `${normalizedName} foi atualizada sem alterar a ordem da sua barra.`
+        : `${normalizedName} ficou disponivel na barra de filtros.`,
+    });
+  };
+
+  const removeSavedView = (savedViewId: string) => {
+    setSavedViews((current) => current.filter((savedView) => savedView.id !== savedViewId));
+  };
+
+  const reorderSavedView = (savedViewId: string, direction: 'left' | 'right') => {
+    setSavedViews((current) => moveCampaignSavedView(current, savedViewId, direction) as CampaignSavedView[]);
+  };
+
+  const operationalSummary = useMemo(() => {
+    const blocked = campaigns.filter((campaign) => campaignIsBlocked(campaign)).length;
+    const recentFailures = campaigns.filter((campaign) => campaignHasFailure(campaign)).length;
+    const awaitingConfiguration = campaigns.filter((campaign) => campaignNeedsConfiguration(campaign, emailSenderConfig, channelConfig)).length;
+
+    return {
+      needsAttention: filterCounts.attention,
+      blocked,
+      recentFailures,
+      awaitingConfiguration,
+    };
+  }, [campaigns, emailSenderConfig, channelConfig, filterCounts.attention]);
 
   if (loading) {
     return (
@@ -838,222 +1777,159 @@ const Campaigns = () => {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-          <p className="text-sm text-[#6f6f76]">Campanhas</p>
-          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.totalCampaigns}</p>
-        </Card>
-        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-[#7c7c83]" />
-            <p className="text-sm text-[#6f6f76]">Ativas</p>
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.active}</p>
-        </Card>
-        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-          <div className="flex items-center gap-2">
-            <Send className="h-4 w-4 text-[#EF3333]" />
-            <p className="text-sm text-[#6f6f76]">Enviadas</p>
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.sent}</p>
-        </Card>
-        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-[#EF3333]" />
-            <p className="text-sm text-[#6f6f76]">Leads totais</p>
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.totalLeads}</p>
-        </Card>
-        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-[#EF3333]" />
-            <p className="text-sm text-[#6f6f76]">Conversão</p>
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.conversion}%</p>
-        </Card>
-      </div>
+      <CampaignSummaryCards
+        overview={overview}
+        operationalSummary={operationalSummary}
+        onShowAttention={() => setCampaignViewFilter('attention')}
+        onOpenSettings={() => navigate('/settings?tab=integracoes')}
+      />
 
-      {/* Create / Edit Dialog */}
-      <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) { setEditingCampaign(null); setFormName(''); setFormDesc(''); setFormChannel('whatsapp'); setFormSchedule(''); setFormTemplateId(''); } }}>
-        <DialogContent className="max-w-xl rounded-[22px] border border-[#ececf0] bg-white">
-          <DialogHeader>
-            <DialogTitle className="text-[#1A1A1A]">{editingCampaign ? 'Editar Campanha' : 'Nova Campanha'}</DialogTitle>
-            <DialogDescription>
-              Configure o canal, template e agendamento {editingCampaign ? 'da campanha.' : 'para criar uma nova campanha.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nome *</Label>
-              <Input className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Restaurantes SP - Marco" />
-            </div>
-            <div className="space-y-2">
-              <Label>Descrição</Label>
-              <Textarea className="rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]" value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Objetivo da campanha..." />
-            </div>
-            <div className="space-y-2">
-              <Label>Canal de Envio</Label>
-              <Select value={formChannel} onValueChange={(v) => { setFormChannel(v); setFormTemplateId(''); }}>
-                <SelectTrigger className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="whatsapp">📱 WhatsApp</SelectItem>
-                  <SelectItem value="email">📧 Email</SelectItem>
-                  <SelectItem value="webhook">🔗 Webhook</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {/* Template Selector - filtered by channel */}
-            <div className="space-y-2">
-              <Label>Template de Mensagem</Label>
-              <Select value={formTemplateId} onValueChange={setFormTemplateId}>
-                <SelectTrigger className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd]">
-                  <SelectValue placeholder="Selecione um template (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {templates.filter(t => t.channel === formChannel).length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">
-                      Nenhum template de {formChannel === 'whatsapp' ? 'WhatsApp' : 'Email'}. Crie um em Configurações (menu Templates).
-                    </div>
-                  ) : (
-                    templates
-                      .filter(t => t.channel === formChannel)
-                      .map(t => (
-                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                      ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Agendamento (opcional)</Label>
-              <Input className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]" type="datetime-local" value={formSchedule} onChange={e => setFormSchedule(e.target.value)} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
-            <Button onClick={editingCampaign ? handleUpdate : handleCreate} disabled={creating || !formName.trim()} className="rounded-xl gradient-primary text-primary-foreground glow-primary">
-              {creating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-              {editingCampaign ? 'Salvar' : 'Criar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CampaignViewsCard
+        hasCustomFilters={hasCustomFilters}
+        defaultSavedViews={defaultSavedViews}
+        activeDefaultViewId={activeDefaultViewId}
+        defaultSavedViewCounts={defaultSavedViewCounts}
+        savedViews={savedViews}
+        activeSavedViewId={activeSavedViewId}
+        userSavedViewCounts={userSavedViewCounts}
+        onOpenSaveCurrentViewDialog={openSaveCurrentViewDialog}
+        onClearSavedViews={() => setSavedViews([])}
+        onApplySavedView={applySavedView}
+        onRemoveSavedView={removeSavedView}
+        onReorderSavedView={reorderSavedView}
+        onRenameSavedView={openRenameSavedViewDialog}
+      />
 
-      {/* Add Presentations Dialog */}
-      <Dialog open={!!showAddPresentations} onOpenChange={() => setShowAddPresentations(null)}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto rounded-[22px] border border-[#ececf0] bg-white">
-          <DialogHeader>
-            <DialogTitle className="text-[#1A1A1A]">Adicionar Apresentações</DialogTitle>
-            <DialogDescription>
-              Selecione as apresentações que devem entrar nesta campanha.
-            </DialogDescription>
-          </DialogHeader>
-          {availablePresentations.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-4">Nenhuma apresentação disponível para adicionar.</p>
-          ) : (
-            <div className="space-y-2">
-              {availablePresentations.map(p => (
-                <label key={p.id} className="flex items-center gap-3 p-3 rounded-xl border border-[#e8e8ec] bg-white hover:bg-[#fafafd] cursor-pointer transition-colors">
-                  <Checkbox
-                    checked={selectedPresentationIds.has(p.id)}
-                    onCheckedChange={(checked) => {
-                      const next = new Set(selectedPresentationIds);
-                      if (checked) {
-                        next.add(p.id);
-                      } else {
-                        next.delete(p.id);
-                      }
-                      setSelectedPresentationIds(next);
-                    }}
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{p.business_name}</p>
-                    <p className="text-xs text-[#6e6e76]">{p.business_phone || 'Sem telefone'}</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-xl"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      navigate(buildCRMHref({ mode: 'queue', leadId: p.id }));
-                    }}
-                  >
-                    CRM
-                  </Button>
-                </label>
-              ))}
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddPresentations(null)}>Cancelar</Button>
-            <Button onClick={handleAddPresentations} disabled={selectedPresentationIds.size === 0} className="rounded-xl gradient-primary text-primary-foreground glow-primary">
-              Adicionar ({selectedPresentationIds.size})
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CampaignFiltersToolbar
+        campaignViewFilter={campaignViewFilter}
+        channelFilter={channelFilter}
+        statusFilter={statusFilter}
+        sortOption={sortOption}
+        searchTerm={searchTerm}
+        hasCustomFilters={hasCustomFilters}
+        filterCounts={filterCounts}
+        viewLabel={campaignViewFilterLabel(campaignViewFilter)}
+        channelLabel={campaignChannelFilterLabel(channelFilter)}
+        statusLabel={campaignStatusFilterLabel(statusFilter)}
+        sortLabel={campaignSortOptionLabel(sortOption)}
+        onSetCampaignViewFilter={setCampaignViewFilter}
+        onSetChannelFilter={setChannelFilter}
+        onSetStatusFilter={setStatusFilter}
+        onSetSortOption={setSortOption}
+        onSetSearchTerm={setSearchTerm}
+        onResetFilters={() => {
+          setCampaignViewFilter('all');
+          setChannelFilter('all');
+          setStatusFilter('all');
+          setSearchTerm('');
+          setSortOption('priority');
+        }}
+      />
 
-      {/* Failures Dialog */}
-      <Dialog open={!!failuresCampaignId} onOpenChange={(o) => { if (!o) setFailuresCampaignId(null); }}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto rounded-[22px] border border-[#ececf0] bg-white">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-[#1A1A1A]">
-              <AlertTriangle className="h-5 w-5 text-[#c2620a]" />
-              Falhas de Envio
-            </DialogTitle>
-            <DialogDescription>Leads que não receberam a mensagem e o motivo do erro.</DialogDescription>
-          </DialogHeader>
-          {failureRows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-[#6d6d75]">Nenhuma falha registrada.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {/* Summary by error type */}
-              {(() => {
-                const counts = failureRows.reduce((acc, r) => {
-                  const key = r.error_reason;
-                  acc[key] = (acc[key] || 0) + 1;
-                  return acc;
-                }, {} as Record<string, number>);
-                return (
-                  <div className="mb-3 flex flex-wrap gap-1.5">
-                    {Object.entries(counts).map(([reason, count]) => (
-                      <span key={reason} className="rounded-full border border-[#f5d8c8] bg-[#fff8f4] px-2.5 py-0.5 text-[11px] font-medium text-[#c2620a]">
-                        {count}× {reason}
-                      </span>
-                    ))}
-                  </div>
-                );
-              })()}
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs">Empresa</TableHead>
-                    <TableHead className="text-xs">Telefone</TableHead>
-                    <TableHead className="text-xs">Erro</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {failureRows.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-sm font-medium">{r.business_name}</TableCell>
-                      <TableCell className="text-sm text-[#6d6d75]">{r.business_phone}</TableCell>
-                      <TableCell className="text-xs text-[#c2620a]">{r.error_reason}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFailuresCampaignId(null)}>Fechar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CampaignUrgentPanel
+        campaigns={urgentCampaigns}
+        attentionCount={filterCounts.attention}
+        emailSenderConfig={emailSenderConfig}
+        channelConfig={channelConfig}
+        channelLabel={channelLabel}
+        operationEventBadgeClass={operationEventBadgeClass}
+        getOperationEventTone={getOperationEventTone}
+        formatOperationEventType={formatOperationEventType}
+        summarizeOperationEvent={summarizeOperationEvent}
+        formatBlockingReason={formatBlockingReason}
+        onOpenSettings={() => navigate('/settings?tab=integracoes')}
+        onOpenHistory={openOperationHistory}
+        onEdit={(campaign) => openEdit(campaign as Campaign)}
+      />
+
+      <CampaignSavedViewDialog
+        open={showSaveViewDialog}
+        editing={!!editingSavedViewId}
+        savedViewName={savedViewName}
+        onSavedViewNameChange={setSavedViewName}
+        onOpenChange={(open) => {
+          setShowSaveViewDialog(open);
+          if (!open) {
+            setSavedViewName('');
+            setEditingSavedViewId(null);
+          }
+        }}
+        onSave={handleSaveCurrentView}
+      />
+
+      <CampaignFormDialog
+        open={showCreate}
+        editing={!!editingCampaign}
+        formName={formName}
+        formDesc={formDesc}
+        formChannel={formChannel}
+        formSchedule={formSchedule}
+        formTemplateId={formTemplateId}
+        templates={templates}
+        formReadiness={formReadiness}
+        creating={creating}
+        onOpenChange={(open) => {
+          setShowCreate(open);
+          if (!open) {
+            resetCampaignForm();
+          }
+        }}
+        onFormNameChange={setFormName}
+        onFormDescChange={setFormDesc}
+        onFormChannelChange={(value) => {
+          setFormChannel(value);
+          setFormTemplateId('');
+        }}
+        onFormTemplateIdChange={setFormTemplateId}
+        onFormScheduleChange={setFormSchedule}
+        onConfigureChannel={() => navigate('/settings?tab=integracoes')}
+        onSubmit={editingCampaign ? handleUpdate : handleCreate}
+      />
+
+      <CampaignAddPresentationsDialog
+        open={!!showAddPresentations}
+        availablePresentations={availablePresentations}
+        selectedPresentationIds={selectedPresentationIds}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowAddPresentations(null);
+          }
+        }}
+        onTogglePresentation={(presentationId, checked) => {
+          const next = new Set(selectedPresentationIds);
+          if (checked) {
+            next.add(presentationId);
+          } else {
+            next.delete(presentationId);
+          }
+          setSelectedPresentationIds(next);
+        }}
+        onOpenCrm={(presentationId) => navigate(buildCRMHref({ mode: 'queue', leadId: presentationId }))}
+        onAdd={handleAddPresentations}
+      />
+
+      <CampaignFailuresDialog
+        open={!!failuresCampaignId}
+        rows={failureRows}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFailuresCampaignId(null);
+          }
+        }}
+        formatFailureReason={formatFailureReason}
+      />
+
+      <CampaignOperationHistoryDialog
+        open={!!historyCampaignId}
+        rows={operationRows}
+        onOpenChange={(open) => {
+          if (!open) {
+            setHistoryCampaignId(null);
+          }
+        }}
+        formatOperationEventType={formatOperationEventType}
+        formatOperationReason={formatOperationReason}
+      />
 
       {/* Preview Dialog */}
       <CampaignPreviewDialog
@@ -1076,113 +1952,42 @@ const Campaigns = () => {
           <h3 className="text-lg font-medium text-[#1A1A1A]">Nenhuma campanha ainda</h3>
           <p className="text-sm text-muted-foreground mt-1">Crie uma campanha para enviar apresentações em massa.</p>
         </Card>
+      ) : filteredCampaigns.length === 0 ? (
+        <Card className="rounded-[24px] border border-[#ececf0] bg-white p-12 text-center shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
+          <div className="w-16 h-16 rounded-full bg-[#f7f7fa] mx-auto flex items-center justify-center mb-4">
+            <BookOpen className="w-8 h-8 text-[#7b7b83]" />
+          </div>
+          <h3 className="text-lg font-medium text-[#1A1A1A]">Nenhuma campanha nesse filtro</h3>
+          <p className="text-sm text-muted-foreground mt-1">Ajuste o filtro para visualizar outras campanhas.</p>
+        </Card>
       ) : (
         <div className="grid gap-4">
-          {campaigns.map(c => (
-            <Card key={c.id} className="rounded-[22px] border border-[#ececf0] bg-white p-6 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <h3 className="font-semibold text-[#1A1A1A] text-lg truncate">{c.name}</h3>
-                    {statusBadge(c.status)}
-                    <Badge variant="outline" className="rounded-full border-[#ececf0] bg-[#f8f8fa] text-xs text-[#5f5f67]">{channelLabel(c.channel)}</Badge>
-                  </div>
-                  {c.description && <p className="text-sm text-[#6e6e76] mb-3">{c.description}</p>}
-
-                  {/* Metrics */}
-                  <div className={`grid gap-2 ${c.channel === 'whatsapp' ? 'grid-cols-4 sm:grid-cols-7' : 'grid-cols-3 sm:grid-cols-6'}`}>
-                    <div className="text-center p-2 rounded-xl bg-[#f7f7fa]">
-                      <p className="text-xl font-bold text-[#1A1A1A]">{c.total}</p>
-                      <p className="text-xs text-[#7b7b83]">Leads</p>
-                    </div>
-                    <div className="text-center p-2 rounded-xl bg-[#f7f7fa]">
-                      <p className="text-xl font-bold text-[#1A1A1A]">{c.sent_count}</p>
-                      <p className="text-xs text-[#7b7b83]">Enviadas</p>
-                    </div>
-                    {c.channel === 'whatsapp' && (
-                      <>
-                        <div className="text-center p-2 rounded-xl bg-[#f0faf4]">
-                          <p className="text-xl font-bold text-[#1a7a4a]">{c.delivered_count}</p>
-                          <p className="text-xs text-[#7b7b83] flex items-center justify-center gap-0.5"><CheckCheck className="w-3 h-3" /> Entregues</p>
-                        </div>
-                        <div className="text-center p-2 rounded-xl bg-[#eef5ff]">
-                          <p className="text-xl font-bold text-[#2563b0]">{c.read_count}</p>
-                          <p className="text-xs text-[#7b7b83] flex items-center justify-center gap-0.5"><BookOpen className="w-3 h-3" /> Lidas</p>
-                        </div>
-                        {c.failed_count > 0 && (
-                          <div className="text-center p-2 rounded-xl bg-[#fff5f0]">
-                            <p className="text-xl font-bold text-[#c2620a]">{c.failed_count}</p>
-                            <p className="text-xs text-[#7b7b83] flex items-center justify-center gap-0.5"><XCircle className="w-3 h-3" /> Falhas</p>
-                          </div>
-                        )}
-                      </>
-                    )}
-                    {c.channel === 'email' && (
-                      <div className="text-center p-2 rounded-xl bg-[#f0f4ff]">
-                        <p className="text-xl font-bold text-[#3b5fc2]">{c.views}</p>
-                        <p className="text-xs text-[#7b7b83] flex items-center justify-center gap-0.5"><Eye className="w-3 h-3" /> Abertas</p>
-                      </div>
-                    )}
-                    <div className="text-center p-2 rounded-xl bg-[#fff3f5]">
-                      <p className="text-xl font-bold text-[#EF3333]">{c.accepted}</p>
-                      <p className="text-xs text-[#7b7b83]">Aceitas</p>
-                    </div>
-                    <div className="text-center p-2 rounded-xl bg-[#f7f7fa]">
-                      <p className="text-xl font-bold text-[#1A1A1A]">
-                        {c.total > 0 ? Math.round((c.accepted / c.total) * 100) : 0}%
-                      </p>
-                      <p className="text-xs text-muted-foreground">Conversão</p>
-                    </div>
-                  </div>
-
-                  {c.scheduled_at && (
-                    <p className="text-xs text-[#7b7b83] mt-3 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      Agendada: {new Date(c.scheduled_at).toLocaleString('pt-BR')}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex sm:flex-col flex-row flex-wrap gap-1 shrink-0">
-                  <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#e6e6eb] hover:bg-[#f8f8fa]" onClick={() => openAddPresentations(c.id)}>
-                    <Plus className="w-3.5 h-3.5" />
-                    Leads
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#e6e6eb] hover:bg-[#f8f8fa]" onClick={() => openEdit(c)}>
-                    <Pencil className="w-3.5 h-3.5" />
-                    Editar
-                  </Button>
-                  {c.status !== 'sent' && c.total > 0 && (
-                    <Button size="sm" className="h-9 rounded-xl gap-1.5 gradient-primary text-primary-foreground glow-primary" onClick={() => handleSendCampaign(c)}>
-                      <Send className="w-3.5 h-3.5" />
-                      Enviar
-                    </Button>
-                  )}
-                  {c.status === 'sent' && c.total > 0 && (
-                    <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#e6e6eb] hover:bg-[#fff8f0] hover:text-[#c2620a]" onClick={() => handleForceSend(c)}>
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      Reenviar
-                    </Button>
-                  )}
-                  {c.channel === 'whatsapp' && c.status === 'sent' && (
-                    <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#e6e6eb] hover:bg-[#f8f8fa]" onClick={() => handleRunFollowup(c.id)}>
-                      <Clock className="w-3.5 h-3.5" />
-                      Follow-up
-                    </Button>
-                  )}
-                  {c.failed_count > 0 && (
-                    <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#f5d8c8] bg-[#fff8f4] text-[#c2620a] hover:bg-[#fff0e6]" onClick={() => openFailures(c.id)}>
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      {c.failed_count} falha(s)
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="sm" className="h-9 rounded-xl gap-1.5 text-[#8a8a92] hover:bg-[#fff1f3] hover:text-[#bc374e]" onClick={() => handleDelete(c.id)}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Excluir
-                  </Button>
-                </div>
-              </div>
-            </Card>
+          {sortedFilteredCampaigns.map((campaign) => (
+            <CampaignCard
+              key={campaign.id}
+              campaign={campaign}
+              emailSenderConfig={emailSenderConfig}
+              channelConfig={channelConfig}
+              statusBadge={statusBadge}
+              channelLabel={channelLabel}
+              emailSenderStatusLabel={emailSenderStatusLabel}
+              emailSenderStatusClass={emailSenderStatusClass}
+              channelReadinessBadgeClass={channelReadinessBadgeClass}
+              operationEventBadgeClass={operationEventBadgeClass}
+              getOperationEventTone={getOperationEventTone}
+              formatOperationEventType={formatOperationEventType}
+              formatBlockingReason={formatBlockingReason}
+              summarizeOperationEvent={summarizeOperationEvent}
+              onOpenSettings={() => navigate('/settings?tab=integracoes')}
+              onOpenAddPresentations={openAddPresentations}
+              onOpenEdit={(campaign) => openEdit(campaign as Campaign)}
+              onSend={(campaign) => handleSendCampaign(campaign as Campaign)}
+              onForceSend={(campaign) => handleForceSend(campaign as Campaign)}
+              onRunFollowup={handleRunFollowup}
+              onOpenFailures={openFailures}
+              onOpenHistory={openOperationHistory}
+              onDelete={handleDelete}
+            />
           ))}
         </div>
       )}
@@ -1191,3 +1996,4 @@ const Campaigns = () => {
 };
 
 export default Campaigns;
+

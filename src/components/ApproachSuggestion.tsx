@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, Copy, Check, Loader2, X } from 'lucide-react';
+import { Sparkles, Copy, Check, Loader2, X, RefreshCw, Swords, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Business } from '@/types/business';
@@ -17,9 +17,10 @@ interface ApproachSuggestionProps {
   analysis?: any; // The heavy analysis data
   onClose: () => void;
   embedded?: boolean;
+  provider?: string;
 }
 
-export const ApproachSuggestion = ({ business, analysis, onClose, embedded }: ApproachSuggestionProps) => {
+export const ApproachSuggestion = ({ business, analysis, onClose, embedded, provider }: ApproachSuggestionProps) => {
   const [messages, setMessages] = useState<ApproachMessage[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -33,7 +34,7 @@ export const ApproachSuggestion = ({ business, analysis, onClose, embedded }: Ap
       // First try to generate using the shock approach (if analysis is available)
       if (analysis) {
         const { data, error } = await invokeEdgeFunction<{ generated?: { messages: ApproachMessage[] }; error?: string }>('generate-approach-shock', {
-          body: { business, analysis },
+          body: { business, analysis, provider },
         });
 
         if (!error && data?.generated?.messages) {
@@ -45,7 +46,7 @@ export const ApproachSuggestion = ({ business, analysis, onClose, embedded }: Ap
 
       // Fallback to normal approach
       const { data, error } = await invokeEdgeFunction<{ suggestion?: string; error?: string }>('generate-approach', {
-        body: { business },
+        body: { business, provider },
       });
 
       if (error) throw new Error(error.message);

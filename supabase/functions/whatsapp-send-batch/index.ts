@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { logCampaignOperationEvent } from "../_shared/campaign-operation-events.js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -165,8 +166,8 @@ function buildTrackedPresentationUrl(
   return `${baseOrigin}/presentation/${publicId}?${params.toString()}`;
 }
 
-function resolveBaseOrigin(domain: string | null | undefined, requestOrigin: string | null): string {
-  const fallback = requestOrigin || "https://envpro.com.br";
+function resolveBaseOrigin(domain: string | null | undefined, _requestOrigin: string | null): string {
+  const fallback = "https://envpro.com.br";
   const value = (domain || "").trim().replace(/\/+$/, "");
   if (!value) return fallback;
   if (/^https?:\/\//i.test(value)) return value;
@@ -217,7 +218,6 @@ function sleep(ms: number): Promise<void> {
 }
 
 // 500 ms between API sends — keeps Meta Cloud well within burst limits
-// (safe for all WABA tiers; unofficial APIs add their own typing delay)
 const META_SEND_DELAY_MS = 500;
 
 function composeFollowupMessage(
@@ -455,6 +455,9 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let logUserId: string | null = null;
+  let logCampaignId: string | null = null;
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Unauthorized");
@@ -482,6 +485,7 @@ Deno.serve(async (req) => {
     } = bodyData;
 
     if (!campaign_id) throw new Error("campaign_id is required");
+    logCampaignId = campaign_id;
 
     // Support internal calls from campaign-scheduler using service role key
     const isServiceRoleCall =
@@ -500,8 +504,9 @@ Deno.serve(async (req) => {
       if (userError || !user) throw new Error("Unauthorized");
       userId = user.id;
     }
+    logUserId = userId;
 
-    const { data: campaignData, error: campaignError } = await svc
+  const { data: campaignData, error: campaignError } = await svc
       .from("campaigns")
       .select("id, user_id, channel, template_id, name")
       .eq("id", campaign_id)
@@ -517,22 +522,18 @@ Deno.serve(async (req) => {
     const { data: profileData } = await svc
       .from("profiles")
       .select(
-        "company_name, proposal_link_domain, whatsapp_connection_type, whatsapp_official_access_token, whatsapp_official_phone_number_id, whatsapp_unofficial_api_url, whatsapp_unofficial_api_token, whatsapp_unofficial_instance",
+        "company_name, proposal_link_domain, whatsapp_official_access_token, whatsapp_official_phone_number_id",
       )
       .eq("user_id", userId)
       .maybeSingle();
     const profile = (profileData as any) || {};
     const senderName = profile.company_name || "Nossa Empresa";
     const publishedOrigin = resolveBaseOrigin(profile.proposal_link_domain, req.headers.get("origin"));
-    const waConnectionType: "unofficial" | "meta_official" =
-      profile.whatsapp_connection_type === "meta_official" ? "meta_official" : "unofficial";
+    const waConnectionType = "meta_official" as const;
 
     const metaToken = (profile.whatsapp_official_access_token || envMetaToken || "").trim();
     const phoneNumberId = (profile.whatsapp_official_phone_number_id || envPhoneNumberId || "").trim();
-    const unofficialApiUrl = (profile.whatsapp_unofficial_api_url || "").trim();
-    const unofficialApiToken = (profile.whatsapp_unofficial_api_token || "").trim() || null;
-    const unofficialInstance = (profile.whatsapp_unofficial_instance || "").trim() || null;
-    const providerName = waConnectionType === "meta_official" ? "meta_cloud" : "other";
+    const providerName = "meta_cloud";
 
     /**
      * Send a WhatsApp message, preferring approved Meta template messages for official API.
@@ -550,46 +551,38 @@ Deno.serve(async (req) => {
         metaTemplateLanguage: string | null;
         metaVariableOrder: string[] | null;
       },
-    ): Promise<{ ok: boolean; status: number; providerMessageId?: string; error?: string; usedTemplate?: boolean }> => {
-      if (waConnectionType === "meta_official") {
-        if (!metaToken || !phoneNumberId) {
-          return { ok: false, status: 400, error: "missing_meta_credentials" };
-        }
-
-        // Use approved template message if available (required for cold outreach)
-        if (
-          templateInfo?.metaTemplateName &&
-          templateInfo.metaTemplateStatus === "approved" &&
-          Array.isArray(templateInfo.metaVariableOrder) &&
-          pres &&
-          publicUrl
-        ) {
-          const variableValues = resolveMetaVariableValues(
-            templateInfo.metaVariableOrder,
-            pres,
-            publicUrl,
-            senderName,
-          );
-          const result = await sendMetaTemplateMessage(
-            metaToken,
-            phoneNumberId,
-            to,
-            templateInfo.metaTemplateName,
-            templateInfo.metaTemplateLanguage || "pt_BR",
-            variableValues,
-          );
-          return { ...result, usedTemplate: true };
-        }
-
-        // Fallback: free-form text (only works within 24h session window)
-        return sendMetaMessage(metaToken, phoneNumberId, to, message);
+      ): Promise<{ ok: boolean; status: number; providerMessageId?: string; error?: string; usedTemplate?: boolean }> => {
+      if (!metaToken || !phoneNumberId) {
+        return { ok: false, status: 400, error: "missing_meta_credentials" };
       }
 
-      if (!unofficialApiUrl) {
-        return { ok: false, status: 400, error: "missing_unofficial_api_url" };
+      // Use approved template message if available (required for cold outreach)
+      if (
+        templateInfo?.metaTemplateName &&
+        templateInfo.metaTemplateStatus === "approved" &&
+        Array.isArray(templateInfo.metaVariableOrder) &&
+        pres &&
+        publicUrl
+      ) {
+        const variableValues = resolveMetaVariableValues(
+          templateInfo.metaVariableOrder,
+          pres,
+          publicUrl,
+          senderName,
+        );
+        const result = await sendMetaTemplateMessage(
+          metaToken,
+          phoneNumberId,
+          to,
+          templateInfo.metaTemplateName,
+          templateInfo.metaTemplateLanguage || "pt_BR",
+          variableValues,
+        );
+        return { ...result, usedTemplate: true };
       }
 
-      return sendUnofficialMessage(unofficialApiUrl, unofficialApiToken, unofficialInstance, to, message);
+      // Fallback: free-form text (only works within 24h session window)
+      return sendMetaMessage(metaToken, phoneNumberId, to, message);
     };
     const { selected: selectedTemplate, variants } = await loadTemplatesForCampaign(svc, campaign);
 
@@ -815,21 +808,25 @@ Deno.serve(async (req) => {
       return { sent, failed };
     };
 
-    if (
-      (waConnectionType === "meta_official" && (!metaToken || !phoneNumberId)) ||
-      (waConnectionType === "unofficial" && !unofficialApiUrl)
-    ) {
+    if (!metaToken || !phoneNumberId) {
+      await logCampaignOperationEvent(svc, {
+        userId,
+        campaignId: campaign_id,
+        channel: "whatsapp",
+        eventType: "blocked",
+        source: "whatsapp-send-batch",
+        reasonCode: "missing-meta-credentials",
+        message: "Configure o Access Token e o Phone Number ID da Meta em Configuracoes > Integracoes antes de enviar campanhas.",
+      });
       return new Response(
         JSON.stringify({
-          success: true,
-          mode: "manual_fallback",
-          reason:
-            waConnectionType === "meta_official"
-              ? "Meta Cloud API is not configured"
-              : "Unofficial WhatsApp API is not configured",
+          success: false,
+          mode: "blocked",
+          code: "missing_meta_credentials",
+          error: "Configure o Access Token e o Phone Number ID da Meta em Configuracoes > Integracoes antes de enviar campanhas.",
           campaign_id,
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -973,6 +970,39 @@ Deno.serve(async (req) => {
         }
       }
 
+      if (failedCount > 0) {
+        await logCampaignOperationEvent(svc, {
+          userId,
+          campaignId: campaign.id,
+          channel: "whatsapp",
+          eventType: "dispatch_failed",
+          source: "whatsapp-send-batch-followup",
+          reasonCode: "dispatch-error",
+          message: `${failedCount} follow-up(s) de WhatsApp falharam.`,
+          metadata: {
+            sent: sentCount,
+            failed: failedCount,
+            total_due: cpRows.length,
+          },
+        });
+      }
+
+      if (sentCount > 0 || failedCount > 0) {
+        await logCampaignOperationEvent(svc, {
+          userId,
+          campaignId: campaign.id,
+          channel: "whatsapp",
+          eventType: "dispatch_completed",
+          source: "whatsapp-send-batch-followup",
+          message: `Follow-up de WhatsApp processado. ${sentCount} enviado(s), ${failedCount} falha(s).`,
+          metadata: {
+            sent: sentCount,
+            failed: failedCount,
+            total_due: cpRows.length,
+          },
+        });
+      }
+
       return new Response(
         JSON.stringify({ success: true, mode: "followup", sent: sentCount, failed: failedCount }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -988,6 +1018,11 @@ Deno.serve(async (req) => {
       .eq("send_status", "pending");
 
     if ((!cpRows || cpRows.length === 0) && retryResult.sent === 0 && retryResult.failed === 0) {
+      await svc
+        .from("campaigns")
+        .update({ status: "sent", sent_at: new Date().toISOString() })
+        .eq("id", campaign.id);
+
       return new Response(
         JSON.stringify({ success: true, mode: "api", sent: 0, failed: 0, message: "No pending leads" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -995,6 +1030,35 @@ Deno.serve(async (req) => {
     }
 
     if ((!cpRows || cpRows.length === 0) && (retryResult.sent > 0 || retryResult.failed > 0)) {
+      if (retryResult.failed > 0) {
+        await logCampaignOperationEvent(svc, {
+          userId,
+          campaignId: campaign.id,
+          channel: "whatsapp",
+          eventType: "dispatch_failed",
+          source: "whatsapp-send-batch-retry",
+          reasonCode: "dispatch-error",
+          message: `${retryResult.failed} retry(s) de WhatsApp falharam.`,
+          metadata: {
+            retried_sent: retryResult.sent,
+            retried_failed: retryResult.failed,
+          },
+        });
+      }
+
+      await logCampaignOperationEvent(svc, {
+        userId,
+        campaignId: campaign.id,
+        channel: "whatsapp",
+        eventType: "dispatch_completed",
+        source: "whatsapp-send-batch-retry",
+        message: `Retries de WhatsApp processados. ${retryResult.sent} enviado(s), ${retryResult.failed} falha(s).`,
+        metadata: {
+          retried_sent: retryResult.sent,
+          retried_failed: retryResult.failed,
+        },
+      });
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -1200,7 +1264,44 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (sentCount > 0) {
+    if (sentCount > 0 || failedCount > 0 || presList.length > 0 || retryResult.sent > 0 || retryResult.failed > 0) {
+      if (failedCount > 0) {
+        await logCampaignOperationEvent(svc, {
+          userId,
+          campaignId: campaign.id,
+          channel: "whatsapp",
+          eventType: "dispatch_failed",
+          source: "whatsapp-send-batch",
+          reasonCode: "dispatch-error",
+          message: `${failedCount} lead(s) falharam durante o envio da campanha por WhatsApp.`,
+          metadata: {
+            sent: sentCount,
+            failed: failedCount,
+            retried_sent: retryResult.sent,
+            retried_failed: retryResult.failed,
+            total_pending: presList.length,
+          },
+        });
+      }
+
+      await logCampaignOperationEvent(svc, {
+        userId,
+        campaignId: campaign.id,
+        channel: "whatsapp",
+        eventType: "dispatch_completed",
+        source: "whatsapp-send-batch",
+        message: `Campanha por WhatsApp processada. ${sentCount} enviado(s), ${failedCount} falha(s).`,
+        metadata: {
+          sent: sentCount,
+          failed: failedCount,
+          retried_sent: retryResult.sent,
+          retried_failed: retryResult.failed,
+          total_pending: presList.length,
+          threshold,
+          force_api,
+        },
+      });
+
       await svc
         .from("campaigns")
         .update({ status: "sent", sent_at: new Date().toISOString() })
@@ -1222,6 +1323,24 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error("whatsapp-send-batch error:", error);
+    if (logUserId && logCampaignId) {
+      try {
+        const svc = createClient(Deno.env.get("SUPABASE_URL") || "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "", {
+          auth: { persistSession: false },
+        });
+        await logCampaignOperationEvent(svc, {
+          userId: logUserId,
+          campaignId: logCampaignId,
+          channel: "whatsapp",
+          eventType: "dispatch_failed",
+          source: "whatsapp-send-batch",
+          reasonCode: "dispatch-error",
+          message: error instanceof Error ? error.message : "Failed to send batch",
+        });
+      } catch (logError) {
+        console.error("Failed to persist campaign WhatsApp operation event:", logError);
+      }
+    }
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Failed to send batch" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },

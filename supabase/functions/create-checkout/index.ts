@@ -66,7 +66,7 @@ serve(async (req) => {
       .update({ stripe_customer_id: customerId } as never)
       .eq("user_id", user.id);
 
-    const origin = req.headers.get("origin") || "https://envpro.com.br";
+    const origin = req.headers.get("origin") || Deno.env.get("PUBLIC_APP_URL") || "https://envpro.com.br";
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,

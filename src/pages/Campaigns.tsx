@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Megaphone, Plus, Trash2, Send, Clock, Loader2, Calendar, CheckCircle2, BarChart3, Pencil, Eye, RefreshCw, CheckCheck, BookOpen, XCircle, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, Loader2, Megaphone, Plus } from 'lucide-react';
 import CampaignPreviewDialog from '@/components/CampaignPreviewDialog';
+import { CampaignAddPresentationsDialog } from '@/components/campaigns/CampaignAddPresentationsDialog';
+import { CampaignCard } from '@/components/campaigns/CampaignCard';
+import { CampaignFiltersToolbar } from '@/components/campaigns/CampaignFiltersToolbar';
+import { CampaignFailuresDialog } from '@/components/campaigns/CampaignFailuresDialog';
+import { CampaignFormDialog } from '@/components/campaigns/CampaignFormDialog';
+import { CampaignOperationHistoryDialog } from '@/components/campaigns/CampaignOperationHistoryDialog';
+import { CampaignSavedViewDialog } from '@/components/campaigns/CampaignSavedViewDialog';
+import { CampaignSummaryCards } from '@/components/campaigns/CampaignSummaryCards';
+import { CampaignUrgentPanel } from '@/components/campaigns/CampaignUrgentPanel';
+import { CampaignViewsCard } from '@/components/campaigns/CampaignViewsCard';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -570,6 +573,15 @@ const Campaigns = () => {
   const [formTemplateId, setFormTemplateId] = useState('');
   const [creating, setCreating] = useState(false);
 
+  const resetCampaignForm = () => {
+    setEditingCampaign(null);
+    setFormName('');
+    setFormDesc('');
+    setFormChannel('whatsapp');
+    setFormSchedule('');
+    setFormTemplateId('');
+  };
+
   useEffect(() => {
     if (user) {
       fetchCampaigns();
@@ -826,11 +838,7 @@ const Campaigns = () => {
     } else {
       toast({ title: 'Campanha criada!' });
       setShowCreate(false);
-      setFormName('');
-      setFormDesc('');
-      setFormChannel('whatsapp');
-      setFormSchedule('');
-      setFormTemplateId('');
+      resetCampaignForm();
       fetchCampaigns();
     }
     setCreating(false);
@@ -887,8 +895,7 @@ const Campaigns = () => {
     } else {
       toast({ title: 'Campanha atualizada!' });
       setShowCreate(false);
-      setEditingCampaign(null);
-      setFormName(''); setFormDesc(''); setFormChannel('whatsapp'); setFormSchedule(''); setFormTemplateId('');
+      resetCampaignForm();
       fetchCampaigns();
     }
     setCreating(false);
@@ -1770,471 +1777,76 @@ const Campaigns = () => {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-          <p className="text-sm text-[#6f6f76]">Campanhas</p>
-          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.totalCampaigns}</p>
-        </Card>
-        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-[#7c7c83]" />
-            <p className="text-sm text-[#6f6f76]">Ativas</p>
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.active}</p>
-        </Card>
-        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-          <div className="flex items-center gap-2">
-            <Send className="h-4 w-4 text-[#EF3333]" />
-            <p className="text-sm text-[#6f6f76]">Enviadas</p>
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.sent}</p>
-        </Card>
-        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-[#EF3333]" />
-            <p className="text-sm text-[#6f6f76]">Leads totais</p>
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.totalLeads}</p>
-        </Card>
-        <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-[#EF3333]" />
-            <p className="text-sm text-[#6f6f76]">Conversão</p>
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{overview.conversion}%</p>
-        </Card>
-      </div>
+      <CampaignSummaryCards
+        overview={overview}
+        operationalSummary={operationalSummary}
+        onShowAttention={() => setCampaignViewFilter('attention')}
+        onOpenSettings={() => navigate('/settings?tab=integracoes')}
+      />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card
-          className="cursor-pointer rounded-[22px] border border-[#f5d8c8] bg-[#fff8f4] p-5 shadow-[0_10px_24px_rgba(194,98,10,0.08)] transition-colors hover:bg-[#fff1e8]"
-          onClick={() => setCampaignViewFilter('attention')}
-        >
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-[#c2620a]" />
-            <p className="text-sm text-[#9b6c46]">Acao necessaria</p>
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{operationalSummary.needsAttention}</p>
-          <p className="mt-1 text-xs text-[#9b6c46]">Campanhas que pedem intervencao imediata.</p>
-        </Card>
-        <Card
-          className="cursor-pointer rounded-[22px] border border-[#f2d4d8] bg-[#fff3f5] p-5 shadow-[0_10px_24px_rgba(188,55,78,0.08)] transition-colors hover:bg-[#ffe9ee]"
-          onClick={() => setCampaignViewFilter('attention')}
-        >
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-[#bc374e]" />
-            <p className="text-sm text-[#9b2a3d]">Bloqueadas</p>
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{operationalSummary.blocked}</p>
-          <p className="mt-1 text-xs text-[#9b2a3d]">Canal indisponivel, config ausente ou cancelamento operacional.</p>
-        </Card>
-        <Card
-          className="cursor-pointer rounded-[22px] border border-[#efe3cc] bg-[#fff9ef] p-5 shadow-[0_10px_24px_rgba(154,122,43,0.08)] transition-colors hover:bg-[#fff4df]"
-          onClick={() => setCampaignViewFilter('attention')}
-        >
-          <div className="flex items-center gap-2">
-            <RefreshCw className="h-4 w-4 text-[#9a7a2b]" />
-            <p className="text-sm text-[#8a6b25]">Falha recente</p>
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{operationalSummary.recentFailures}</p>
-          <p className="mt-1 text-xs text-[#8a6b25]">Dispatch falhou ou houve erro recente no envio.</p>
-        </Card>
-        <Card
-          className="cursor-pointer rounded-[22px] border border-[#d9e4ff] bg-[#f4f7ff] p-5 shadow-[0_10px_24px_rgba(54,95,194,0.08)] transition-colors hover:bg-[#edf2ff]"
-          onClick={() => navigate('/settings?tab=integracoes')}
-        >
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-[#365fc2]" />
-            <p className="text-sm text-[#365fc2]">Aguardando configuracao</p>
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{operationalSummary.awaitingConfiguration}</p>
-          <p className="mt-1 text-xs text-[#365fc2]">Integre Meta, email do cliente ou webhook para liberar envios.</p>
-        </Card>
-      </div>
+      <CampaignViewsCard
+        hasCustomFilters={hasCustomFilters}
+        defaultSavedViews={defaultSavedViews}
+        activeDefaultViewId={activeDefaultViewId}
+        defaultSavedViewCounts={defaultSavedViewCounts}
+        savedViews={savedViews}
+        activeSavedViewId={activeSavedViewId}
+        userSavedViewCounts={userSavedViewCounts}
+        onOpenSaveCurrentViewDialog={openSaveCurrentViewDialog}
+        onClearSavedViews={() => setSavedViews([])}
+        onApplySavedView={applySavedView}
+        onRemoveSavedView={removeSavedView}
+        onReorderSavedView={reorderSavedView}
+        onRenameSavedView={openRenameSavedViewDialog}
+      />
 
-      <Card className="rounded-[22px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-sm font-medium text-[#1A1A1A]">Views operacionais</p>
-            <p className="mt-1 text-sm text-[#6f6f76]">Use atalhos padrao do sistema e guarde combinacoes proprias para retomar a triagem sem remontar tudo.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!hasCustomFilters}
-              className="rounded-xl border-[#e6e6eb] bg-white text-[#5f5f67] hover:bg-[#f8f8fa]"
-              onClick={openSaveCurrentViewDialog}
-            >
-              Salvar visao atual
-            </Button>
-            {savedViews.length > 0 && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="rounded-xl border-[#f2d4d8] bg-white text-[#8c2535] hover:bg-[#fff3f5]"
-                onClick={() => setSavedViews([])}
-              >
-                Limpar views
-              </Button>
-            )}
-          </div>
-        </div>
+      <CampaignFiltersToolbar
+        campaignViewFilter={campaignViewFilter}
+        channelFilter={channelFilter}
+        statusFilter={statusFilter}
+        sortOption={sortOption}
+        searchTerm={searchTerm}
+        hasCustomFilters={hasCustomFilters}
+        filterCounts={filterCounts}
+        viewLabel={campaignViewFilterLabel(campaignViewFilter)}
+        channelLabel={campaignChannelFilterLabel(channelFilter)}
+        statusLabel={campaignStatusFilterLabel(statusFilter)}
+        sortLabel={campaignSortOptionLabel(sortOption)}
+        onSetCampaignViewFilter={setCampaignViewFilter}
+        onSetChannelFilter={setChannelFilter}
+        onSetStatusFilter={setStatusFilter}
+        onSetSortOption={setSortOption}
+        onSetSearchTerm={setSearchTerm}
+        onResetFilters={() => {
+          setCampaignViewFilter('all');
+          setChannelFilter('all');
+          setStatusFilter('all');
+          setSearchTerm('');
+          setSortOption('priority');
+        }}
+      />
 
-        <div className="mt-4">
-          <p className="text-xs font-medium uppercase tracking-[0.08em] text-[#7b7b83]">Sugestoes do sistema</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {defaultSavedViews.map((savedView) => {
-              const isActive = savedView.id === activeDefaultViewId;
-              const count = defaultSavedViewCounts[savedView.id] || 0;
-              return (
-                <Button
-                  key={savedView.id}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className={`rounded-full gap-2 ${
-                    isActive
-                      ? 'border-[#1A1A1A] bg-[#1A1A1A] text-white hover:bg-[#2a2a2a]'
-                      : count === 0
-                        ? 'border-dashed border-[#ececf0] bg-white text-[#a0a0a8] hover:bg-[#fafafd]'
-                        : 'border-[#e6e6eb] bg-[#fafafd] text-[#5f5f67] hover:bg-[#f2f2f6]'
-                  }`}
-                  onClick={() => applySavedView(savedView)}
-                >
-                  <span>{savedView.name}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] ${
-                      isActive
-                        ? 'bg-white/20 text-white'
-                        : count === 0
-                          ? 'bg-[#fafafd] text-[#a0a0a8]'
-                          : 'bg-white text-[#7b7b83]'
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </Button>
-              );
-            })}
-          </div>
-        </div>
+      <CampaignUrgentPanel
+        campaigns={urgentCampaigns}
+        attentionCount={filterCounts.attention}
+        emailSenderConfig={emailSenderConfig}
+        channelConfig={channelConfig}
+        channelLabel={channelLabel}
+        operationEventBadgeClass={operationEventBadgeClass}
+        getOperationEventTone={getOperationEventTone}
+        formatOperationEventType={formatOperationEventType}
+        summarizeOperationEvent={summarizeOperationEvent}
+        formatBlockingReason={formatBlockingReason}
+        onOpenSettings={() => navigate('/settings?tab=integracoes')}
+        onOpenHistory={openOperationHistory}
+        onEdit={(campaign) => openEdit(campaign as Campaign)}
+      />
 
-        <div className="mt-5">
-          <p className="text-xs font-medium uppercase tracking-[0.08em] text-[#7b7b83]">Views salvas</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {savedViews.length === 0 ? (
-              <p className="text-sm text-[#7b7b83]">Nenhuma view salva ainda. Monte um filtro, busca ou ordenacao e salve para reutilizar.</p>
-            ) : (
-              savedViews.map((savedView, index) => {
-                const isActive = savedView.id === activeSavedViewId;
-                const count = userSavedViewCounts[savedView.id] || 0;
-                return (
-                  <div
-                    key={savedView.id}
-                    className={`flex items-center gap-1 rounded-full p-1 ${
-                      count === 0 && !isActive ? 'border border-dashed border-[#ececf0] bg-white' : 'border border-[#e6e6eb] bg-[#fafafd]'
-                    }`}
-                  >
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className={`h-8 rounded-full px-3 gap-2 ${
-                        isActive
-                          ? 'bg-[#1A1A1A] text-white hover:bg-[#2a2a2a]'
-                          : count === 0
-                            ? 'text-[#a0a0a8] hover:bg-[#fafafd]'
-                            : 'text-[#5f5f67] hover:bg-[#f2f2f6]'
-                      }`}
-                      onClick={() => applySavedView(savedView)}
-                    >
-                      <span>{savedView.name}</span>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] ${
-                          isActive
-                            ? 'bg-white/20 text-white'
-                            : count === 0
-                              ? 'bg-[#fafafd] text-[#a0a0a8]'
-                              : 'bg-white text-[#7b7b83]'
-                        }`}
-                      >
-                        {count}
-                      </span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-full text-[#5f5f67] hover:bg-[#f2f2f6]"
-                      onClick={() => openRenameSavedViewDialog(savedView)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      disabled={index === 0}
-                      className="h-8 w-8 rounded-full text-[#5f5f67] hover:bg-[#f2f2f6] disabled:cursor-not-allowed disabled:opacity-40"
-                      onClick={() => reorderSavedView(savedView.id, 'left')}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      disabled={index === savedViews.length - 1}
-                      className="h-8 w-8 rounded-full text-[#5f5f67] hover:bg-[#f2f2f6] disabled:cursor-not-allowed disabled:opacity-40"
-                      onClick={() => reorderSavedView(savedView.id, 'right')}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-full text-[#8c2535] hover:bg-[#fff3f5] hover:text-[#8c2535]"
-                      onClick={() => removeSavedView(savedView.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </Card>
-
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={`rounded-xl ${campaignViewFilter === 'all' ? 'border-[#1A1A1A] bg-[#1A1A1A] text-white hover:bg-[#2a2a2a]' : 'border-[#e6e6eb] bg-white text-[#5f5f67] hover:bg-[#f8f8fa]'}`}
-            onClick={() => setCampaignViewFilter('all')}
-          >
-            Todas ({filterCounts.all})
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={`rounded-xl ${campaignViewFilter === 'attention' ? 'border-[#c2620a] bg-[#fff8f4] text-[#c2620a] hover:bg-[#fff0e6]' : 'border-[#f5d8c8] bg-white text-[#9b6c46] hover:bg-[#fff8f4]'}`}
-            onClick={() => setCampaignViewFilter('attention')}
-          >
-            Acao necessaria ({filterCounts.attention})
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={`rounded-xl ${campaignViewFilter === 'completed' ? 'border-[#2d7a4a] bg-[#eef8f3] text-[#2d7a4a] hover:bg-[#e2f2e9]' : 'border-[#cde8d9] bg-white text-[#2d7a4a] hover:bg-[#eef8f3]'}`}
-            onClick={() => setCampaignViewFilter('completed')}
-          >
-            Concluidas ({filterCounts.completed})
-          </Button>
-        </div>
-        <div className="flex flex-wrap gap-2 lg:justify-end">
-          <Input
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Buscar campanha..."
-            className="h-9 w-full rounded-xl border-[#e6e6eb] bg-white text-[#5f5f67] lg:w-[220px]"
-          />
-          <Select value={channelFilter} onValueChange={(value) => setChannelFilter(value as CampaignChannelFilter)}>
-            <SelectTrigger className="h-9 w-[170px] rounded-xl border-[#e6e6eb] bg-white text-[#5f5f67]">
-              <SelectValue placeholder="Canal" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os canais</SelectItem>
-              <SelectItem value="whatsapp">WhatsApp</SelectItem>
-              <SelectItem value="email">Email</SelectItem>
-              <SelectItem value="webhook">Webhook / n8n</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as CampaignStatusFilter)}>
-            <SelectTrigger className="h-9 w-[170px] rounded-xl border-[#e6e6eb] bg-white text-[#5f5f67]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="draft">Rascunho</SelectItem>
-              <SelectItem value="scheduled">Agendada</SelectItem>
-              <SelectItem value="sending">Enviando</SelectItem>
-              <SelectItem value="sent">Enviada</SelectItem>
-              <SelectItem value="cancelled">Cancelada</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={sortOption} onValueChange={(value) => setSortOption(value as CampaignSortOption)}>
-            <SelectTrigger className="h-9 w-[190px] rounded-xl border-[#e6e6eb] bg-white text-[#5f5f67]">
-              <SelectValue placeholder="Ordenacao" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="priority">Prioridade operacional</SelectItem>
-              <SelectItem value="recent">Mais recentes</SelectItem>
-              <SelectItem value="oldest">Mais antigas</SelectItem>
-              <SelectItem value="leads">Mais leads</SelectItem>
-              <SelectItem value="conversion">Maior conversao</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!hasCustomFilters}
-            className="rounded-xl border-[#e6e6eb] bg-white text-[#5f5f67] hover:bg-[#f8f8fa]"
-            onClick={() => {
-              setCampaignViewFilter('all');
-              setChannelFilter('all');
-              setStatusFilter('all');
-              setSearchTerm('');
-              setSortOption('priority');
-            }}
-          >
-            Limpar filtros
-          </Button>
-        </div>
-      </div>
-
-      {hasCustomFilters && (
-        <div className="flex flex-wrap gap-2">
-          {campaignViewFilter !== 'all' && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 rounded-full border-[#e6e6eb] bg-[#fafafd] text-[#5f5f67] hover:bg-[#f2f2f6]"
-              onClick={() => setCampaignViewFilter('all')}
-            >
-              Visao: {campaignViewFilterLabel(campaignViewFilter)} ×
-            </Button>
-          )}
-          {channelFilter !== 'all' && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 rounded-full border-[#e6e6eb] bg-[#fafafd] text-[#5f5f67] hover:bg-[#f2f2f6]"
-              onClick={() => setChannelFilter('all')}
-            >
-              Canal: {campaignChannelFilterLabel(channelFilter)} ×
-            </Button>
-          )}
-          {statusFilter !== 'all' && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 rounded-full border-[#e6e6eb] bg-[#fafafd] text-[#5f5f67] hover:bg-[#f2f2f6]"
-              onClick={() => setStatusFilter('all')}
-            >
-              Status: {campaignStatusFilterLabel(statusFilter)} ×
-            </Button>
-          )}
-          {sortOption !== 'priority' && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 rounded-full border-[#e6e6eb] bg-[#fafafd] text-[#5f5f67] hover:bg-[#f2f2f6]"
-              onClick={() => setSortOption('priority')}
-            >
-              Ordenacao: {campaignSortOptionLabel(sortOption)} Ã—
-            </Button>
-          )}
-          {searchTerm.trim().length > 0 && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 rounded-full border-[#e6e6eb] bg-[#fafafd] text-[#5f5f67] hover:bg-[#f2f2f6]"
-              onClick={() => setSearchTerm('')}
-            >
-              Busca: {searchTerm.trim()} ×
-            </Button>
-          )}
-        </div>
-      )}
-
-      {urgentCampaigns.length > 0 && (
-        <Card className="rounded-[24px] border border-[#f5d8c8] bg-[linear-gradient(135deg,#fffaf5_0%,#fff8f4_100%)] p-5 shadow-[0_10px_24px_rgba(194,98,10,0.08)]">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-[#9b6c46]">Painel operacional</p>
-              <h2 className="mt-1 text-lg font-semibold text-[#1A1A1A]">Campanhas que exigem acao agora</h2>
-              <p className="mt-1 text-sm text-[#6d6d75]">Prioridade calculada pelo ultimo evento, bloqueios ativos e falhas recentes.</p>
-            </div>
-            <Badge className="rounded-full border-[#f5d8c8] bg-white text-[#c2620a]">
-              {filterCounts.attention} com atencao
-            </Badge>
-          </div>
-          <div className="mt-4 grid gap-3 lg:grid-cols-3">
-            {urgentCampaigns.map((campaign) => (
-              <div key={campaign.id} className="rounded-[18px] border border-[#f0d7c8] bg-white/90 p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-[#1A1A1A]">{campaign.name}</p>
-                    <p className="mt-1 text-xs text-[#7b7b83]">{channelLabel(campaign.channel)}</p>
-                  </div>
-                  {campaign.latest_operation_event && (
-                    <Badge className={`text-[11px] ${operationEventBadgeClass(getOperationEventTone(campaign.latest_operation_event))}`}>
-                      {formatOperationEventType(campaign.latest_operation_event.event_type)}
-                    </Badge>
-                  )}
-                </div>
-                <p className="mt-3 text-xs leading-6 text-[#5f5f67]">
-                  {campaign.blocking_reason
-                    ? formatBlockingReason(campaign.blocking_reason)
-                    : summarizeOperationEvent(campaign.latest_operation_event)}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {(campaign.channel === 'email' && emailSenderConfig.senderEmail && emailSenderConfig.status !== 'ready') ||
-                  (campaign.channel === 'webhook' && !channelConfig.webhookReady) ||
-                  (campaign.channel === 'whatsapp' && campaign.status === 'scheduled' && !channelConfig.whatsAppOfficialReady) ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-8 rounded-xl border-[#f5d8c8] bg-[#fff8f4] text-[#c2620a] hover:bg-[#fff0e6]"
-                      onClick={() => navigate('/settings?tab=integracoes')}
-                    >
-                      Configurar
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-8 rounded-xl border-[#e6e6eb] bg-white text-[#5f5f67] hover:bg-[#f8f8fa]"
-                      onClick={() => openOperationHistory(campaign.id)}
-                    >
-                      Ver historico
-                    </Button>
-                  )}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 rounded-xl border-[#e6e6eb] bg-white text-[#5f5f67] hover:bg-[#f8f8fa]"
-                    onClick={() => openEdit(campaign)}
-                  >
-                    Editar
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      <Dialog
+      <CampaignSavedViewDialog
         open={showSaveViewDialog}
+        editing={!!editingSavedViewId}
+        savedViewName={savedViewName}
+        onSavedViewNameChange={setSavedViewName}
         onOpenChange={(open) => {
           setShowSaveViewDialog(open);
           if (!open) {
@@ -2242,296 +1854,82 @@ const Campaigns = () => {
             setEditingSavedViewId(null);
           }
         }}
-      >
-        <DialogContent className="max-w-md rounded-[22px] border border-[#ececf0] bg-white">
-          <DialogHeader>
-            <DialogTitle className="text-[#1A1A1A]">{editingSavedViewId ? 'Renomear view salva' : 'Salvar visao atual'}</DialogTitle>
-            <DialogDescription>
-              {editingSavedViewId
-                ? 'Ajuste apenas o nome da view. Os filtros originais permanecem os mesmos.'
-                : 'Reaproveite esta combinacao de filtros, busca e ordenacao sem remontar a triagem.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="campaign-saved-view-name">Nome da visao</Label>
-            <Input
-              id="campaign-saved-view-name"
-              className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]"
-              value={savedViewName}
-              onChange={(event) => setSavedViewName(event.target.value)}
-              placeholder="Ex: Webhook com falha recente"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSaveViewDialog(false)}>Cancelar</Button>
-            <Button onClick={handleSaveCurrentView} className="rounded-xl gradient-primary text-primary-foreground glow-primary">
-              {editingSavedViewId ? 'Salvar nome' : 'Salvar visao'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onSave={handleSaveCurrentView}
+      />
 
-      {/* Create / Edit Dialog */}
-      <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) { setEditingCampaign(null); setFormName(''); setFormDesc(''); setFormChannel('whatsapp'); setFormSchedule(''); setFormTemplateId(''); } }}>
-        <DialogContent className="max-w-xl rounded-[22px] border border-[#ececf0] bg-white">
-          <DialogHeader>
-            <DialogTitle className="text-[#1A1A1A]">{editingCampaign ? 'Editar Campanha' : 'Nova Campanha'}</DialogTitle>
-            <DialogDescription>
-              Configure o canal, template e agendamento {editingCampaign ? 'da campanha.' : 'para criar uma nova campanha.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nome *</Label>
-              <Input className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Restaurantes SP - Marco" />
-            </div>
-            <div className="space-y-2">
-              <Label>Descrição</Label>
-              <Textarea className="rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]" value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Objetivo da campanha..." />
-            </div>
-            <div className="space-y-2">
-              <Label>Canal de Envio</Label>
-              <Select value={formChannel} onValueChange={(v) => { setFormChannel(v); setFormTemplateId(''); }}>
-                <SelectTrigger className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="whatsapp">📱 WhatsApp</SelectItem>
-                  <SelectItem value="email">📧 Email</SelectItem>
-                  <SelectItem value="webhook">🔗 Webhook / n8n</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {formChannel === 'webhook' ? (
-              <div className="rounded-xl border border-[#d9e4ff] bg-[#f4f7ff] px-4 py-3">
-                <p className="text-sm font-medium text-[#1A1A1A]">Webhook n8n</p>
-                <p className="mt-1 text-xs leading-6 text-[#5a5a62]">
-                  Esse canal envia o payload completo da campanha para a URL configurada em Integrações. Template é opcional e não é usado no disparo.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label>Template de Mensagem</Label>
-                <Select value={formTemplateId} onValueChange={setFormTemplateId}>
-                  <SelectTrigger className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd]">
-                    <SelectValue placeholder="Selecione um template (opcional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.filter(t => t.channel === formChannel).length === 0 ? (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
-                        Nenhum template de {formChannel === 'whatsapp' ? 'WhatsApp' : 'Email'}. Crie um em Configurações (menu Templates).
-                      </div>
-                    ) : (
-                      templates
-                        .filter(t => t.channel === formChannel)
-                        .map(t => (
-                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                        ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label>Agendamento (opcional)</Label>
-              <Input className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]" type="datetime-local" value={formSchedule} onChange={e => setFormSchedule(e.target.value)} />
-            </div>
-            <div
-              className={`rounded-xl border px-4 py-3 ${
-                formReadiness.tone === 'ready'
-                  ? 'border-[#cde8d9] bg-[#eef8f3]'
-                  : formReadiness.tone === 'blocked'
-                    ? 'border-[#f5d8c8] bg-[#fff8f4]'
-                    : 'border-[#e6e6eb] bg-[#fafafd]'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-[#1A1A1A]">{formReadiness.title}</p>
-                  <p className="mt-1 text-xs leading-6 text-[#5a5a62]">{formReadiness.detail}</p>
-                </div>
-                {!formReadiness.ready && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl border-[#f5d8c8] bg-white text-[#c2620a] hover:bg-[#fff0e6]"
-                    onClick={() => navigate('/settings?tab=integracoes')}
-                  >
-                    Configurar
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
-            <Button onClick={editingCampaign ? handleUpdate : handleCreate} disabled={creating || !formName.trim()} className="rounded-xl gradient-primary text-primary-foreground glow-primary">
-              {creating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-              {editingCampaign ? 'Salvar' : 'Criar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CampaignFormDialog
+        open={showCreate}
+        editing={!!editingCampaign}
+        formName={formName}
+        formDesc={formDesc}
+        formChannel={formChannel}
+        formSchedule={formSchedule}
+        formTemplateId={formTemplateId}
+        templates={templates}
+        formReadiness={formReadiness}
+        creating={creating}
+        onOpenChange={(open) => {
+          setShowCreate(open);
+          if (!open) {
+            resetCampaignForm();
+          }
+        }}
+        onFormNameChange={setFormName}
+        onFormDescChange={setFormDesc}
+        onFormChannelChange={(value) => {
+          setFormChannel(value);
+          setFormTemplateId('');
+        }}
+        onFormTemplateIdChange={setFormTemplateId}
+        onFormScheduleChange={setFormSchedule}
+        onConfigureChannel={() => navigate('/settings?tab=integracoes')}
+        onSubmit={editingCampaign ? handleUpdate : handleCreate}
+      />
 
-      {/* Add Presentations Dialog */}
-      <Dialog open={!!showAddPresentations} onOpenChange={() => setShowAddPresentations(null)}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto rounded-[22px] border border-[#ececf0] bg-white">
-          <DialogHeader>
-            <DialogTitle className="text-[#1A1A1A]">Adicionar Apresentações</DialogTitle>
-            <DialogDescription>
-              Selecione as apresentações que devem entrar nesta campanha.
-            </DialogDescription>
-          </DialogHeader>
-          {availablePresentations.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-4">Nenhuma apresentação disponível para adicionar.</p>
-          ) : (
-            <div className="space-y-2">
-              {availablePresentations.map(p => (
-                <label key={p.id} className="flex items-center gap-3 p-3 rounded-xl border border-[#e8e8ec] bg-white hover:bg-[#fafafd] cursor-pointer transition-colors">
-                  <Checkbox
-                    checked={selectedPresentationIds.has(p.id)}
-                    onCheckedChange={(checked) => {
-                      const next = new Set(selectedPresentationIds);
-                      if (checked) {
-                        next.add(p.id);
-                      } else {
-                        next.delete(p.id);
-                      }
-                      setSelectedPresentationIds(next);
-                    }}
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{p.business_name}</p>
-                    <p className="text-xs text-[#6e6e76]">{p.business_phone || 'Sem telefone'}</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-xl"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      navigate(buildCRMHref({ mode: 'queue', leadId: p.id }));
-                    }}
-                  >
-                    CRM
-                  </Button>
-                </label>
-              ))}
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddPresentations(null)}>Cancelar</Button>
-            <Button onClick={handleAddPresentations} disabled={selectedPresentationIds.size === 0} className="rounded-xl gradient-primary text-primary-foreground glow-primary">
-              Adicionar ({selectedPresentationIds.size})
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CampaignAddPresentationsDialog
+        open={!!showAddPresentations}
+        availablePresentations={availablePresentations}
+        selectedPresentationIds={selectedPresentationIds}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowAddPresentations(null);
+          }
+        }}
+        onTogglePresentation={(presentationId, checked) => {
+          const next = new Set(selectedPresentationIds);
+          if (checked) {
+            next.add(presentationId);
+          } else {
+            next.delete(presentationId);
+          }
+          setSelectedPresentationIds(next);
+        }}
+        onOpenCrm={(presentationId) => navigate(buildCRMHref({ mode: 'queue', leadId: presentationId }))}
+        onAdd={handleAddPresentations}
+      />
 
-      {/* Failures Dialog */}
-      <Dialog open={!!failuresCampaignId} onOpenChange={(o) => { if (!o) setFailuresCampaignId(null); }}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto rounded-[22px] border border-[#ececf0] bg-white">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-[#1A1A1A]">
-              <AlertTriangle className="h-5 w-5 text-[#c2620a]" />
-              Falhas de Envio
-            </DialogTitle>
-            <DialogDescription>Leads que não receberam a mensagem e o motivo do erro.</DialogDescription>
-          </DialogHeader>
-          {failureRows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-[#6d6d75]">Nenhuma falha registrada.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {/* Summary by error type */}
-              {(() => {
-                const counts = failureRows.reduce((acc, r) => {
-                  const key = formatFailureReason(r.error_reason);
-                  acc[key] = (acc[key] || 0) + 1;
-                  return acc;
-                }, {} as Record<string, number>);
-                return (
-                  <div className="mb-3 flex flex-wrap gap-1.5">
-                    {Object.entries(counts).map(([reason, count]) => (
-                      <span key={reason} className="rounded-full border border-[#f5d8c8] bg-[#fff8f4] px-2.5 py-0.5 text-[11px] font-medium text-[#c2620a]">
-                        {count}× {reason}
-                      </span>
-                    ))}
-                  </div>
-                );
-              })()}
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs">Empresa</TableHead>
-                    <TableHead className="text-xs">Telefone</TableHead>
-                    <TableHead className="text-xs">Erro</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {failureRows.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-sm font-medium">{r.business_name}</TableCell>
-                      <TableCell className="text-sm text-[#6d6d75]">{r.business_phone}</TableCell>
-                      <TableCell className="text-xs text-[#c2620a]">{formatFailureReason(r.error_reason)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFailuresCampaignId(null)}>Fechar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CampaignFailuresDialog
+        open={!!failuresCampaignId}
+        rows={failureRows}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFailuresCampaignId(null);
+          }
+        }}
+        formatFailureReason={formatFailureReason}
+      />
 
-      {/* Operation History Dialog */}
-      <Dialog open={!!historyCampaignId} onOpenChange={(o) => { if (!o) setHistoryCampaignId(null); }}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto rounded-[22px] border border-[#ececf0] bg-white">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-[#1A1A1A]">
-              <BookOpen className="h-5 w-5 text-[#365fc2]" />
-              Historico Operacional
-            </DialogTitle>
-            <DialogDescription>Eventos recentes de bloqueio, cancelamento e execucao desta campanha.</DialogDescription>
-          </DialogHeader>
-          {operationRows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-[#6d6d75]">Nenhum evento operacional registrado.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs">Data</TableHead>
-                  <TableHead className="text-xs">Evento</TableHead>
-                  <TableHead className="text-xs">Origem</TableHead>
-                  <TableHead className="text-xs">Detalhe</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {operationRows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="text-xs text-[#6d6d75]">{new Date(row.created_at).toLocaleString('pt-BR')}</TableCell>
-                    <TableCell className="text-sm font-medium text-[#1A1A1A]">{formatOperationEventType(row.event_type)}</TableCell>
-                    <TableCell className="text-xs text-[#6d6d75]">{row.source}</TableCell>
-                    <TableCell className="text-xs text-[#4f4f57]">
-                      {row.message || formatOperationReason(row.reason_code)}
-                      {row.reason_code && (
-                        <span className="mt-1 block text-[11px] text-[#8a8a92]">Codigo: {row.reason_code}</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setHistoryCampaignId(null)}>Fechar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CampaignOperationHistoryDialog
+        open={!!historyCampaignId}
+        rows={operationRows}
+        onOpenChange={(open) => {
+          if (!open) {
+            setHistoryCampaignId(null);
+          }
+        }}
+        formatOperationEventType={formatOperationEventType}
+        formatOperationReason={formatOperationReason}
+      />
 
       {/* Preview Dialog */}
       <CampaignPreviewDialog
@@ -2564,216 +1962,32 @@ const Campaigns = () => {
         </Card>
       ) : (
         <div className="grid gap-4">
-          {sortedFilteredCampaigns.map(c => (
-            <Card key={c.id} className="rounded-[22px] border border-[#ececf0] bg-white p-6 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <h3 className="font-semibold text-[#1A1A1A] text-lg truncate">{c.name}</h3>
-                    {statusBadge(c.status)}
-                    <Badge variant="outline" className="rounded-full border-[#ececf0] bg-[#f8f8fa] text-xs text-[#5f5f67]">{channelLabel(c.channel)}</Badge>
-                    {c.channel === 'email' && emailSenderConfig.senderEmail && (
-                      <Badge className={`text-xs ${emailSenderStatusClass(emailSenderConfig.status)}`}>
-                        {emailSenderStatusLabel(emailSenderConfig.status)}
-                      </Badge>
-                    )}
-                    {c.channel === 'webhook' && (
-                      <Badge className={`text-xs ${channelReadinessBadgeClass(channelConfig.webhookReady)}`}>
-                        {channelConfig.webhookReady ? 'Webhook pronto' : 'Webhook ausente'}
-                      </Badge>
-                    )}
-                    {c.channel === 'whatsapp' && c.status === 'scheduled' && (
-                      <Badge className={`text-xs ${channelReadinessBadgeClass(channelConfig.whatsAppOfficialReady)}`}>
-                        {channelConfig.whatsAppOfficialReady ? 'Meta pronta' : 'Meta obrigatoria'}
-                      </Badge>
-                    )}
-                    {c.latest_operation_event && (
-                      <Badge className={`text-xs ${operationEventBadgeClass(getOperationEventTone(c.latest_operation_event))}`}>
-                        {formatOperationEventType(c.latest_operation_event.event_type)}
-                      </Badge>
-                    )}
-                  </div>
-                  {c.description && <p className="text-sm text-[#6e6e76] mb-3">{c.description}</p>}
-                  {c.channel === 'email' && emailSenderConfig.senderEmail && emailSenderConfig.status !== 'ready' && (
-                    <div className="mb-3 rounded-xl border border-[#f5d8c8] bg-[#fff8f4] px-3 py-2">
-                      <p className="text-xs font-medium text-[#c2620a]">
-                        {emailSenderConfig.error || 'Valide o dominio do remetente em Configuracoes > Integracoes > E-Mail.'}
-                      </p>
-                    </div>
-                  )}
-                  {c.channel === 'webhook' && !channelConfig.webhookReady && (
-                    <div className="mb-3 rounded-xl border border-[#f5d8c8] bg-[#fff8f4] px-3 py-2">
-                      <p className="text-xs font-medium text-[#c2620a]">
-                        Configure a URL do webhook em Configuracoes {'>'} Integracoes para enviar campanhas nesse canal.
-                      </p>
-                    </div>
-                  )}
-                  {c.channel === 'whatsapp' && c.status === 'scheduled' && !channelConfig.whatsAppOfficialReady && (
-                    <div className="mb-3 rounded-xl border border-[#f5d8c8] bg-[#fff8f4] px-3 py-2">
-                      <p className="text-xs font-medium text-[#c2620a]">
-                        Campanhas agendadas de WhatsApp exigem Access Token e Phone Number ID configurados na Meta.
-                      </p>
-                    </div>
-                  )}
-                  {c.status === 'cancelled' && c.blocking_reason && (
-                    <div className="mb-3 rounded-xl border border-[#f5d8c8] bg-[#fff8f4] px-3 py-2">
-                      <p className="text-xs font-medium text-[#c2620a]">
-                        {formatBlockingReason(c.blocking_reason)}
-                      </p>
-                      {c.last_blocked_at && (
-                        <p className="mt-1 text-[11px] text-[#9b6c46]">
-                          Registrado em {new Date(c.last_blocked_at).toLocaleString('pt-BR')}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Metrics */}
-                  <div className={`grid gap-2 ${c.channel === 'whatsapp' ? 'grid-cols-4 sm:grid-cols-7' : 'grid-cols-3 sm:grid-cols-6'}`}>
-                    <div className="text-center p-2 rounded-xl bg-[#f7f7fa]">
-                      <p className="text-xl font-bold text-[#1A1A1A]">{c.total}</p>
-                      <p className="text-xs text-[#7b7b83]">Leads</p>
-                    </div>
-                    <div className="text-center p-2 rounded-xl bg-[#f7f7fa]">
-                      <p className="text-xl font-bold text-[#1A1A1A]">{c.sent_count}</p>
-                      <p className="text-xs text-[#7b7b83]">Enviadas</p>
-                    </div>
-                    {c.channel === 'whatsapp' && (
-                      <>
-                        <div className="text-center p-2 rounded-xl bg-[#f0faf4]">
-                          <p className="text-xl font-bold text-[#1a7a4a]">{c.delivered_count}</p>
-                          <p className="text-xs text-[#7b7b83] flex items-center justify-center gap-0.5"><CheckCheck className="w-3 h-3" /> Entregues</p>
-                        </div>
-                        <div className="text-center p-2 rounded-xl bg-[#eef5ff]">
-                          <p className="text-xl font-bold text-[#2563b0]">{c.read_count}</p>
-                          <p className="text-xs text-[#7b7b83] flex items-center justify-center gap-0.5"><BookOpen className="w-3 h-3" /> Lidas</p>
-                        </div>
-                        {c.failed_count > 0 && (
-                          <div className="text-center p-2 rounded-xl bg-[#fff5f0]">
-                            <p className="text-xl font-bold text-[#c2620a]">{c.failed_count}</p>
-                            <p className="text-xs text-[#7b7b83] flex items-center justify-center gap-0.5"><XCircle className="w-3 h-3" /> Falhas</p>
-                          </div>
-                        )}
-                      </>
-                    )}
-                    {c.channel === 'email' && (
-                      <div className="text-center p-2 rounded-xl bg-[#f0f4ff]">
-                        <p className="text-xl font-bold text-[#3b5fc2]">{c.views}</p>
-                        <p className="text-xs text-[#7b7b83] flex items-center justify-center gap-0.5"><Eye className="w-3 h-3" /> Abertas</p>
-                      </div>
-                    )}
-                    <div className="text-center p-2 rounded-xl bg-[#fff3f5]">
-                      <p className="text-xl font-bold text-[#EF3333]">{c.accepted}</p>
-                      <p className="text-xs text-[#7b7b83]">Aceitas</p>
-                    </div>
-                    <div className="text-center p-2 rounded-xl bg-[#f7f7fa]">
-                      <p className="text-xl font-bold text-[#1A1A1A]">
-                        {c.total > 0 ? Math.round((c.accepted / c.total) * 100) : 0}%
-                      </p>
-                      <p className="text-xs text-muted-foreground">Conversão</p>
-                    </div>
-                  </div>
-
-                  {c.scheduled_at && (
-                    <p className="text-xs text-[#7b7b83] mt-3 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      Agendada: {new Date(c.scheduled_at).toLocaleString('pt-BR')}
-                    </p>
-                  )}
-                  {c.latest_operation_event && (
-                    <div className="mt-3 rounded-xl border border-[#e7e7ec] bg-[#fafafd] px-3 py-2">
-                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-[#7b7b83]">
-                        Ultimo evento operacional
-                      </p>
-                      <p className="mt-1 text-xs font-medium text-[#1A1A1A]">
-                        {formatOperationEventType(c.latest_operation_event.event_type)} · {summarizeOperationEvent(c.latest_operation_event)}
-                      </p>
-                      <p className="mt-1 text-[11px] text-[#6d6d75]">
-                        {new Date(c.latest_operation_event.created_at).toLocaleString('pt-BR')} · {c.latest_operation_event.source}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex sm:flex-col flex-row flex-wrap gap-1 shrink-0">
-                  {c.channel === 'email' && emailSenderConfig.senderEmail && emailSenderConfig.status !== 'ready' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 rounded-xl gap-1.5 border-[#f5d8c8] bg-[#fff8f4] text-[#c2620a] hover:bg-[#fff0e6]"
-                      onClick={() => navigate('/settings?tab=integracoes')}
-                    >
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      Configurar email
-                    </Button>
-                  )}
-                  {c.channel === 'webhook' && !channelConfig.webhookReady && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 rounded-xl gap-1.5 border-[#f5d8c8] bg-[#fff8f4] text-[#c2620a] hover:bg-[#fff0e6]"
-                      onClick={() => navigate('/settings?tab=integracoes')}
-                    >
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      Configurar webhook
-                    </Button>
-                  )}
-                  {c.channel === 'whatsapp' && c.status === 'scheduled' && !channelConfig.whatsAppOfficialReady && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 rounded-xl gap-1.5 border-[#f5d8c8] bg-[#fff8f4] text-[#c2620a] hover:bg-[#fff0e6]"
-                      onClick={() => navigate('/settings?tab=integracoes')}
-                    >
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      Configurar WhatsApp
-                    </Button>
-                  )}
-                  <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#e6e6eb] hover:bg-[#f8f8fa]" onClick={() => openAddPresentations(c.id)}>
-                    <Plus className="w-3.5 h-3.5" />
-                    Leads
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#e6e6eb] hover:bg-[#f8f8fa]" onClick={() => openEdit(c)}>
-                    <Pencil className="w-3.5 h-3.5" />
-                    Editar
-                  </Button>
-                  {c.status !== 'sent' && c.total > 0 &&
-                    !(c.channel === 'email' && emailSenderConfig.senderEmail && emailSenderConfig.status !== 'ready') &&
-                    !(c.channel === 'webhook' && !channelConfig.webhookReady) && (
-                    <Button size="sm" className="h-9 rounded-xl gap-1.5 gradient-primary text-primary-foreground glow-primary" onClick={() => handleSendCampaign(c)}>
-                      <Send className="w-3.5 h-3.5" />
-                      Enviar
-                    </Button>
-                  )}
-                  {c.status === 'sent' && c.total > 0 && (
-                    <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#e6e6eb] hover:bg-[#fff8f0] hover:text-[#c2620a]" onClick={() => handleForceSend(c)}>
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      Reenviar
-                    </Button>
-                  )}
-                  {c.channel === 'whatsapp' && c.status === 'sent' && (
-                    <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#e6e6eb] hover:bg-[#f8f8fa]" onClick={() => handleRunFollowup(c.id)}>
-                      <Clock className="w-3.5 h-3.5" />
-                      Follow-up
-                    </Button>
-                  )}
-                  {c.failed_count > 0 && (
-                    <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#f5d8c8] bg-[#fff8f4] text-[#c2620a] hover:bg-[#fff0e6]" onClick={() => openFailures(c.id)}>
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      {c.failed_count} falha(s)
-                    </Button>
-                  )}
-                  <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5 border-[#e6e6eb] hover:bg-[#f8f8fa]" onClick={() => openOperationHistory(c.id)}>
-                    <BookOpen className="w-3.5 h-3.5" />
-                    Historico
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-9 rounded-xl gap-1.5 text-[#8a8a92] hover:bg-[#fff1f3] hover:text-[#bc374e]" onClick={() => handleDelete(c.id)}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Excluir
-                  </Button>
-                </div>
-              </div>
-            </Card>
+          {sortedFilteredCampaigns.map((campaign) => (
+            <CampaignCard
+              key={campaign.id}
+              campaign={campaign}
+              emailSenderConfig={emailSenderConfig}
+              channelConfig={channelConfig}
+              statusBadge={statusBadge}
+              channelLabel={channelLabel}
+              emailSenderStatusLabel={emailSenderStatusLabel}
+              emailSenderStatusClass={emailSenderStatusClass}
+              channelReadinessBadgeClass={channelReadinessBadgeClass}
+              operationEventBadgeClass={operationEventBadgeClass}
+              getOperationEventTone={getOperationEventTone}
+              formatOperationEventType={formatOperationEventType}
+              formatBlockingReason={formatBlockingReason}
+              summarizeOperationEvent={summarizeOperationEvent}
+              onOpenSettings={() => navigate('/settings?tab=integracoes')}
+              onOpenAddPresentations={openAddPresentations}
+              onOpenEdit={(campaign) => openEdit(campaign as Campaign)}
+              onSend={(campaign) => handleSendCampaign(campaign as Campaign)}
+              onForceSend={(campaign) => handleForceSend(campaign as Campaign)}
+              onRunFollowup={handleRunFollowup}
+              onOpenFailures={openFailures}
+              onOpenHistory={openOperationHistory}
+              onDelete={handleDelete}
+            />
           ))}
         </div>
       )}
@@ -2782,3 +1996,4 @@ const Campaigns = () => {
 };
 
 export default Campaigns;
+

@@ -206,3 +206,58 @@
 - Added rename support for operator-saved views while preserving the original saved filters and the chip order in the bar.
 - Added a muted visual treatment for views with zero matching campaigns so empty shortcuts stop competing with active queues.
 - Extended the saved-view helper tests to cover in-place updates by `id`, closing the contract for create, rename, reorder, and preset usage.
+
+### 2026-03-21 - Follow-up: route chunks and vendor splitting now remove the bundle warning
+- Converted the main router to lazy-load pages and even the authenticated shell, so protected features stop inflating the first application chunk.
+- Added manual vendor chunking in Vite for React, Supabase, Radix/UI, charts, motion, and XLSX, which removed the previous chunk-size warning from the production build.
+- Moved XLSX loading in Admin to an on-demand import and extracted the campaign views card out of `Campaigns.tsx`, starting the modularization pass while keeping tests and build green.
+
+### 2026-03-21 - Follow-up: campaign page summary and filter bars are now modularized
+- Extracted the top summary cards and the campaign filter toolbar into dedicated campaign components to keep `Campaigns.tsx` focused on orchestration logic.
+- Reduced `Campaigns.tsx` further while preserving the same filter state, counters, and quick triage behavior already implemented.
+- Corrected an accidental typo in the campaign operation events migration during the refactor pass so the SQL artifact stays deployable.
+
+### 2026-03-21 - Follow-up: campaign dialogs are now modularized too
+- Extracted the saved-view, campaign form, add-presentations, failures, and operation-history dialogs into dedicated components under `src/components/campaigns/`.
+- Removed another large JSX block from `Campaigns.tsx`, keeping the page centered on state orchestration and dispatcher actions instead of dialog markup.
+- Re-ran the full local verification after the extraction and kept `npm test` plus `npm run build` green with the split-chunk build still healthy.
+
+### 2026-03-21 - Follow-up: urgent queue and campaign cards are now extracted
+- Moved the urgent operational panel and the individual campaign card rendering out of `Campaigns.tsx` into dedicated components, isolating the heaviest remaining UI loops.
+- Reduced `Campaigns.tsx` below the 2k-line mark while preserving the existing actions, readiness badges, and operational messaging on each campaign card.
+- Verified the refactor again with `npm test` and `npm run build`, keeping the chunked build healthy and without reintroducing the old size warning.
+
+### 2026-03-21 - Follow-up: simple settings dialogs are now modularized
+- Extracted the simpler `Settings` modals for webhook, domain, Firecrawl, ElevenLabs, email change, and the Firecrawl guide into dedicated components under `src/components/settings/`.
+- Kept the draft state and persistence logic inside `Settings.tsx`, while moving repetitive dialog markup out of the page so the file can be reduced incrementally without changing behavior.
+- Re-ran `npm test` and `npm run build` after the extraction and kept the build stable with the chunk-splitting work still intact.
+
+### 2026-03-21 - Follow-up: heavy WhatsApp and email settings flows are now extracted too
+- Extracted the heavier `Settings` integration surfaces for the Meta WhatsApp dialog, the client email sender dialog, and the integrations grid into dedicated components under `src/components/settings/`.
+- Moved the email sender badge/panel UI rules into `src/lib/settings/email-sender-ui.ts` so the page, cards, and dialog reuse the same readiness presentation contract.
+- Reduced `Settings.tsx` again while preserving the page-owned draft state and handler logic, preparing the file for the next pass over the APIs section.
+
+### 2026-03-21 - Follow-up: the Settings API keys section is now modularized
+- Extracted the full `APIs` tab into `src/components/settings/SettingsApiKeysSection.tsx`, isolating provider selection, key creation, and provider list rendering from the page shell.
+- Moved provider labels and API key masking into `src/lib/settings/api-keys-ui.ts`, so the same display contract can be reused across settings surfaces instead of staying embedded in `Settings.tsx`.
+- Kept the persistence handlers and user-bound state inside `Settings.tsx`, but removed another large JSX block so the page is now closer to orchestration than rendering.
+
+### 2026-03-21 - Follow-up: company and billing settings are now extracted too
+- Moved the `Empresa` tab into `src/components/settings/SettingsCompanySection.tsx`, keeping logo upload, profile fields, and guarded access-email actions out of the page shell.
+- Moved the `Faturamento` tab into `src/components/settings/SettingsBillingSection.tsx`, isolating monthly usage and plan upgrade rendering from the subscription handlers that still live in `Settings.tsx`.
+- Reduced `Settings.tsx` again so the remaining page code is increasingly about state, handlers, and dialog orchestration instead of large tab bodies.
+
+### 2026-03-21 - Follow-up: settings dialogs now render through a dedicated wrapper
+- Added `src/components/settings/SettingsDialogs.tsx` to own the full dialog composition layer for WhatsApp, email sender, webhook, domain, Firecrawl, ElevenLabs, access-email change, and the Firecrawl guide.
+- Replaced the long dialog block in `Settings.tsx` with a single wrapper call and removed the leftover generic `handleSaveIntegrations` path that was no longer part of the isolated-save model.
+- Reduced `Settings.tsx` to 1119 lines while keeping `npm test` and `npm run build` green after the extraction.
+
+### 2026-03-21 - Follow-up: settings API key state is now extracted into a hook
+- Moved the API-key domain state, loading, save, delete, and provider-selection logic into `src/hooks/settings/useSettingsApiKeys.ts`, removing another IO-heavy cluster from `Settings.tsx`.
+- Moved the Firecrawl onboarding steps into `src/lib/settings/firecrawl-guide.tsx`, so the settings page no longer owns that static JSX payload.
+- Reduced `Settings.tsx` further to 897 lines and kept both `npm test` and `npm run build` green after the hook extraction.
+
+### 2026-03-21 - Follow-up: profile-backed settings now live in a dedicated hook
+- Added `src/hooks/settings/useSettingsProfile.ts` to own the profile-backed state, profile hydration, company save flow, access-email change flow, Firecrawl key lifecycle, and the full integrations orchestration that persists to `profiles`.
+- Rewired `Settings.tsx` to consume `useSettingsProfile` plus `useSettingsApiKeys`, leaving the page focused on tabs, subscription state, and high-level composition instead of direct profile IO and draft orchestration.
+- Reduced `Settings.tsx` to 315 lines and verified the refactor with `npm test` plus `npm run build` still green.

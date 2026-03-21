@@ -44,7 +44,7 @@ import { BRAND } from '@/config/brand';
 import { useState, useEffect, type ElementType } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import sidebarExpandedLogo from '@/logos/Group 160.svg';
-import sidebarCollapsedLogo from '@/logos/Group 161.svg';
+import mobileHeaderLogo from '@/logos/Group 157.svg';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import { FeedbackDialog } from '@/components/FeedbackDialog';
 import { MessageSquare } from 'lucide-react';
@@ -614,17 +614,12 @@ export const AppLayout = () => {
           {renderSidebarContent({ mobile: false })}
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-[#ebebef] bg-white/90 px-2.5 backdrop-blur sm:h-[74px] sm:px-3 lg:px-4">
+        <div className="flex min-w-0 flex-1 flex-col h-full">
+          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-[#ebebef] bg-white/90 px-3 backdrop-blur sm:h-[74px] sm:px-3 lg:px-4">
             <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 rounded-xl text-[#54545a] hover:bg-[#f2f2f4] hover:text-[#1A1A1A] lg:hidden"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
+              <div className="lg:hidden">
+                <img src={mobileHeaderLogo} alt={BRAND.name} className="h-9 w-auto" />
+              </div>
               <div className="hidden sm:block">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a8a91]">{currentMeta.eyebrow}</p>
                 <p className="text-sm font-semibold text-[#1A1A1A]">{currentMeta.title}</p>
@@ -739,7 +734,7 @@ export const AppLayout = () => {
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto">
+          <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
             <AnimatePresence mode="wait">
               <motion.div
                 key={location.pathname}
@@ -752,6 +747,46 @@ export const AppLayout = () => {
               </motion.div>
             </AnimatePresence>
           </main>
+
+          {/* Mobile Bottom Navigation */}
+          <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t border-[#ebebef] bg-white/80 px-2 pb-safe backdrop-blur-lg lg:hidden">
+            {[
+              { path: '/dashboard', label: 'Início', icon: LayoutGrid },
+              { path: '/crm', label: 'CRM', icon: Users },
+              { path: '/search', label: 'Scan', icon: SearchIcon, featured: true },
+              { path: '/campaigns', label: 'Envios', icon: Send },
+            ].map((item) => (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={cn(
+                  'flex flex-col items-center gap-1 transition-all duration-200',
+                  item.featured
+                    ? 'h-14 w-14 -mt-7 shrink-0 rounded-full bg-[#EF3333] shadow-[0_8px_20px_rgba(239,51,51,0.35)] justify-center text-white aspect-square'
+                    : 'min-w-[56px] text-[#8a8a91]',
+                  !item.featured && location.pathname === item.path ? 'text-[#EF3333]' : ''
+                )}
+              >
+                <item.icon
+                  className={cn(
+                    item.featured ? 'h-6 w-6' : 'h-5 w-5',
+                    !item.featured && location.pathname === item.path ? 'text-[#EF3333]' : ''
+                  )}
+                  strokeWidth={item.featured || location.pathname === item.path ? 2.5 : 2}
+                />
+                <span className={cn('text-[10px] font-medium', item.featured ? 'text-white' : '')}>
+                  {item.label}
+                </span>
+              </button>
+            ))}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="flex flex-col items-center gap-1 min-w-[64px] text-[#8a8a91]"
+            >
+              <Menu className="h-5 w-5" />
+              <span className="text-[10px] font-medium">Menu</span>
+            </button>
+          </nav>
         </div>
 
         <OnboardingChecklist />

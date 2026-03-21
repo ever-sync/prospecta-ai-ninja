@@ -25,53 +25,69 @@ Deno.serve(async (req) => {
     const { user, svc } = await getAuthenticatedUserContext(req);
     const llm = await resolveUserLLM(svc, user.id, provider);
 
-    const systemPrompt = `Você é um SDR altamente experiente e um copywriter focado em conversão agressiva e venda de serviços B2B digitais (Tráfego, SEO, Web Design).
-Sua missão é olhar a análise técnica de um lead e criar 3 abordagens curtíssimas para Cold WhatsApp. 
-A abordagem deve colocar o *dedo na ferida*. Não ofereça serviço direto, exponha a falha e crie curiosidade para reunião.
-Use tom coloquial de WhatsApp (não mande 'Prezado(a)', mande 'Oi, tudo bem?').
-Ataque falhas como: Notas ruins no mapa, falta de Pixel de Rastreio, site genérico ou lento.
+    const systemPrompt = `Você é um SDR e Copywriter de elite, especializado em prospecção via WhatsApp para agências de Marketing Digital e Desenvolvimento.
+Sua missão é criar 3 abordagens de venda consultiva que NÃO pareçam spam.
+
+ESTRUTURA DA MENSAGEM:
+1. **O Gancho (Elogio Sincero):** Comece notando algo POSITIVO (ex: ótimas avaliações, tempo de casa, unidade bonita). 
+2. **A Lacuna (O Dedo na Ferida):** Introduza um problema técnico real que você encontrou (ex: site lento, sem pixel, SEO quebrado, falta de site). Seja específico e use dados.
+3. **A Solução/Curiosidade:** Não tente vender o serviço. Tente vender uma conversa de 5 min ou mostre que você tem a solução.
+4. **Tom Coloquial:** Use "Oi", "Tudo bem?", evite formalidade exagerada. Use emojis com moderação.
 
 REGRAS:
-- PORTUGUES DO BRASIL IMPECAVEL (CRÍTICO) - ZERO ERROS DE GRAMÁTICA OU PLURAIS.
-- Maximo de 3-4 frases por mensagem.
-- Não invente defeitos que não estão descritos nos dados (SEJA VERÍDICO NAS FALHAS).
+- PORTUGUES DO BRASIL IMPECÁVEL (CRÍTICO) - ZERO ERROS DE GRAMÁTICA OU PLURAIS.
+- Mensagens curtas (3-5 frases).
+- Use APENAS as falhas e virtudes presentes nos dados. Não invente.
 
-Formato de retorno OBRIGATÓRIAMENTE JSON:
+Formato de retorno JSON:
 {
   "messages": [
     {
-      "type": "choque_direto",
+      "type": "Abordagem_Equilibrada",
       "text": "..."
     },
     {
-      "type": "curiosidade_suave",
+      "type": "Foco_em_Autoridade",
       "text": "..."
     },
     {
-      "type": "humor_alerta",
+      "type": "Direto_ao_Ponto",
       "text": "..."
     }
   ]
 }`;
 
-    // Extracting main pain points from analysis.
-    const pains = [];
-    if (analysis.scores?.speed < 60) pains.push(`Site absurdamente lento (nota ${analysis.scores?.speed}/100)`);
-    if (!analysis.marketing_signals?.has_facebook_pixel && !analysis.marketing_signals?.has_google_ads) pains.push(`Estão rodando anúncio ou vendendo sem ter NENHUM script de remarketing (Pixel) instalado`);
-    if (analysis.seo_details?.issues?.length > 0) pains.push(`Graves problemas de SEO: ${analysis.seo_details.issues.slice(0, 2).join(", ")}`);
-    if (analysis.google_presence?.rating < 4.5) pains.push(`Nota no Google baixa ou mediana (${analysis.google_presence?.rating || 'não avaliada'})`);
+    // Extracting data for prompt
+    const hasWebsite = Boolean(business.website);
+    const rating = business.rating;
+    
+    const strengths = [];
+    if (rating >= 4.5) strengths.push(`Excelente reputação no Google (${rating} estrelas).`);
+    if (analysis.google_presence?.strengths?.length > 0) strengths.push(...analysis.google_presence.strengths.slice(0, 1));
+    if (business.distance <= 1) strengths.push(`Localização estratégica e privilegiada.`);
 
-    const userPrompt = `LEAD: ${business.name}
+    const weaknesses = [];
+    if (!hasWebsite) weaknesses.push("Não possui site próprio (depende só de terceiros).");
+    if (analysis.scores?.speed < 50) weaknesses.push(`Site com carregamento muito lento (${analysis.scores?.speed}/100).`);
+    if (!analysis.marketing_signals?.has_facebook_pixel) weaknesses.push("Falta do Pixel do Facebook (perda de rastreio de clientes).");
+    if (analysis.seo_details?.issues?.length > 0) weaknesses.push(`Problemas críticos de visibilidade no Google: ${analysis.seo_details.issues[0]}.`);
+
+    const userPrompt = `DADOS DO LEAD:
+Empresa: ${business.name}
 Nicho: ${business.category || 'Não informado'}
+Site: ${business.website || 'Não possui'}
+Avaliação Google: ${rating || 'Sem avaliações'}
 
-RESUMO DE VULNERABILIDADES:
-${pains.length > 0 ? pains.join("\n- ") : "Parecem estar indo bem na superfície, foque em crescimento e escala."}
+PONTOS FORTES (Para o Elogio):
+- ${strengths.length > 0 ? strengths.join("\n- ") : "Foco em profissionalismo e atendimento."}
 
-Crie 3 abordagens de WhatsApp (choque rápido, curiosidade e alerta bem humorado) expondo essas falhas para ${business.name}.
-Seja letalmente conciso, instigue a dor da perda financeira ou de pacientes/clientes.`;
+FALHAS TÉCNICAS (O Dedo na Ferida):
+- ${weaknesses.length > 0 ? weaknesses.join("\n- ") : "Baixa maturidade digital no geral."}
+
+Crie 3 abordagens personalizadas para WhatsApp seguindo a estrutura: Elogio -> Dedo na Ferida -> Convite para conversa.`;
 
     const generated = await callLLMJson<any>(llm, systemPrompt, userPrompt, {
-      temperature: 0.7,
+      temperature: 0.8,
       maxOutputTokens: 1000,
     });
 

@@ -34,16 +34,19 @@ serve(async (req) => {
 
     const categoryName = categoryLabels[business.category] || business.category;
 
-    const systemPrompt = `Voce e um especialista em vendas B2B e prospeccao comercial no Brasil.
-Sua tarefa e gerar uma sugestao de abordagem comercial personalizada e eficaz.
+    const systemPrompt = `Você é um SDR experiente em prospecção via WhatsApp.
+Sua tarefa é gerar uma abordagem comercial personalizada e humana.
 
-Regras:
-- Seja direto e objetivo
-- Use linguagem profissional e acessivel
-- Foque em valor e beneficios
-- Sugira um gancho inicial relevante para o segmento
-- Mantenha a sugestao em ate 3 paragrafos curtos
-- Inclua uma sugestao de primeira mensagem/script`;
+ESTRUTURA:
+1. Comece com um ponto positivo (ex: 'vi que vocês têm ótimas avaliações' ou 'vi que vocês são referência em [Nicho]').
+2. Introduza uma observação sobre a presença digital (ex: falta de site, ou site que pode melhorar).
+3. Faça um convite rápido e informal para uma conversa.
+
+REGRAS:
+- Linguagem COLOQUIAL (Oi, Tudo bem?).
+- Máximo 3 parágrafos curtíssimos.
+- Português do Brasil IMPECÁVEL.
+- NÃO pareça um robô de vendas.`;
 
     const userPrompt = `Gere uma sugestao de abordagem comercial para esta empresa:
 

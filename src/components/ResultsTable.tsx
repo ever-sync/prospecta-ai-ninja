@@ -63,106 +63,97 @@ export const ResultsTable = ({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 lg:hidden">
+      <div className="grid gap-4 sm:grid-cols-2 xl:hidden">
         {businesses.map((business) => {
           const signal = deriveLeadSignalSummary(business);
           return (
             <div
               key={business.id}
               className={cn(
-                "rounded-[24px] border p-4 transition-all",
+                "group relative overflow-hidden rounded-[28px] border transition-all duration-300",
                 activeBusinessId === business.id
-                  ? "border-[#EF3333]/35 bg-[#fff9fa] shadow-[0_18px_34px_rgba(239,51,51,0.12)]"
-                  : "border-[#ececf0] bg-white"
+                  ? "border-[#EF3333]/40 bg-[#fff9fa] shadow-[0_20px_45px_rgba(239,51,51,0.18)]"
+                  : "border-[#ececf0] bg-white hover:border-[#EF3333]/20 hover:shadow-[0_12px_30px_rgba(0,0,0,0.06)]"
               )}
             >
-              <div className="flex items-start gap-3">
-                <Checkbox
-                  checked={selectedIds.has(business.id)}
-                  onCheckedChange={() => onToggleSelected(business.id)}
-                  className="mt-1"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate text-base font-semibold text-[#1A1A1A]">{business.name}</h3>
-                    {business.rating ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#fff2f4] px-2 py-1 text-xs font-medium text-[#9f2336]">
-                        <Star className="h-3 w-3 fill-current" />
-                        {business.rating}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <Badge className={cn("rounded-full border", priorityToneClass[signal.priorityTone])}>
-                      {signal.priorityLabel}
-                    </Badge>
-                    <Badge className={cn("rounded-full border", onlinePresenceToneClass[signal.onlinePresenceTone])}>
-                      {signal.onlinePresenceLabel}
-                    </Badge>
-                    <Badge variant="outline" className="rounded-full border-[#ececf0] bg-[#f8f8fa] text-[#5f5f67]">
-                      Score {signal.score}
-                    </Badge>
-                    <Badge variant="outline" className="rounded-full border-[#ececf0] bg-white text-[#6f6f76]">
-                      {getCategoryLabel(business.category)}
-                    </Badge>
-                  </div>
-
-                  <div className="mt-3 space-y-2 text-sm text-[#5f5f67]">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-[#8d8d95]" />
-                      <span className="line-clamp-2">{business.address}</span>
+              <div className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="truncate text-lg font-bold tracking-tight text-[#1A1A1A]">{business.name}</h3>
+                      {business.rating ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#fff2f4] px-2 py-1 text-[11px] font-bold text-[#b02a3a]">
+                          <Star className="h-3 w-3 fill-current" />
+                          {business.rating}
+                        </span>
+                      ) : null}
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="inline-flex items-center gap-1">
-                        <Radar className="h-4 w-4 text-[#EF3333]" />
-                        {signal.proximityLabel}
-                      </span>
-                      <span>{signal.reputationLabel}</span>
-                      <span className="inline-flex items-center gap-1">
-                        <Globe className="h-4 w-4 text-[#8d8d95]" />
-                        Presenca {signal.onlinePresenceScore}
-                      </span>
+                    <div className="mt-1 flex items-center gap-1.5 text-xs text-[#8d8d95]">
+                      <MapPin className="h-3.5 w-3.5" />
+                      <span className="line-clamp-1">{business.address}</span>
                     </div>
                   </div>
+                  <Checkbox
+                    checked={selectedIds.has(business.id)}
+                    onCheckedChange={() => onToggleSelected(business.id)}
+                    className="h-5 w-5 rounded-lg border-[#e2e2e8] data-[state=checked]:bg-[#EF3333]"
+                  />
+                </div>
 
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {signal.signalFlags.map((flag) => (
-                      <span
-                        key={flag}
-                        className="rounded-full border border-[#ececf0] bg-[#fcfcfd] px-2.5 py-1 text-[11px] font-medium text-[#6e6e76]"
-                      >
-                        {flag}
-                      </span>
-                    ))}
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  <Badge className={cn("rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider", priorityToneClass[signal.priorityTone])}>
+                    {signal.priorityLabel}
+                  </Badge>
+                  <Badge className={cn("rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider", onlinePresenceToneClass[signal.onlinePresenceTone])}>
+                    {signal.onlinePresenceLabel}
+                  </Badge>
+                  <Badge variant="outline" className="rounded-full border-[#ececf0] bg-[#f8f8fa] px-2.5 py-0.5 text-[10px] font-bold text-[#5f5f67]">
+                    SCORE {signal.score}
+                  </Badge>
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-3 border-y border-[#ececf0]/50 py-4">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#8d8d95]">Proximidade</p>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-[#1A1A1A]">
+                      <Radar className="h-3.5 w-3.5 text-[#EF3333]" />
+                      {signal.proximityLabel}
+                    </div>
                   </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#8d8d95]">Reputacao</p>
+                    <div className="text-xs font-semibold text-[#1A1A1A]">
+                      {signal.reputationLabel}
+                    </div>
+                  </div>
+                </div>
 
-                  <p className="mt-3 text-xs leading-relaxed text-[#777780]">
-                    {signal.onlinePresenceWeaknesses[0] || "Sem leitura de fraqueza disponivel."}
+                <div className="mt-4 min-h-[40px]">
+                  <p className="text-xs leading-relaxed text-[#66666e]">
+                    {signal.onlinePresenceWeaknesses[0] || "Sem leitura de fraqueza disponivel no momento."}
                   </p>
+                </div>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-5 flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 h-11 rounded-2xl border-[#e6e6eb] bg-white text-sm font-bold shadow-sm hover:bg-[#fff9fa] hover:text-[#EF3333]"
+                    onClick={() => onSelectBusiness(business)}
+                  >
+                    <SearchCheck className="mr-2 h-4 w-4" />
+                    Contexto
+                  </Button>
+                  {business.website ? (
                     <Button
-                      variant="outline"
-                      className="h-10 rounded-xl border-[#e6e6eb] bg-white"
-                      onClick={() => onSelectBusiness(business)}
+                      variant="ghost"
+                      className="h-11 w-11 shrink-0 rounded-2xl bg-[#fff2f4] text-[#7a2431] hover:bg-[#ffe4e8]"
+                      asChild
                     >
-                      <SearchCheck className="mr-2 h-4 w-4" />
-                      Ver inteligencia
+                      <a href={`https://${business.website}`} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
                     </Button>
-                    {business.website ? (
-                      <Button
-                        variant="ghost"
-                        className="h-10 rounded-xl text-[#7a2431] hover:bg-[#fff1f3]"
-                        asChild
-                      >
-                        <a href={`https://${business.website}`} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="mr-2 h-4 w-4" />
-                          Site
-                        </a>
-                      </Button>
-                    ) : null}
-                  </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -170,7 +161,7 @@ export const ResultsTable = ({
         })}
       </div>
 
-      <div className="hidden overflow-x-auto lg:block">
+      <div className="hidden overflow-x-auto xl:block">
         <Table className="min-w-[980px]">
           <TableHeader>
             <TableRow className="border-b border-[#ececf0] bg-[#f9f9fb] hover:bg-[#f9f9fb]">

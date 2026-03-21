@@ -152,6 +152,7 @@ const Index = () => {
   const [showProgress, setShowProgress] = useState(false);
   const [showPipelineDialog, setShowPipelineDialog] = useState(false);
   const [showRefinementDialog, setShowRefinementDialog] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [analysisTargets, setAnalysisTargets] = useState<Business[] | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -203,6 +204,7 @@ const Index = () => {
       setBusinesses([]);
     } finally {
       setIsLoading(false);
+      setShowMobileSearch(false);
     }
   };
 
@@ -644,7 +646,7 @@ const Index = () => {
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <aside className="sticky top-[94px] self-start space-y-5">
+        <aside className="hidden xl:block sticky top-[94px] self-start space-y-5">
           <Card className="rounded-[28px] border border-[#ececf0] bg-white p-5 shadow-[0_14px_36px_rgba(20,20,24,0.06)] lg:p-6">
             <SearchFilters
               onSearch={handleSearch}
@@ -664,13 +666,13 @@ const Index = () => {
                   <h2 className="text-base font-semibold text-[#1A1A1A]">Resumo da sessao</h2>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <div className="min-w-[160px] rounded-[20px] border border-[#ececf0] bg-[#fafafc] px-4 py-3">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                  <div className="rounded-[20px] border border-[#ececf0] bg-[#fafafc] px-4 py-3">
                     <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Resultados</p>
                     <p className="mt-1 text-2xl font-semibold text-[#1A1A1A]">{sessionState.filteredResults}</p>
                   </div>
 
-                  <div className="min-w-[160px] rounded-[20px] border border-[#ececf0] bg-[#fafafc] px-4 py-3">
+                  <div className="rounded-[20px] border border-[#ececf0] bg-[#fafafc] px-4 py-3">
                     <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Selecionados</p>
                     <p className="mt-1 text-2xl font-semibold text-[#1A1A1A]">{sessionState.selectedCount}</p>
                   </div>
@@ -790,7 +792,7 @@ const Index = () => {
                   </button>
                 </div>
               )}
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Card className="rounded-[24px] border border-[#ececf0] bg-white p-5 shadow-[0_10px_24px_rgba(18,18,22,0.05)]">
                   <p className="text-[11px] uppercase tracking-[0.14em] text-[#8d8d95]">Radar quente</p>
                   <p className="mt-2 text-3xl font-semibold text-[#1A1A1A]">{hotLeadCount}</p>
@@ -826,6 +828,37 @@ const Index = () => {
           )}
         </section>
       </div>
+
+      <Dialog open={showMobileSearch} onOpenChange={setShowMobileSearch}>
+        <DialogContent className="max-h-[90vh] max-w-[95vw] overflow-y-auto rounded-[28px] border-[#ececf0] bg-white p-6 xl:hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Radar className="h-5 w-5 text-[#EF3333]" />
+              Nova Varredura
+            </DialogTitle>
+            <DialogDescription>
+              Configure o nicho e a localizacao para encontrar novas oportunidades.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            <SearchFilters
+              onSearch={handleSearch}
+              isLoading={isLoading}
+              hasSearched={hasSearched}
+              totalResults={businesses.length}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {!showMobileSearch && (
+        <Button
+          onClick={() => setShowMobileSearch(true)}
+          className="fixed bottom-24 right-4 z-40 h-14 w-14 rounded-full bg-[#EF3333] p-0 text-white shadow-[0_8px_30px_rgba(239,51,51,0.4)] transition-all hover:scale-105 hover:bg-[#d92a3f] active:scale-95 xl:hidden"
+        >
+          <Search className="h-6 w-6" />
+        </Button>
+      )}
 
       {selectedIds.size > 0 ? (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#ececf0] bg-white/95 px-3 py-3 backdrop-blur sm:px-4 lg:bottom-4 lg:left-[max(1rem,calc((100vw-1600px)/2+1rem))] lg:right-4 lg:rounded-[24px] lg:border lg:shadow-[0_24px_50px_rgba(12,12,18,0.12)] xl:left-[calc((100vw-1600px)/2+392px)]">

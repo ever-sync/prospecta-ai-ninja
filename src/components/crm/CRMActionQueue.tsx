@@ -45,7 +45,7 @@ export const CRMActionQueue = ({ items, onOpenLead }: CRMActionQueueProps) => {
             </Button>
           </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-4">
+          <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-[18px] bg-[#fafafd] p-3">
               <p className="text-[11px] uppercase tracking-[0.12em] text-[#8a8a92]">Sistema</p>
               <p className="mt-1 text-sm font-medium text-[#1A1A1A]">{getSystemStatusLabel(item.lead.system_status)}</p>

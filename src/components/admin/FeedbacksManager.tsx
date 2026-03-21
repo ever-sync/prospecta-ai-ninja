@@ -3,10 +3,9 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, MessageSquare, Loader2, Star, FileSpreadsheet, FileText } from 'lucide-react';
+import { Search, MessageSquare, Loader2, Star, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
 
 interface Feedback {
   id: string;
@@ -21,39 +20,64 @@ interface Feedback {
   } | null;
 }
 
+interface FeedbackProfile {
+  user_id: string;
+  full_name: string | null;
+  email: string | null;
+  company_name: string | null;
+}
+
 const FeedbacksManager = () => {
   const { toast } = useToast();
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [exportingXlsx, setExportingXlsx] = useState(false);
+
+  const enrichFeedbacksWithProfiles = useCallback(async (rows: Feedback[]) => {
+    const userIds = [...new Set(rows.map((feedback) => feedback.user_id).filter(Boolean))] as string[];
+
+    if (userIds.length === 0) {
+      return rows;
+    }
+
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('user_id, full_name, email, company_name')
+      .in('user_id', userIds);
+
+    if (profilesError) {
+      throw profilesError;
+    }
+
+    const profilesByUserId = new Map<string, Feedback['profiles']>(
+      ((profilesData || []) as FeedbackProfile[]).map((profile) => [
+        profile.user_id,
+        {
+          full_name: profile.full_name,
+          email: profile.email,
+          company_name: profile.company_name,
+        },
+      ]),
+    );
+
+    return rows.map((feedback) => ({
+      ...feedback,
+      profiles: feedback.user_id ? profilesByUserId.get(feedback.user_id) ?? null : null,
+    }));
+  }, []);
 
   const fetchFeedbacks = useCallback(async () => {
     setLoading(true);
     try {
-      // Note: This join assumes a relationship exists or Supabase can resolve it.
-      // If it fails, we'll fetch profiles separately.
       const { data, error } = await supabase
         .from('feedbacks')
-        .select(`
-          *,
-          profiles:profiles!inner(full_name, email, company_name)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        // Fallback if join fails
-        const { data: simpleData, error: simpleError } = await supabase
-          .from('feedbacks')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        if (simpleError) throw simpleError;
-        
-        setFeedbacks(simpleData || []);
-      } else {
-        setFeedbacks(data as any[] || []);
-      }
+      if (error) throw error;
+
+      const hydratedFeedbacks = await enrichFeedbacksWithProfiles((data || []) as Feedback[]);
+      setFeedbacks(hydratedFeedbacks);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';
       toast({
@@ -64,7 +88,7 @@ const FeedbacksManager = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [enrichFeedbacksWithProfiles, toast]);
 
   useEffect(() => {
     fetchFeedbacks();

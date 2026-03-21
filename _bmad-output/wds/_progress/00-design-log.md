@@ -279,3 +279,7 @@
 - Added `src/hooks/settings/useSettingsProfile.ts` to own the profile-backed state, profile hydration, company save flow, access-email change flow, Firecrawl key lifecycle, and the full integrations orchestration that persists to `profiles`.
 - Rewired `Settings.tsx` to consume `useSettingsProfile` plus `useSettingsApiKeys`, leaving the page focused on tabs, subscription state, and high-level composition instead of direct profile IO and draft orchestration.
 - Reduced `Settings.tsx` to 315 lines and verified the refactor with `npm test` plus `npm run build` still green.
+
+### 2026-03-21 - Follow-up: admin feedbacks now hydrate user data without a fragile join
+- Reworked `src/components/admin/FeedbacksManager.tsx` to fetch `feedbacks` first and hydrate `profiles` in a second explicit query by `user_id`, instead of relying on a PostgREST relationship that is not defined in the generated Supabase types.
+- This keeps the superadmin feedback panel stable and ensures each feedback row can show name, email, and company whenever the matching profile exists.

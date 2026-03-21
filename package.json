@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "test": "node --test tests/campaign-routing.test.js tests/campaign-webhook.test.js tests/meta-whatsapp-readiness.test.js tests/settings-integration-payloads.test.js",
+    "test": "node --test tests/campaign-routing.test.js tests/campaign-webhook.test.js tests/meta-whatsapp-readiness.test.js tests/email-sender-readiness.test.js tests/settings-integration-payloads.test.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -63,6 +63,7 @@ const menuItems = [
 
 const generalItems = [
   { path: '/settings', label: 'Configurações', icon: Settings },
+  { path: '/documentation', label: 'Documentação', icon: FileText },
 ];
 
 const planBadgeConfig: Record<string, { label: string; className: string }> = {
@@ -157,6 +158,11 @@ const routeMeta: Record<string, { eyebrow: string; title: string; description: s
     eyebrow: 'Configura??o',
     title: 'Ajustes da Conta',
     description: 'Controle plano, faturamento e configurações operacionais.',
+  },
+  '/documentation': {
+    eyebrow: 'Base de Conhecimento',
+    title: 'Documentação',
+    description: 'Guias operacionais, integrações e referências da plataforma.',
   },
   '/admin': {
     eyebrow: 'Controle Interno',

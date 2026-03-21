@@ -16,6 +16,7 @@ import DNA from "./pages/DNA";
 import Dashboard from "./pages/Dashboard";
 import CRM from "./pages/CRM";
 import Settings from "./pages/Settings";
+import Documentation from "./pages/Documentation";
 import Presentations from "./pages/Presentations";
 import Campaigns from "./pages/Campaigns";
 import Templates from "./pages/Templates";
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="/admin/custos" element={<Admin initialTab="custos" />} />
             <Route path="/admin/emails" element={<Admin initialTab="emails" />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/documentation" element={<Documentation />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

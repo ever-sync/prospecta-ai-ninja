@@ -16,7 +16,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { buildCRMHref } from '@/lib/crm/deriveLeadState';
-import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
+import { buildCampaignWebhookPayload } from '../../supabase/functions/_shared/campaign-webhook.js';
+import { getCampaignDispatchTarget, isDispatchableCampaignChannel } from '../../supabase/functions/_shared/campaign-routing.js';
+import { getEdgeFunctionErrorMessage, invokeEdgeFunction } from '@/lib/invoke-edge-function';
 import { useNavigate } from 'react-router-dom';
 
 interface Campaign {
@@ -78,6 +80,7 @@ interface PreviewLead {
   subject?: string;
   templateId?: string | null;
   variantId?: string | null;
+  webhookPayloadPreview?: string;
 }
 
 const HYBRID_API_THRESHOLD = 15;
@@ -276,6 +279,15 @@ const Campaigns = () => {
   const handleCreate = async () => {
     if (!user || !formName.trim()) return;
 
+    if (!isDispatchableCampaignChannel(formChannel)) {
+      toast({
+        title: 'Canal indisponivel',
+        description: 'Webhook de campanha ainda nao possui envio automatizado.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!canUse('campaigns')) {
       toast({
         title: 'Limite atingido',
@@ -334,6 +346,16 @@ const Campaigns = () => {
 
   const handleUpdate = async () => {
     if (!editingCampaign || !formName.trim()) return;
+
+    if (!isDispatchableCampaignChannel(formChannel)) {
+      toast({
+        title: 'Canal indisponivel',
+        description: 'Webhook de campanha ainda nao possui envio automatizado.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setCreating(true);
     const { error } = await supabase.from('campaigns').update({
       name: formName.trim(),
@@ -418,7 +440,7 @@ const Campaigns = () => {
 
     const { data: cpRows } = await supabase
       .from('campaign_presentations')
-      .select('id, presentation_id')
+      .select('id, presentation_id, send_status, sent_at, delivery_status, followup_step, next_followup_at, provider_message_id, variant_id')
       .eq('campaign_id', campaign.id)
       .eq('send_status', 'pending');
 
@@ -488,6 +510,7 @@ const Campaigns = () => {
 
     const previews = presentations.map((pres: any) => {
       const cpId = cpIdByPresentation.get(pres.id) || '';
+      const cpRow = (cpRows || []).find((row) => row.presentation_id === pres.id);
       const chosenVariant = pickVariantForLead(
         {
           id: pres.id,
@@ -516,6 +539,47 @@ const Campaigns = () => {
       } else {
         message = `Olá! Tudo bem?\n\nSou da ${profile?.company_name || 'nossa empresa'} e preparei uma análise personalizada para ${pres.business_name}.\n\nAcesse aqui: ${publicUrl}`;
       }
+
+      let webhookPayloadPreview: string | undefined;
+      if (campaign.channel === 'webhook') {
+        const webhookPayload = buildCampaignWebhookPayload({
+          eventId: `${campaign.id}:${cpId || pres.id}`,
+          attemptId: `preview:${campaign.id}:${pres.id}`,
+          dispatchedAt: new Date().toISOString(),
+          source: 'campaign_preview',
+          campaign: {
+            id: campaign.id,
+            name: campaign.name,
+            channel: campaign.channel,
+            status: campaign.status,
+            description: campaign.description,
+            scheduled_at: campaign.scheduled_at,
+            sent_at: campaign.sent_at,
+            template_id: (campaign as any).template_id || null,
+          },
+          campaignPresentation: {
+            id: cpId,
+            send_status: cpRow?.send_status || 'pending',
+            sent_at: cpRow?.sent_at || null,
+            delivery_status: cpRow?.delivery_status || 'pending',
+            followup_step: cpRow?.followup_step || 0,
+            next_followup_at: cpRow?.next_followup_at || null,
+            provider_message_id: cpRow?.provider_message_id || null,
+            variant_id: chosenVariant?.id || null,
+          },
+          presentation: pres,
+          profile: {
+            company_name: profile?.company_name || null,
+            proposal_link_domain: profile?.proposal_link_domain || null,
+          },
+          publicUrl,
+          messagePreview: message,
+          subjectPreview: subject || null,
+        });
+        webhookPayloadPreview = JSON.stringify(webhookPayload, null, 2);
+        message = webhookPayloadPreview;
+      }
+
       return {
         id: pres.id,
         campaignPresentationId: cpId,
@@ -530,6 +594,7 @@ const Campaigns = () => {
         subject,
         templateId: (campaign as any).template_id || null,
         variantId: chosenVariant?.id || null,
+        webhookPayloadPreview,
       };
     });
 
@@ -543,8 +608,19 @@ const Campaigns = () => {
     setSending(true);
 
     const campaign = previewCampaign;
+    const dispatchTarget = getCampaignDispatchTarget(campaign.channel);
 
-    if (campaign.channel === 'email') {
+    if (!dispatchTarget) {
+      toast({
+        title: 'Canal indisponivel',
+        description: 'Webhook de campanha ainda nao possui disparo configurado.',
+        variant: 'destructive',
+      });
+      setSending(false);
+      return;
+    }
+
+    if (dispatchTarget === 'email') {
       const { data, error } = await invokeEdgeFunction<{ sent?: number }>('send-campaign-emails', {
         body: { campaign_id: campaign.id },
       });
@@ -554,7 +630,7 @@ const Campaigns = () => {
         return;
       }
       toast({ title: 'Emails enviados!', description: `${data?.sent || 0} email(s) enviado(s)` });
-    } else if (campaign.channel === 'whatsapp') {
+    } else if (dispatchTarget === 'whatsapp') {
       const { data: optimizeData, error: optimizeError } = await invokeEdgeFunction<{ groups_promoted?: number }>('whatsapp-optimize-variants', {
         body: { mode: 'auto' },
       });
@@ -573,6 +649,10 @@ const Campaigns = () => {
           body: { campaign_id: campaign.id, threshold: HYBRID_API_THRESHOLD },
         });
 
+        const apiErrorMessage = apiError ? await getEdgeFunctionErrorMessage(apiError) : '';
+        const isMissingMetaCredentials =
+          apiErrorMessage.includes('Access Token') && apiErrorMessage.includes('Phone Number ID');
+
         if (!apiError && apiData?.mode === 'api') {
           handledByApi = true;
           const sent = apiData?.sent || 0;
@@ -586,6 +666,14 @@ const Campaigns = () => {
               variant: failed > sent ? 'destructive' : 'default',
             });
           }
+        } else if (isMissingMetaCredentials) {
+          toast({
+            title: 'Integracao Meta incompleta',
+            description: apiErrorMessage || 'Configure o Access Token e o Phone Number ID antes de enviar campanhas.',
+            variant: 'destructive',
+          });
+          setSending(false);
+          return;
         } else if (apiError) {
           console.error('whatsapp-send-batch error, fallback manual:', apiError);
         }
@@ -733,7 +821,8 @@ const Campaigns = () => {
       body: { campaign_id: campaignId, send_followups: true },
     });
     if (error) {
-      toast({ title: 'Erro no follow-up', description: error.message, variant: 'destructive' });
+      const message = await getEdgeFunctionErrorMessage(error);
+      toast({ title: 'Erro no follow-up', description: message, variant: 'destructive' });
       return;
     }
     toast({ title: 'Follow-up executado', description: `${data?.sent || 0} mensagem(ns) enviada(s).` });
@@ -796,7 +885,7 @@ const Campaigns = () => {
     switch (ch) {
       case 'whatsapp': return '📱 WhatsApp';
       case 'email': return '📧 Email';
-      case 'webhook': return '🔗 Webhook';
+      case 'webhook': return '🔗 Webhook (indisponivel)';
       default: return ch;
     }
   };
@@ -900,7 +989,7 @@ const Campaigns = () => {
                 <SelectContent>
                   <SelectItem value="whatsapp">📱 WhatsApp</SelectItem>
                   <SelectItem value="email">📧 Email</SelectItem>
-                  <SelectItem value="webhook">🔗 Webhook</SelectItem>
+                  <SelectItem value="webhook" disabled>🔗 Webhook (indisponível)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

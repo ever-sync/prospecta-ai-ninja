@@ -5,8 +5,8 @@ const corsHeaders = {
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-function resolveBaseOrigin(domain: string | null | undefined, requestOrigin: string | null): string {
-  const fallback = requestOrigin || 'https://envpro.com.br';
+function resolveBaseOrigin(domain: string | null | undefined, _requestOrigin: string | null): string {
+  const fallback = 'https://envpro.com.br';
   const value = (domain || '').trim().replace(/\/+$/, '');
   if (!value) return fallback;
   if (/^https?:\/\//i.test(value)) return value;
@@ -49,15 +49,41 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) throw new Error('Unauthorized');
-
-    const { campaign_id } = await req.json();
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const bodyData = await req.json();
+    const { campaign_id } = bodyData;
     if (!campaign_id) throw new Error('campaign_id is required');
+
+    const isServiceRoleCall =
+      !!serviceKey &&
+      authHeader === `Bearer ${serviceKey}` &&
+      typeof bodyData.user_id === 'string';
+
+    const supabase = isServiceRoleCall
+      ? createClient(supabaseUrl, serviceKey, {
+        auth: { persistSession: false },
+      })
+      : createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+
+    let userId: string;
+    let userEmail: string | null = null;
+
+    if (isServiceRoleCall) {
+      userId = bodyData.user_id;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('user_id', userId)
+        .maybeSingle();
+      userEmail = profile?.email || null;
+    } else {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('Unauthorized');
+      userId = user.id;
+      userEmail = user.email || null;
+    }
 
     // Get campaign with template_id
     const { data: campaign, error: campErr } = await supabase
@@ -66,6 +92,7 @@ Deno.serve(async (req) => {
       .eq('id', campaign_id)
       .single();
     if (campErr || !campaign) throw new Error('Campaign not found');
+    if (campaign.user_id !== userId) throw new Error('Forbidden');
 
     // Fetch template if set
     let template: { body: string; subject: string; image_url: string; include_proposal_link: boolean } | null = null;
@@ -102,7 +129,7 @@ Deno.serve(async (req) => {
     const { data: profile } = await supabase
       .from('profiles')
       .select('company_name, email, campaign_sender_email, campaign_sender_name, proposal_link_domain')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     const senderName = profile?.campaign_sender_name || profile?.company_name || 'envPRO';
@@ -222,7 +249,7 @@ Deno.serve(async (req) => {
             .eq('id', cpRow.id);
 
           await supabase.from('campaign_message_attempts').insert({
-            user_id: user.id,
+            user_id: userId,
             campaign_presentation_id: cpRow.id,
             campaign_id,
             presentation_id: pres.id,
@@ -267,7 +294,7 @@ Deno.serve(async (req) => {
 
     // Log API usage
     if (sentCount > 0) {
-      await logApiUsage(user!.id, 'resend', 'send_email', sentCount * 0.1, { campaign_id, sentCount });
+      await logApiUsage(userId, 'resend', 'send_email', sentCount * 0.1, { campaign_id, sentCount });
     }
 
     // Update campaign status
@@ -277,7 +304,7 @@ Deno.serve(async (req) => {
       .eq('id', campaign_id);
 
     // Notify campaign owner
-    if (user.email && sentCount > 0) {
+    if (userEmail && sentCount > 0) {
       const svcClient = createClient(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -286,7 +313,7 @@ Deno.serve(async (req) => {
       await svcClient.functions.invoke('send-system-email', {
         body: {
           type: 'campaign_started',
-          user_email: user.email,
+          user_email: userEmail,
           variables: {
             nome_campanha: campaign.name ?? 'Campanha',
             total_enviados: String(sentCount),

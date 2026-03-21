@@ -54,7 +54,40 @@ const cardClass = 'rounded-[22px] border border-[#ececf0] bg-white p-6 shadow-[0
 const SETTINGS_TABS = ['empresa', 'faturamento', 'integracoes', 'apis'] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
 type ApiProvider = 'gemini' | 'claude_code' | 'groq' | 'openai' | 'other';
-type WhatsAppConnectionType = 'unofficial' | 'meta_official';
+type WhatsAppConnectionType = 'meta_official';
+type MetaReadinessLevel = 'ready' | 'partial' | 'blocked';
+
+type MetaReadinessCheck = {
+  key: string;
+  label: string;
+  ok: boolean;
+  severity: 'success' | 'warning' | 'danger';
+  detail: string;
+};
+
+type MetaReadinessIssue = {
+  key: string;
+  title: string;
+  detail: string;
+  action?: string;
+  severity: 'warning' | 'danger';
+};
+
+type MetaValidationResponse = {
+  valid: boolean;
+  displayPhoneNumber?: string | null;
+  verifiedName?: string | null;
+  qualityRating?: string | null;
+  codeVerificationStatus?: string | null;
+  error?: string;
+  webhookUrl?: string;
+  verifyToken?: string;
+  wabaId?: string | null;
+  readiness?: MetaReadinessLevel;
+  summary?: string;
+  checks?: MetaReadinessCheck[];
+  issues?: MetaReadinessIssue[];
+};
 
 type UserAiApiKey = {
   id: string;
@@ -89,6 +122,14 @@ const maskApiKey = (value: string) => {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 };
 
+const normalizeWebhookUrl = (value: string) => {
+  const raw = value.trim();
+  if (!raw) return '';
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  const parsed = new URL(withScheme);
+  return parsed.toString();
+};
+
 const Settings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -109,16 +150,15 @@ const Settings = () => {
   const [uploading, setUploading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [savingIntegrations, setSavingIntegrations] = useState(false);
-  const [whatsAppConnectionType, setWhatsAppConnectionType] = useState<WhatsAppConnectionType>('unofficial');
+  const whatsAppConnectionType: WhatsAppConnectionType = 'meta_official';
   const [officialAccessToken, setOfficialAccessToken] = useState('');
   const [officialPhoneNumberId, setOfficialPhoneNumberId] = useState('');
   const [officialWabaId, setOfficialWabaId] = useState('');
-  const [unofficialApiUrl, setUnofficialApiUrl] = useState('');
-  const [unofficialApiToken, setUnofficialApiToken] = useState('');
-  const [unofficialInstance, setUnofficialInstance] = useState('');
   const [campaignSenderEmail, setCampaignSenderEmail] = useState('');
   const [campaignSenderName, setCampaignSenderName] = useState('');
   const [proposalLinkDomain, setProposalLinkDomain] = useState('');
+  const [campaignWebhookUrl, setCampaignWebhookUrl] = useState('');
+  const [campaignWebhookSecret, setCampaignWebhookSecret] = useState('');
   const [firecrawlApiKey, setFirecrawlApiKey] = useState('');
   const [firecrawlApiKeyInput, setFirecrawlApiKeyInput] = useState('');
   const [showFirecrawlKey, setShowFirecrawlKey] = useState(false);
@@ -133,9 +173,15 @@ const Settings = () => {
     displayPhoneNumber?: string;
     verifiedName?: string;
     qualityRating?: string;
+    codeVerificationStatus?: string;
     error?: string;
     webhookUrl?: string;
     verifyToken?: string;
+    wabaId?: string | null;
+    readiness?: MetaReadinessLevel;
+    summary?: string;
+    checks?: MetaReadinessCheck[];
+    issues?: MetaReadinessIssue[];
   }>({});
   const [showMetaGuide, setShowMetaGuide] = useState(false);
 
@@ -169,16 +215,14 @@ const Settings = () => {
           setDocumentNumber(data.document_number || '');
           setLogoUrl(data.company_logo_url || '');
           setVoiceId(data.elevenlabs_voice_id || '');
-          setWhatsAppConnectionType((data.whatsapp_connection_type as WhatsAppConnectionType) || 'unofficial');
           setOfficialAccessToken(data.whatsapp_official_access_token || '');
           setOfficialPhoneNumberId(data.whatsapp_official_phone_number_id || '');
           setOfficialWabaId(data.whatsapp_business_account_id || '');
-          setUnofficialApiUrl(data.whatsapp_unofficial_api_url || '');
-          setUnofficialApiToken(data.whatsapp_unofficial_api_token || '');
-          setUnofficialInstance(data.whatsapp_unofficial_instance || '');
           setCampaignSenderEmail(data.campaign_sender_email || '');
           setCampaignSenderName(data.campaign_sender_name || '');
           setProposalLinkDomain(data.proposal_link_domain || '');
+          setCampaignWebhookUrl(data.campaign_webhook_url || '');
+          setCampaignWebhookSecret(data.campaign_webhook_secret || '');
           setFirecrawlApiKey(data.firecrawl_api_key || '');
           setFirecrawlApiKeyInput('');
         }
@@ -449,18 +493,36 @@ const Settings = () => {
     setSavingIntegrations(true);
 
     const newFirecrawlKey = firecrawlApiKeyInput.trim();
+    const trimmedWebhookUrl = campaignWebhookUrl.trim();
+    let normalizedWebhookUrl: string | null = null;
+
+    if (trimmedWebhookUrl) {
+      try {
+        normalizedWebhookUrl = normalizeWebhookUrl(trimmedWebhookUrl);
+      } catch {
+        toast({
+          title: 'Webhook inválido',
+          description: 'Informe uma URL válida para o webhook do n8n.',
+          variant: 'destructive',
+        });
+        setSavingIntegrations(false);
+        return;
+      }
+    }
 
     const payload: Record<string, unknown> = {
       whatsapp_connection_type: whatsAppConnectionType,
       whatsapp_official_access_token: officialAccessToken.trim() || null,
       whatsapp_official_phone_number_id: officialPhoneNumberId.trim() || null,
       whatsapp_business_account_id: officialWabaId.trim() || null,
-      whatsapp_unofficial_api_url: unofficialApiUrl.trim() || null,
-      whatsapp_unofficial_api_token: unofficialApiToken.trim() || null,
-      whatsapp_unofficial_instance: unofficialInstance.trim() || null,
+      whatsapp_unofficial_api_url: null,
+      whatsapp_unofficial_api_token: null,
+      whatsapp_unofficial_instance: null,
       campaign_sender_email: campaignSenderEmail.trim() || null,
       campaign_sender_name: campaignSenderName.trim() || null,
       proposal_link_domain: proposalLinkDomain.trim() || null,
+      campaign_webhook_url: normalizedWebhookUrl,
+      campaign_webhook_secret: campaignWebhookSecret.trim() || null,
       elevenlabs_voice_id: voiceId.trim() || null,
     };
 
@@ -477,7 +539,7 @@ const Settings = () => {
         setFirecrawlApiKeyInput('');
         setFirecrawlValidationStatus('idle');
       }
-      toast({ title: 'Integra??es atualizadas', description: 'Configura??es de WhatsApp, email, dom?nio e Firecrawl salvas.' });
+      toast({ title: 'Integra??es atualizadas', description: 'Configura??es de WhatsApp, email, dom?nio, webhook e Firecrawl salvas.' });
       window.dispatchEvent(new CustomEvent('onboarding:refetch'));
     }
     setSavingIntegrations(false);
@@ -494,23 +556,39 @@ const Settings = () => {
     setMetaStatusInfo({});
     try {
       const { data, error } = await supabase.functions.invoke('validate-meta-whatsapp', {
-        body: { accessToken: token, phoneNumberId: phoneId },
+        body: { accessToken: token, phoneNumberId: phoneId, wabaId: officialWabaId.trim() || undefined },
       });
       if (error) throw error;
-      if (data?.valid) {
+      const validation = data as MetaValidationResponse | undefined;
+      if (validation?.valid) {
         setMetaStatus('connected');
         setMetaStatusInfo({
-          displayPhoneNumber: data.displayPhoneNumber,
-          verifiedName: data.verifiedName,
-          qualityRating: data.qualityRating,
-          webhookUrl: data.webhookUrl,
-          verifyToken: data.verifyToken,
+          displayPhoneNumber: validation.displayPhoneNumber || undefined,
+          verifiedName: validation.verifiedName || undefined,
+          qualityRating: validation.qualityRating || undefined,
+          codeVerificationStatus: validation.codeVerificationStatus || undefined,
+          webhookUrl: validation.webhookUrl || undefined,
+          verifyToken: validation.verifyToken || undefined,
+          wabaId: validation.wabaId || undefined,
+          readiness: validation.readiness,
+          summary: validation.summary,
+          checks: validation.checks || [],
+          issues: validation.issues || [],
         });
-        toast({ title: 'Conexao validada!', description: `Numero ${data.displayPhoneNumber || phoneId} conectado com sucesso.` });
+        toast({ title: 'Conexao validada!', description: `Numero ${validation.displayPhoneNumber || phoneId} conectado com sucesso.` });
       } else {
         setMetaStatus('error');
-        setMetaStatusInfo({ error: data?.error || 'Credenciais invalidas.', webhookUrl: data?.webhookUrl, verifyToken: data?.verifyToken });
-        toast({ title: 'Falha na conexao', description: data?.error || 'Verifique o token e o Phone Number ID.', variant: 'destructive' });
+        setMetaStatusInfo({
+          error: validation?.error || 'Credenciais invalidas.',
+          webhookUrl: validation?.webhookUrl,
+          verifyToken: validation?.verifyToken,
+          wabaId: validation?.wabaId,
+          readiness: validation?.readiness || 'blocked',
+          summary: validation?.summary,
+          checks: validation?.checks || [],
+          issues: validation?.issues || [],
+        });
+        toast({ title: 'Falha na conexao', description: validation?.error || 'Verifique o token e o Phone Number ID.', variant: 'destructive' });
       }
     } catch (err: any) {
       setMetaStatus('error');
@@ -820,26 +898,20 @@ const Settings = () => {
             <div className="space-y-6">
               <div>
                 <h3 className="mb-1 font-semibold text-[#1A1A1A]">Integra??es</h3>
-                <p className="text-sm text-[#6d6d75]">Conecte WhatsApp, configure email remetente, dom?nio das propostas e sua chave Firecrawl para raspagem de sites.</p>
+                <p className="text-sm text-[#6d6d75]">Conecte WhatsApp, configure email remetente, dom?nio das propostas, webhook do n8n e sua chave Firecrawl para raspagem de sites.</p>
               </div>
 
               <div className="rounded-2xl border border-[#ececf0] bg-[#fafafd] p-4">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label className="text-sm text-[#1A1A1A]">Modo WhatsApp</Label>
-                    <Select value={whatsAppConnectionType} onValueChange={(value) => setWhatsAppConnectionType(value as WhatsAppConnectionType)}>
-                      <SelectTrigger className={fieldClass}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unofficial">N?o oficial (API externa)</SelectItem>
-                        <SelectItem value="meta_official">Oficial (Meta Cloud API)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="md:col-span-2 flex items-center justify-between rounded-2xl border border-[#d9e4ff] bg-[#f4f7ff] px-4 py-3">
+                    <div>
+                      <p className="text-sm font-semibold text-[#1A1A1A]">Modo WhatsApp</p>
+                      <p className="text-xs text-[#5a5a62]">Somente Meta Cloud API oficial permanece habilitada neste produto.</p>
+                    </div>
+                    <Badge className="rounded-full border-[#d9e4ff] bg-white text-[#365fc2]">Oficial</Badge>
                   </div>
 
-                  {whatsAppConnectionType === 'meta_official' ? (
-                    <div className="md:col-span-2 space-y-4">
+                  <div className="md:col-span-2 space-y-4">
                       {/* Credentials */}
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <div className="space-y-2">
@@ -848,7 +920,7 @@ const Settings = () => {
                             type="password"
                             className={fieldClass}
                             value={officialAccessToken}
-                            onChange={(e) => { setOfficialAccessToken(e.target.value); setMetaStatus('idle'); }}
+                            onChange={(e) => { setOfficialAccessToken(e.target.value); setMetaStatus('idle'); setMetaStatusInfo({}); }}
                             placeholder="Cole o token permanente da Meta"
                           />
                         </div>
@@ -857,7 +929,7 @@ const Settings = () => {
                           <Input
                             className={fieldClass}
                             value={officialPhoneNumberId}
-                            onChange={(e) => { setOfficialPhoneNumberId(e.target.value); setMetaStatus('idle'); }}
+                            onChange={(e) => { setOfficialPhoneNumberId(e.target.value); setMetaStatus('idle'); setMetaStatusInfo({}); }}
                             placeholder="Ex: 123456789012345"
                           />
                         </div>
@@ -868,7 +940,7 @@ const Settings = () => {
                           <Input
                             className={fieldClass}
                             value={officialWabaId}
-                            onChange={(e) => setOfficialWabaId(e.target.value)}
+                            onChange={(e) => { setOfficialWabaId(e.target.value); setMetaStatus('idle'); setMetaStatusInfo({}); }}
                             placeholder="Ex: 102098765432100"
                           />
                         </div>
@@ -902,6 +974,11 @@ const Settings = () => {
                                 {metaStatusInfo.qualityRating}
                               </Badge>
                             )}
+                            {metaStatusInfo.codeVerificationStatus && (
+                              <Badge className="rounded-full border-[#cde8d9] bg-white text-[#2a7a50] text-[10px] px-2">
+                                Code {metaStatusInfo.codeVerificationStatus}
+                              </Badge>
+                            )}
                           </div>
                         )}
 
@@ -913,8 +990,82 @@ const Settings = () => {
                         )}
                       </div>
 
+                      {metaStatusInfo.readiness && (
+                        <div
+                          className={`rounded-2xl border p-4 space-y-4 ${
+                            metaStatusInfo.readiness === 'ready'
+                              ? 'border-[#cde8d9] bg-[#eef8f3]'
+                              : metaStatusInfo.readiness === 'partial'
+                                ? 'border-[#f5c842]/40 bg-[#fffbeb]'
+                                : 'border-[#f2d4d8] bg-[#fff3f5]'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1">
+                              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8b8b92]">Prontidao da integracao</p>
+                              <p className="text-sm text-[#44444c]">{metaStatusInfo.summary || 'Diagnostico da integracao oficial do WhatsApp.'}</p>
+                            </div>
+                            <Badge
+                              className={`rounded-full px-2.5 py-1 text-[10px] ${
+                                metaStatusInfo.readiness === 'ready'
+                                  ? 'border-[#cde8d9] bg-white text-[#1f6e38]'
+                                  : metaStatusInfo.readiness === 'partial'
+                                    ? 'border-[#f5c842]/50 bg-white text-[#8b5e00]'
+                                    : 'border-[#f2d4d8] bg-white text-[#8c2535]'
+                              }`}
+                            >
+                              {metaStatusInfo.readiness === 'ready'
+                                ? 'Pronta'
+                                : metaStatusInfo.readiness === 'partial'
+                                  ? 'Parcial'
+                                  : 'Bloqueada'}
+                            </Badge>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                            {(metaStatusInfo.checks || []).map((check) => (
+                              <div key={check.key} className="flex gap-2 rounded-xl border border-[#e7e7ee] bg-white/85 p-3">
+                                {check.ok ? (
+                                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#1f8f47]" />
+                                ) : check.severity === 'danger' ? (
+                                  <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#b2374b]" />
+                                ) : (
+                                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#d97706]" />
+                                )}
+                                <div className="space-y-0.5">
+                                  <p className="text-sm font-medium text-[#1A1A1A]">{check.label}</p>
+                                  <p className="text-[11px] leading-relaxed text-[#6d6d75]">{check.detail}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {metaStatusInfo.issues && metaStatusInfo.issues.length > 0 && (
+                            <div className="rounded-xl border border-[#e7e7ee] bg-white/70 p-3">
+                              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8b8b92]">Itens que exigem atencao</p>
+                              <ul className="mt-2 space-y-2">
+                                {metaStatusInfo.issues.map((issue) => (
+                                  <li key={issue.key} className="flex gap-2">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#d97706]" />
+                                    <div className="space-y-0.5">
+                                      <p className="text-sm font-medium text-[#1A1A1A]">{issue.title}</p>
+                                      <p className="text-[11px] leading-relaxed text-[#6d6d75]">{issue.detail}</p>
+                                      {issue.action && (
+                                        <p className="text-[11px] leading-relaxed text-[#8b5e00]">
+                                          Ação recomendada: {issue.action}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Webhook info (shown after test or always when credentials filled) */}
-                      {(metaStatus === 'connected' || metaStatus === 'error') && metaStatusInfo.webhookUrl && (
+                      {metaStatusInfo.webhookUrl && (
                         <div className="rounded-2xl border border-[#e8e8ef] bg-[#f5f5fa] p-4 space-y-3">
                           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8b8b92]">Configure no painel Meta Developer</p>
                           <div className="space-y-2">
@@ -942,7 +1093,7 @@ const Settings = () => {
                       )}
 
                       {/* APP_SECRET warning — required for delivery receipts */}
-                      <div className="rounded-2xl border border-[#f5c842]/60 bg-[#fffbeb] p-4 space-y-2">
+                      {false && (<div className="rounded-2xl border border-[#f5c842]/60 bg-[#fffbeb] p-4 space-y-2">
                         <div className="flex items-start gap-2">
                           <AlertTriangle className="h-4 w-4 shrink-0 text-[#d97706] mt-0.5" />
                           <p className="text-xs font-semibold text-[#92400e]">Recibos de entrega desativados sem o App Secret</p>
@@ -963,7 +1114,7 @@ const Settings = () => {
                             </li>
                           ))}
                         </ol>
-                      </div>
+                      </div>)}
 
                       {/* Setup guide toggle */}
                       <button
@@ -985,6 +1136,7 @@ const Settings = () => {
                               'Copie o "Phone Number ID" que aparece na pagina de configuracao — cole no campo acima.',
                               'Gere um Token de Acesso Permanente: va em "Configuracoes do Sistema" → "Usuarios do Sistema" → adicione um usuario com permissao de administrador → gere o token com escopo "whatsapp_business_messaging".',
                               'Cole o token permanente no campo "Meta Access Token" acima.',
+                              'Configure o META_WHATSAPP_APP_SECRET no Supabase para receber status de entrega e leitura.',
                               'Clique em "Testar conexao" para validar. Se der OK, salve as integracoes.',
                               'Depois de salvar, clique novamente em "Testar conexao" para ver a URL do Webhook e o Verify Token.',
                               'No painel Meta: WhatsApp → Configuracao → Webhooks → Editar → cole a URL e o Verify Token → ative o campo "messages".',
@@ -999,39 +1151,6 @@ const Settings = () => {
                         </div>
                       )}
                     </div>
-                  ) : (
-                    <>
-                      <div className="space-y-2">
-                        <Label className="text-sm text-[#1A1A1A]">URL da API n?o oficial</Label>
-                        <Input
-                          className={fieldClass}
-                          value={unofficialApiUrl}
-                          onChange={(e) => setUnofficialApiUrl(e.target.value)}
-                          placeholder="Ex: https://seu-servidor-evolution.com"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm text-[#1A1A1A]">Token da API n?o oficial</Label>
-                        <Input
-                          type="password"
-                          className={fieldClass}
-                          value={unofficialApiToken}
-                          onChange={(e) => setUnofficialApiToken(e.target.value)}
-                          placeholder="Token da API externa"
-                        />
-                      </div>
-                      <div className="space-y-2 md:col-span-2">
-                        <Label className="text-sm text-[#1A1A1A]">Inst?ncia (opcional)</Label>
-                        <Input
-                          className={fieldClass}
-                          value={unofficialInstance}
-                          onChange={(e) => setUnofficialInstance(e.target.value)}
-                          placeholder="Ex: prospecta-main"
-                        />
-                      </div>
-                    </>
-                  )}
-
                   <div className="space-y-2 md:col-span-2">
                     <Label className="text-sm text-[#1A1A1A]">Email remetente das propostas</Label>
                     <Input
@@ -1053,7 +1172,7 @@ const Settings = () => {
                     />
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 md:col-span-2">
                     <Label className="text-sm text-[#1A1A1A]">Dom?nio do link das propostas</Label>
                     <Input
                       className={fieldClass}
@@ -1061,6 +1180,33 @@ const Settings = () => {
                       onChange={(e) => setProposalLinkDomain(e.target.value)}
                       placeholder="Ex: app.seudominio.com"
                     />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="text-sm text-[#1A1A1A]">Webhook das campanhas (n8n)</Label>
+                    <Input
+                      className={fieldClass}
+                      value={campaignWebhookUrl}
+                      onChange={(e) => setCampaignWebhookUrl(e.target.value)}
+                      placeholder="https://seu-n8n.com/webhook/..."
+                    />
+                    <p className="text-xs text-[#6d6d75]">
+                      Cada lead da campanha será enviado por POST para essa URL. Use uma URL de webhook do n8n ou de outro orquestrador HTTP.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="text-sm text-[#1A1A1A]">Segredo do webhook (opcional)</Label>
+                    <Input
+                      type="password"
+                      className={fieldClass}
+                      value={campaignWebhookSecret}
+                      onChange={(e) => setCampaignWebhookSecret(e.target.value)}
+                      placeholder="Token para validar a requisição no n8n"
+                    />
+                    <p className="text-xs text-[#6d6d75]">
+                      Se preenchido, o valor será enviado no header <span className="font-mono">X-N8N-Webhook-Secret</span>.
+                    </p>
                   </div>
                 </div>
 
@@ -1236,10 +1382,10 @@ const Settings = () => {
                     <MessageCircle className="h-5 w-5 text-[#EF3333]" />
                     <div>
                       <p className="text-sm font-medium text-[#1A1A1A]">WhatsApp</p>
-                      <p className="text-xs text-[#6d6d75]">{whatsAppConnectionType === 'meta_official' ? 'Meta Cloud API (oficial)' : 'API n?o oficial configur?vel'}</p>
+                      <p className="text-xs text-[#6d6d75]">Meta Cloud API (oficial)</p>
                     </div>
                   </div>
-                  <span className="text-xs font-medium text-[#9b2a3d]">{whatsAppConnectionType === 'meta_official' ? 'Oficial' : 'N?o oficial'}</span>
+                  <span className="text-xs font-medium text-[#365fc2]">Oficial</span>
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-white p-3">
                   <div className="flex items-center gap-3">

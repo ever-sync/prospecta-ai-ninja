@@ -54,7 +54,7 @@ async function isValidMetaSignature(
   rawBody: string,
   signatureHeader: string | null,
 ): Promise<boolean> {
-  if (!secret) return true;
+  if (!secret) return false;
   if (!signatureHeader) return false;
   const [prefix, hash] = signatureHeader.split("=");
   if (prefix !== "sha256" || !hash) return false;
@@ -88,6 +88,13 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
       { auth: { persistSession: false } },
     );
+
+    if (!appSecret) {
+      return new Response(
+        JSON.stringify({ error: "META_WHATSAPP_APP_SECRET not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     const rawBody = await req.text();
     const signatureHeader = req.headers.get("x-hub-signature-256");

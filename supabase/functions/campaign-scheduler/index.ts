@@ -3,12 +3,13 @@
  *
  * Runs every 5 minutes via pg_cron + pg_net.
  * Finds campaigns with status = 'scheduled' and scheduled_at <= now(),
- * marks them as 'sending', then triggers whatsapp-send-batch for each.
+ * marks them as 'sending', then triggers the channel-specific dispatcher.
  *
  * Called with service-role key — no user auth required.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCampaignDispatchTarget } from "../_shared/campaign-routing.js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,6 +61,16 @@ Deno.serve(async (req) => {
     const results: any[] = [];
 
     for (const campaign of dueCampaigns) {
+      const dispatchTarget = getCampaignDispatchTarget(campaign.channel);
+      if (!dispatchTarget) {
+        await svc
+          .from("campaigns")
+          .update({ status: "cancelled", updated_at: now })
+          .eq("id", campaign.id);
+        results.push({ campaign_id: campaign.id, name: campaign.name, skipped: true, reason: "unsupported-channel" });
+        continue;
+      }
+
       // Mark as 'sending' atomically — prevents double-trigger if cron overlaps
       const { data: claimed } = await svc
         .from("campaigns")
@@ -75,31 +86,53 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Only WhatsApp campaigns are handled here (email campaigns use a different flow)
-      if (campaign.channel !== "whatsapp") {
-        results.push({ campaign_id: campaign.id, name: campaign.name, skipped: true, reason: "non-whatsapp" });
-        continue;
-      }
-
-      // Invoke send-batch using service role + user_id in body
       try {
-        const sendRes = await fetch(
-          `${supabaseUrl}/functions/v1/whatsapp-send-batch`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${serviceKey}`,
-            },
-            body: JSON.stringify({
-              campaign_id: campaign.id,
-              user_id: campaign.user_id,
-              force_api: true,
-            }),
-          },
-        );
+        const endpoint = dispatchTarget === "email"
+          ? `${supabaseUrl}/functions/v1/send-campaign-emails`
+          : `${supabaseUrl}/functions/v1/whatsapp-send-batch`;
 
-        const sendData = await sendRes.json().catch(() => ({}));
+        const payload = dispatchTarget === "email"
+          ? { campaign_id: campaign.id, user_id: campaign.user_id }
+          : { campaign_id: campaign.id, user_id: campaign.user_id, force_api: true };
+
+        const sendRes = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const sendBody = await sendRes.text().catch(() => "");
+        let sendData: any = {};
+        if (sendBody) {
+          try {
+            sendData = JSON.parse(sendBody);
+          } catch {
+            sendData = { raw: sendBody };
+          }
+        }
+
+        if (sendData?.code === "missing_meta_credentials") {
+          await svc
+            .from("campaigns")
+            .update({ status: "cancelled", updated_at: new Date().toISOString() })
+            .eq("id", campaign.id);
+
+          results.push({
+            campaign_id: campaign.id,
+            name: campaign.name,
+            skipped: true,
+            reason: "missing-meta-credentials",
+          });
+          continue;
+        }
+
+        if (!sendRes.ok) {
+          throw new Error(sendBody || `Dispatcher failed with status ${sendRes.status}`);
+        }
+
         results.push({
           campaign_id: campaign.id,
           name: campaign.name,

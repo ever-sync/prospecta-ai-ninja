@@ -5,7 +5,7 @@ import { LEGAL_LAST_UPDATED } from "@/config/legal";
 import { FloatingWhatsAppButton } from "@/components/site/FloatingWhatsAppButton";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { LgpdConsentBanner } from "@/components/site/LgpdConsentBanner";
-import loginLogo from "@/logos/ligth.svg";
+import loginLogo from "@/logos/Group 157.svg";
 
 type LegalPageLayoutProps = {
   title: string;

@@ -8,7 +8,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { LgpdConsentBanner } from "@/components/site/LgpdConsentBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { BRAND } from "@/config/brand";
-import loginLogo from "@/logos/ligth.svg";
+import loginLogo from "@/logos/Group 157.svg";
 
 const painPoints = [
   {

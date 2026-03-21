@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getAuthPersistencePreference, setAuthPersistencePreference, supabase } from '@/integrations/supabase/client';
 import { BRAND } from '@/config/brand';
 import { detectDocumentType, formatBrazilPhone, formatCpfCnpj, normalizeDocumentDigits, validateBrazilPhone, validateCpfCnpj } from '@/lib/br-utils';
-import loginLogo from '@/logos/ligth.svg';
+import loginLogo from '@/logos/Group 157.svg';
 import loginSideImage from '@/logos/imglogin.jpg';
 
 const hasFullName = (value: string) => value.trim().split(/\s+/).filter(Boolean).length >= 2;

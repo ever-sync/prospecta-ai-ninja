@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { BRAND } from "@/config/brand";
-import loginLogo from "@/logos/ligth.svg";
+import loginLogo from "@/logos/Group 157.svg";
 
 export const SiteFooter = () => {
   const year = new Date().getFullYear();

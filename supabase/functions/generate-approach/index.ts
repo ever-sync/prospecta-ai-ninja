@@ -13,9 +13,9 @@ serve(async (req) => {
   }
 
   try {
-    const { business } = await req.json();
+    const { business, provider } = await req.json();
     const { user, svc } = await getAuthenticatedUserContext(req);
-    const llm = await resolveUserLLM(svc, user.id);
+    const llm = await resolveUserLLM(svc, user.id, provider);
 
     const categoryLabels: Record<string, string> = {
       restaurant: "Restaurante",

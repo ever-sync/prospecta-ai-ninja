@@ -89,11 +89,15 @@ Deno.serve(async (req) => {
       try {
         const endpoint = dispatchTarget === "email"
           ? `${supabaseUrl}/functions/v1/send-campaign-emails`
-          : `${supabaseUrl}/functions/v1/whatsapp-send-batch`;
+          : dispatchTarget === "whatsapp"
+            ? `${supabaseUrl}/functions/v1/whatsapp-send-batch`
+            : `${supabaseUrl}/functions/v1/send-campaign-webhooks`;
 
         const payload = dispatchTarget === "email"
           ? { campaign_id: campaign.id, user_id: campaign.user_id }
-          : { campaign_id: campaign.id, user_id: campaign.user_id, force_api: true };
+          : dispatchTarget === "whatsapp"
+            ? { campaign_id: campaign.id, user_id: campaign.user_id, force_api: true }
+            : { campaign_id: campaign.id, user_id: campaign.user_id };
 
         const sendRes = await fetch(endpoint, {
           method: "POST",
@@ -114,7 +118,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        if (sendData?.code === "missing_meta_credentials") {
+        if (sendData?.code === "missing_meta_credentials" || sendData?.code === "missing_webhook_target") {
           await svc
             .from("campaigns")
             .update({ status: "cancelled", updated_at: new Date().toISOString() })
@@ -124,7 +128,7 @@ Deno.serve(async (req) => {
             campaign_id: campaign.id,
             name: campaign.name,
             skipped: true,
-            reason: "missing-meta-credentials",
+            reason: sendData?.code === "missing_meta_credentials" ? "missing-meta-credentials" : "missing-webhook-target",
           });
           continue;
         }

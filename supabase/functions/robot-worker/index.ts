@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
     try {
       // 3. Resolve user's Firecrawl key and LLM
       const firecrawlKey = await resolveFirecrawlApiKey(svc, userId);
-      const llm = await resolveUserLLM(svc, userId);
+      const llm = await resolveUserLLM(svc, userId, task.provider);
 
       // 4. Run Firecrawl search
       const query = `${task.search_term} ${task.location} site empresa negocio local`;

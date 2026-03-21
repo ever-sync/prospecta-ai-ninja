@@ -30,7 +30,9 @@ const docs = [
 
 const referenceFiles = [
   'supabase/functions/whatsapp-status-webhook/index.ts',
+  'supabase/functions/send-campaign-webhooks/index.ts',
   'supabase/functions/validate-meta-whatsapp/index.ts',
+  'supabase/functions/_shared/campaign-webhook.js',
   'supabase/config.toml',
   'src/pages/Settings.tsx',
 ];
@@ -62,6 +64,17 @@ type WebhookIssue = {
   title: string;
   description: string;
   fix: string;
+};
+
+type CampaignWebhookField = {
+  key: string;
+  description: string;
+};
+
+type CampaignWebhookStep = {
+  step: string;
+  title: string;
+  description: string;
 };
 
 const webhookFlow: WebhookFlowStep[] = [
@@ -161,6 +174,73 @@ const webhookIssues: WebhookIssue[] = [
   },
 ];
 
+const campaignWebhookFlow: CampaignWebhookStep[] = [
+  {
+    step: '1',
+    title: 'Configurar a URL',
+    description:
+      'Em Configurações > Integrações, informe a URL do webhook do n8n. Essa URL recebe um POST por lead da campanha.',
+  },
+  {
+    step: '2',
+    title: 'Opcional: secret',
+    description:
+      'Se quiser validar a origem da requisição no n8n, preencha o segredo do webhook. Ele vai no header X-N8N-Webhook-Secret.',
+  },
+  {
+    step: '3',
+    title: 'Criar a campanha',
+    description:
+      'Na tela de campanhas, escolha o canal Webhook / n8n. O template passa a ser opcional e o payload completo vai para o fluxo.',
+  },
+  {
+    step: '4',
+    title: 'Receber o payload',
+    description:
+      'O n8n recebe campaign, presentation, tracking, target.public_url e message_preview para continuar a automação.',
+  },
+];
+
+const campaignWebhookFields: CampaignWebhookField[] = [
+  { key: 'event_id', description: 'Identificador estável da campanha e do lead.' },
+  { key: 'attempt_id', description: 'ID único da tentativa atual de disparo.' },
+  { key: 'campaign', description: 'Nome, canal, status, agenda e template vinculado.' },
+  { key: 'presentation', description: 'Dados do lead, análise, telefone e contexto comercial.' },
+  { key: 'tracking', description: 'Campos de tracking para a URL da apresentação.' },
+  { key: 'target.public_url', description: 'Link público já com cid, cpid, ch e src.' },
+  { key: 'message_preview', description: 'Texto base que pode ser reaproveitado no workflow.' },
+];
+
+const campaignWebhookChecklist = [
+  'Criar um node Webhook no n8n com método POST.',
+  'Salvar a URL em Configurações > Integrações.',
+  'Definir o secret opcional e validar o header X-N8N-Webhook-Secret.',
+  'Selecionar o canal Webhook / n8n na campanha.',
+  'Publicar o fluxo e testar com um lead de homologação.',
+];
+
+const campaignWebhookPayloadSample = `{
+  "event": "campaign.webhook",
+  "event_id": "event_123",
+  "attempt_id": "attempt_456",
+  "campaign": {
+    "id": "campaign_789",
+    "name": "Campanha de qualificação",
+    "channel": "webhook"
+  },
+  "presentation": {
+    "id": "presentation_321",
+    "lead_name": "Ana Souza"
+  },
+  "tracking": {
+    "src": "campaign_webhook"
+  },
+  "target": {
+    "public_url": "https://app.exemplo.com/presentation/..."
+  },
+  "message_preview": "..."
+}`;
+
 const Documentation = () => {
   const navigate = useNavigate();
 
@@ -202,7 +282,7 @@ const Documentation = () => {
         ))}
       </div>
 
-      <Card className="mt-6 rounded-[28px] border border-[#ececf0] bg-white p-6 shadow-[0_14px_30px_rgba(18,18,22,0.06)]">
+      <Card id="webhook-n8n" className="mt-6 rounded-[28px] border border-[#ececf0] bg-white p-6 shadow-[0_14px_30px_rgba(18,18,22,0.06)]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
             <div className="flex flex-wrap items-center gap-2">
@@ -230,7 +310,7 @@ const Documentation = () => {
             <div>
               <p className="text-sm font-semibold text-[#8c2535]">Importante</p>
               <p className="mt-1 text-sm leading-6 text-[#8c2535]">
-                Aqui estamos documentando o webhook de status e respostas da Meta. O canal de campanha chamado <strong>webhook</strong> não está ativo como disparo outbound.
+                Aqui estamos documentando o webhook de status e respostas da Meta. O envio outbound de campanhas em webhook usa o n8n e está descrito logo abaixo.
               </p>
             </div>
           </div>
@@ -328,6 +408,114 @@ const Documentation = () => {
                   </p>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="mt-6 rounded-[28px] border border-[#ececf0] bg-white p-6 shadow-[0_14px_30px_rgba(18,18,22,0.06)]">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-3xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="rounded-full border-[#d9e4ff] bg-[#f4f7ff] text-[#365fc2]">
+                <Workflow className="mr-1 h-3.5 w-3.5" />
+                Webhook outbound
+              </Badge>
+              <Badge className="rounded-full border-[#d9f0dd] bg-[#f3fbf6] text-[#1f6e38]">
+                <Link2 className="mr-1 h-3.5 w-3.5" />
+                n8n / HTTP POST
+              </Badge>
+            </div>
+            <h2 className="mt-3 text-xl font-semibold tracking-tight text-[#1A1A1A] sm:text-2xl">
+              Como usar o webhook da campanha
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-[#6d6d75]">
+              Quando você escolhe o canal Webhook / n8n, cada lead pendente é processado pelo edge function de envio e recebido pela URL configurada em Integrações. O payload já sai com rastreamento, link público e dados do lead.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-[#d9e4ff] bg-[#f4f7ff] p-4">
+          <p className="text-sm font-semibold text-[#365fc2]">Como usar</p>
+          <p className="mt-1 text-sm leading-6 text-[#4a5fa8]">
+            Configure a URL do n8n, opcionalmente defina um secret e depois selecione o canal Webhook / n8n na campanha. Cada lead aprovado será enviado por POST com rastreamento e contexto do disparo.
+          </p>
+        </div>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {campaignWebhookFlow.map((item) => (
+            <div key={item.step} className="rounded-2xl border border-[#ececf0] bg-[#fafafd] p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EF3333] text-xs font-bold text-white">
+                  {item.step}
+                </div>
+                <p className="text-sm font-semibold text-[#1A1A1A]">{item.title}</p>
+              </div>
+              <p className="mt-2 text-xs leading-6 text-[#6d6d75]">{item.description}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-[#ececf0] bg-[#fafafd] p-5">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-[#EF3333]" />
+              <h3 className="text-base font-semibold text-[#1A1A1A]">Checklist no n8n</h3>
+            </div>
+            <div className="mt-4 space-y-3">
+              {campaignWebhookChecklist.map((item) => (
+                <div key={item} className="rounded-2xl border border-[#e7e7ee] bg-white p-4">
+                  <p className="text-xs leading-6 text-[#44444c]">{item}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#ececf0] bg-[#fafafd] p-5">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-[#EF3333]" />
+              <h3 className="text-base font-semibold text-[#1A1A1A]">Exemplo de payload</h3>
+            </div>
+            <pre className="mt-4 overflow-x-auto rounded-2xl bg-[#111827] p-4 text-[11px] leading-5 text-[#dbe7ff]">
+              {campaignWebhookPayloadSample}
+            </pre>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-[#ececf0] bg-[#fafafd] p-5">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-[#EF3333]" />
+              <h3 className="text-base font-semibold text-[#1A1A1A]">Campos do payload</h3>
+            </div>
+            <div className="mt-4 space-y-3">
+              {campaignWebhookFields.map((field) => (
+                <div key={field.key} className="rounded-2xl border border-[#e7e7ee] bg-white p-4">
+                  <p className="font-mono text-xs font-semibold text-[#1A1A1A]">{field.key}</p>
+                  <p className="mt-1 text-xs leading-6 text-[#6d6d75]">{field.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#ececf0] bg-[#fafafd] p-5">
+            <div className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-[#EF3333]" />
+              <h3 className="text-base font-semibold text-[#1A1A1A]">Headers enviados</h3>
+            </div>
+            <div className="mt-4 space-y-3">
+              <div className="rounded-2xl border border-[#e7e7ee] bg-white p-4">
+                <p className="font-mono text-xs font-semibold text-[#1A1A1A]">X-EnvPro-Event</p>
+                <p className="mt-1 text-xs leading-6 text-[#6d6d75]">Marca o evento como `campaign.webhook`.</p>
+              </div>
+              <div className="rounded-2xl border border-[#e7e7ee] bg-white p-4">
+                <p className="font-mono text-xs font-semibold text-[#1A1A1A]">X-EnvPro-Event-Id</p>
+                <p className="mt-1 text-xs leading-6 text-[#6d6d75]">Identificador estável da campanha e do lead.</p>
+              </div>
+              <div className="rounded-2xl border border-[#e7e7ee] bg-white p-4">
+                <p className="font-mono text-xs font-semibold text-[#1A1A1A]">X-N8N-Webhook-Secret</p>
+                <p className="mt-1 text-xs leading-6 text-[#6d6d75]">Enviado apenas quando o segredo opcional está configurado.</p>
+              </div>
             </div>
           </div>
         </div>

@@ -450,11 +450,11 @@ serve(async (req) => {
   }
 
   try {
-    const { niches, location, radius, advanced } = await req.json();
+    const { niches, location, radius, advanced, provider } = await req.json();
     const { user, svc } = await getAuthenticatedUserContext(req);
     const [firecrawlApiKey, llm] = await Promise.all([
       resolveFirecrawlApiKey(svc, user.id),
-      resolveUserLLM(svc, user.id),
+      resolveUserLLM(svc, user.id, provider),
     ]);
 
     const allSearchResults: { niche: string; nicheKey: string; results: any[] }[] = [];

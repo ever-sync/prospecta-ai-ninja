@@ -282,7 +282,7 @@ const Campaigns = () => {
     if (!isDispatchableCampaignChannel(formChannel)) {
       toast({
         title: 'Canal indisponivel',
-        description: 'Webhook de campanha ainda nao possui envio automatizado.',
+        description: 'Escolha um canal de envio válido.',
         variant: 'destructive',
       });
       return;
@@ -350,7 +350,7 @@ const Campaigns = () => {
     if (!isDispatchableCampaignChannel(formChannel)) {
       toast({
         title: 'Canal indisponivel',
-        description: 'Webhook de campanha ainda nao possui envio automatizado.',
+        description: 'Escolha um canal de envio válido.',
         variant: 'destructive',
       });
       return;
@@ -524,7 +524,11 @@ const Campaigns = () => {
         cid: campaign.id,
         cpid: cpId,
         ch: campaign.channel,
-        src: campaign.channel === 'whatsapp' ? 'campaign_whatsapp' : 'campaign_email',
+        src: campaign.channel === 'whatsapp'
+          ? 'campaign_whatsapp'
+          : campaign.channel === 'email'
+            ? 'campaign_email'
+            : 'campaign_webhook',
       });
       if ((campaign as any).template_id) tracking.set('tid', (campaign as any).template_id);
       if (chosenVariant?.id) tracking.set('vid', chosenVariant.id);
@@ -613,7 +617,7 @@ const Campaigns = () => {
     if (!dispatchTarget) {
       toast({
         title: 'Canal indisponivel',
-        description: 'Webhook de campanha ainda nao possui disparo configurado.',
+        description: 'Escolha um canal de envio válido.',
         variant: 'destructive',
       });
       setSending(false);
@@ -802,6 +806,23 @@ const Campaigns = () => {
         }
       }
     }
+    } else if (dispatchTarget === 'webhook') {
+      const { data, error } = await invokeEdgeFunction<{ sent?: number }>('send-campaign-webhooks', {
+        body: { campaign_id: campaign.id },
+      });
+
+      if (error) {
+        const errorMessage = await getEdgeFunctionErrorMessage(error);
+        toast({
+          title: 'Erro ao enviar webhook',
+          description: errorMessage || 'Configure a URL do webhook do n8n em Integrações.',
+          variant: 'destructive',
+        });
+        setSending(false);
+        return;
+      }
+
+      toast({ title: 'Webhook enviado!', description: `${data?.sent || 0} lead(s) enviado(s) para o n8n.` });
     }
 
     await supabase
@@ -809,7 +830,12 @@ const Campaigns = () => {
       .update({ status: 'sent', sent_at: new Date().toISOString() })
       .eq('id', campaign.id);
 
-    toast({ title: 'Campanha enviada!', description: `${previewLeads.length} mensagen(s) enviada(s)` });
+    toast({
+      title: 'Campanha enviada!',
+      description: campaign.channel === 'webhook'
+        ? `${previewLeads.length} lead(s) processado(s)`
+        : `${previewLeads.length} mensagen(s) enviada(s)`,
+    });
     setShowPreview(false);
     setPreviewCampaign(null);
     setSending(false);
@@ -885,7 +911,7 @@ const Campaigns = () => {
     switch (ch) {
       case 'whatsapp': return '📱 WhatsApp';
       case 'email': return '📧 Email';
-      case 'webhook': return '🔗 Webhook (indisponivel)';
+      case 'webhook': return '🔗 Webhook / n8n';
       default: return ch;
     }
   };
@@ -989,32 +1015,40 @@ const Campaigns = () => {
                 <SelectContent>
                   <SelectItem value="whatsapp">📱 WhatsApp</SelectItem>
                   <SelectItem value="email">📧 Email</SelectItem>
-                  <SelectItem value="webhook" disabled>🔗 Webhook (indisponível)</SelectItem>
+                  <SelectItem value="webhook">🔗 Webhook / n8n</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {/* Template Selector - filtered by channel */}
-            <div className="space-y-2">
-              <Label>Template de Mensagem</Label>
-              <Select value={formTemplateId} onValueChange={setFormTemplateId}>
-                <SelectTrigger className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd]">
-                  <SelectValue placeholder="Selecione um template (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {templates.filter(t => t.channel === formChannel).length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">
-                      Nenhum template de {formChannel === 'whatsapp' ? 'WhatsApp' : 'Email'}. Crie um em Configurações (menu Templates).
-                    </div>
-                  ) : (
-                    templates
-                      .filter(t => t.channel === formChannel)
-                      .map(t => (
-                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                      ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+            {formChannel === 'webhook' ? (
+              <div className="rounded-xl border border-[#d9e4ff] bg-[#f4f7ff] px-4 py-3">
+                <p className="text-sm font-medium text-[#1A1A1A]">Webhook n8n</p>
+                <p className="mt-1 text-xs leading-6 text-[#5a5a62]">
+                  Esse canal envia o payload completo da campanha para a URL configurada em Integrações. Template é opcional e não é usado no disparo.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Template de Mensagem</Label>
+                <Select value={formTemplateId} onValueChange={setFormTemplateId}>
+                  <SelectTrigger className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd]">
+                    <SelectValue placeholder="Selecione um template (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.filter(t => t.channel === formChannel).length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        Nenhum template de {formChannel === 'whatsapp' ? 'WhatsApp' : 'Email'}. Crie um em Configurações (menu Templates).
+                      </div>
+                    ) : (
+                      templates
+                        .filter(t => t.channel === formChannel)
+                        .map(t => (
+                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                        ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Agendamento (opcional)</Label>
               <Input className="h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]" type="datetime-local" value={formSchedule} onChange={e => setFormSchedule(e.target.value)} />

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, ChevronLeft, ChevronRight, Eye, MessageSquare, Mail, Mic } from 'lucide-react';
+import { Send, ChevronLeft, ChevronRight, Eye, MessageSquare, Mail, Mic, Link2 } from 'lucide-react';
 
 interface PreviewLead {
   id: string;
@@ -11,6 +11,7 @@ interface PreviewLead {
   business_phone: string;
   message: string;
   subject?: string;
+  webhookPayloadPreview?: string;
 }
 
 interface CampaignPreviewDialogProps {
@@ -58,7 +59,13 @@ const CampaignPreviewDialog = ({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs">
-              {channel === 'whatsapp' ? <><MessageSquare className="w-3 h-3 mr-1" /> WhatsApp</> : <><Mail className="w-3 h-3 mr-1" /> Email</>}
+              {channel === 'whatsapp' ? (
+                <><MessageSquare className="w-3 h-3 mr-1" /> WhatsApp</>
+              ) : channel === 'email' ? (
+                <><Mail className="w-3 h-3 mr-1" /> Email</>
+              ) : (
+                <><Link2 className="w-3 h-3 mr-1" /> Webhook / n8n</>
+              )}
             </Badge>
             {sendAsAudio && channel === 'whatsapp' && (
               <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/20">
@@ -108,6 +115,17 @@ const CampaignPreviewDialog = ({
                     </div>
                   )}
                 </div>
+              ) : channel === 'webhook' ? (
+                <div className="p-4">
+                  <div className="rounded-lg border border-border bg-secondary/20 p-4">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      Payload para n8n
+                    </p>
+                    <pre className="overflow-auto text-xs leading-6 text-foreground whitespace-pre-wrap break-words font-mono">
+                      {current.webhookPayloadPreview || current.message}
+                    </pre>
+                  </div>
+                </div>
               ) : (
                 <div className="p-4">
                   <div className="bg-secondary/30 border border-border rounded-lg p-4">
@@ -128,8 +146,10 @@ const CampaignPreviewDialog = ({
           >
             <Send className="w-4 h-4" />
             {sending
-              ? (sendAsAudio ? 'Gerando áudios e enviando...' : 'Enviando...')
-              : `Enviar ${leads.length} mensagen${leads.length > 1 ? 's' : ''}`}
+              ? (sendAsAudio && channel === 'whatsapp' ? 'Gerando áudios e enviando...' : 'Enviando...')
+              : channel === 'webhook'
+                ? `Disparar ${leads.length} lead${leads.length > 1 ? 's' : ''}`
+                : `Enviar ${leads.length} mensagen${leads.length > 1 ? 's' : ''}`}
           </Button>
         </DialogFooter>
       </DialogContent>

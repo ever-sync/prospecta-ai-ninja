@@ -10,6 +10,6 @@ test('routes email campaigns to the email dispatcher', () => {
   assert.equal(getCampaignDispatchTarget('email'), 'email');
 });
 
-test('does not route webhook campaigns to any dispatcher', () => {
-  assert.equal(getCampaignDispatchTarget('webhook'), null);
+test('routes webhook campaigns to the webhook dispatcher', () => {
+  assert.equal(getCampaignDispatchTarget('webhook'), 'webhook');
 });

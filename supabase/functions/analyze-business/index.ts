@@ -96,9 +96,9 @@ serve(async (req) => {
   }
 
   try {
-    const { business, mode } = await req.json();
+    const { business, mode, provider } = await req.json();
     const { user, svc } = await getAuthenticatedUserContext(req);
-    const llm = await resolveUserLLM(svc, user.id);
+    const llm = await resolveUserLLM(svc, user.id, provider);
 
     if (!["competitors", "score", "profile"].includes(mode)) {
       throw new Error("Modo invalido. Use: competitors, score, profile");

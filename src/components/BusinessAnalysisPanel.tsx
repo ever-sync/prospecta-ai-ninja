@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -149,7 +149,7 @@ export const BusinessAnalysisPanel = ({
   canGoNext,
 }: BusinessAnalysisPanelProps) => {
   const [cache, setCache] = useState<AnalysisCache>({});
-  const [loading, setLoading] = useState<string | null>(null);
+  const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [apiKeys, setApiKeys] = useState<{ id: string; provider: ApiProvider; custom_provider: string | null }[]>([]);
   const [analysisProvider, setAnalysisProvider] = useState('');
   const activeBusinessIdRef = useRef(business.id);
@@ -177,12 +177,12 @@ export const BusinessAnalysisPanel = ({
   useEffect(() => {
     activeBusinessIdRef.current = business.id;
     setCache({});
-    setLoading(null);
+    setLoading({});
   }, [business.id]);
 
-  const fetchAnalysis = async (mode: "competitors" | "score" | "profile") => {
-    if (cache[mode] && !loading) return;
-    setLoading(mode);
+  const fetchAnalysis = useCallback(async (mode: "competitors" | "score" | "profile") => {
+    if (cache[mode] && !loading[mode]) return;
+    setLoading((prev) => ({ ...prev, [mode]: true }));
     const requestedBusinessId = business.id;
 
     try {
@@ -191,10 +191,15 @@ export const BusinessAnalysisPanel = ({
       });
 
       if (error) throw error;
+      if (!data) throw new Error("Nenhum dado retornado da função.");
       if (data.error) throw new Error(data.error);
       if (activeBusinessIdRef.current !== requestedBusinessId) return;
 
-      setCache((prev) => ({ ...prev, [mode]: data.result }));
+      if (data.result) {
+        setCache((prev) => ({ ...prev, [mode]: data.result }));
+      } else {
+        throw new Error(`Resultado para ${mode} não encontrado na resposta.`);
+      }
     } catch (error) {
       console.error(`Error fetching ${mode}:`, error);
       const message = await getEdgeFunctionErrorMessage(error);
@@ -205,14 +210,14 @@ export const BusinessAnalysisPanel = ({
       });
     } finally {
       if (activeBusinessIdRef.current === requestedBusinessId) {
-        setLoading(null);
+        setLoading((prev) => ({ ...prev, [mode]: false }));
       }
     }
-  };
+  }, [business, cache, loading, analysisProvider, toast]);
 
-  const fetchHeavyAnalysis = async (force = false) => {
+  const fetchHeavyAnalysis = useCallback(async (force = false) => {
     if (cache.heavy && !force) return;
-    setLoading("heavy");
+    setLoading((prev) => ({ ...prev, heavy: true }));
     const requestedBusinessId = business.id;
 
     try {
@@ -224,6 +229,7 @@ export const BusinessAnalysisPanel = ({
       );
 
       if (error) throw error;
+      if (!data) throw new Error("Nenhum dado retornado da função profunda.");
       if (data.error) throw new Error(data.error);
       if (!data.analysis) throw new Error("Analise pesada nao retornou dados.");
       if (activeBusinessIdRef.current !== requestedBusinessId) return;
@@ -240,10 +246,10 @@ export const BusinessAnalysisPanel = ({
       });
     } finally {
       if (activeBusinessIdRef.current === requestedBusinessId) {
-        setLoading(null);
+        setLoading((prev) => ({ ...prev, heavy: false }));
       }
     }
-  };
+  }, [business, cache.heavy, analysisProvider, toast]);
 
   const refresh = (mode: "competitors" | "score" | "profile") => {
     setCache((prev) => {
@@ -509,7 +515,7 @@ export const BusinessAnalysisPanel = ({
         </TabsContent>
 
         <TabsContent value="heavy" className="mt-5">
-          {loading === "heavy" ? (
+          {loading.heavy ? (
             <LoadingState label="Rodando auditoria pesada do site, SEO, seguranca e capturas visuais..." />
           ) : cache.heavy ? (
             <div className="space-y-4">
@@ -797,11 +803,11 @@ export const BusinessAnalysisPanel = ({
         </TabsContent>
 
         <TabsContent value="approach" className="mt-5">
-          <ApproachSuggestion business={business} analysis={cache.heavy} onClose={() => undefined} embedded />
+          <ApproachSuggestion business={business} analysis={cache.heavy} onClose={() => undefined} embedded provider={analysisProvider} />
         </TabsContent>
 
         <TabsContent value="competitors" className="mt-5">
-          {loading === "competitors" ? (
+          {loading.competitors ? (
             <LoadingState label="Lendo concorrencia e brechas de posicionamento..." />
           ) : cache.competitors ? (
             <div className="space-y-4">
@@ -872,7 +878,7 @@ export const BusinessAnalysisPanel = ({
         </TabsContent>
 
         <TabsContent value="score" className="mt-5">
-          {loading === "score" ? (
+          {loading.score ? (
             <LoadingState label="Pontuando nivel de oportunidade e chance de conversao..." />
           ) : cache.score ? (
             <div className="space-y-4">
@@ -926,7 +932,7 @@ export const BusinessAnalysisPanel = ({
         </TabsContent>
 
         <TabsContent value="profile" className="mt-5">
-          {loading === "profile" ? (
+          {loading.profile ? (
             <LoadingState label="Montando leitura executiva da operacao e do decisor..." />
           ) : cache.profile ? (
             <div className="space-y-4">

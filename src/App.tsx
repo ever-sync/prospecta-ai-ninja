@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PwaInstallPrompt } from "@/components/pwa/PwaInstallPrompt";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
@@ -53,6 +54,7 @@ const App = () => (
           v7_relativeSplatPath: true,
         }}
       >
+        <PwaInstallPrompt />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/" element={<MarketingLanding />} />

@@ -230,6 +230,12 @@
 - Reproduced a second runtime failure where `supabase-vendor-*.js` tried to read an uninitialized helper imported from `vendor-*.js`.
 - Identified the root cause as another circular dependency created by the custom `manualChunks` split between `vendor` and `supabase-vendor`.
 - Removed the dedicated Supabase vendor bucket, rebuilt successfully, and extended the regression test to block reintroduction of both `react-vendor` and `supabase-vendor`.
+
+### 2026-03-21 - Evolution: mobile PWA shell added
+- Added `vite-plugin-pwa` with auto-updating service worker, generated manifest, and installable mobile metadata.
+- Generated branded install icons for Android and iOS and exposed `manifest.webmanifest`, `sw.js`, and `apple-touch-icon.png`.
+- Added a mobile install prompt inside the app for Android install flow and iOS home-screen guidance.
+- Verified the delivery with `npm test`, `npm run build`, and local preview serving both `manifest.webmanifest` and `sw.js`.
 - Extracted the saved-view, campaign form, add-presentations, failures, and operation-history dialogs into dedicated components under `src/components/campaigns/`.
 - Removed another large JSX block from `Campaigns.tsx`, keeping the page centered on state orchestration and dispatcher actions instead of dialog markup.
 - Re-ran the full local verification after the extraction and kept `npm test` plus `npm run build` green with the split-chunk build still healthy.

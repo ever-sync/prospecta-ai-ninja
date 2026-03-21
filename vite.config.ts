@@ -36,15 +36,6 @@ export default defineConfig(({ mode }) => ({
           ) {
             return "ui-vendor";
           }
-          if (
-            id.includes("react-router-dom") ||
-            id.includes("@tanstack/react-query") ||
-            id.includes("react-dom") ||
-            id.includes("/react/")
-          ) {
-            return "react-vendor";
-          }
-
           return "vendor";
         },
       },

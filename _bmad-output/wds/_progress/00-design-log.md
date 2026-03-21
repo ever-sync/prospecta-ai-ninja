@@ -218,6 +218,13 @@
 - Corrected an accidental typo in the campaign operation events migration during the refactor pass so the SQL artifact stays deployable.
 
 ### 2026-03-21 - Follow-up: campaign dialogs are now modularized too
+- Extracted the remaining campaign dialogs into dedicated components so `Campaigns.tsx` keeps orchestration logic separate from modal rendering.
+- Kept tests and build green while continuing the modularization pass.
+
+### 2026-03-21 - Bugfix: vendor chunk cycle removed from Vite build
+- Reproduced a runtime failure where `vendor-*.js` tried to access `forwardRef` from an uninitialized `react-vendor` chunk.
+- Identified the root cause as a circular dependency created by the custom `manualChunks` split between `vendor` and `react-vendor`.
+- Removed the dedicated React vendor bucket, rebuilt successfully, and added a regression test to block reintroduction of the `react-vendor` split.
 - Extracted the saved-view, campaign form, add-presentations, failures, and operation-history dialogs into dedicated components under `src/components/campaigns/`.
 - Removed another large JSX block from `Campaigns.tsx`, keeping the page centered on state orchestration and dispatcher actions instead of dialog markup.
 - Re-ran the full local verification after the extraction and kept `npm test` plus `npm run build` green with the split-chunk build still healthy.

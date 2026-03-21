@@ -24,6 +24,9 @@ verify_jwt = false
 [functions.send-campaign-emails]
 verify_jwt = false
 
+[functions.validate-campaign-email-sender]
+verify_jwt = false
+
 [functions.send-campaign-webhooks]
 verify_jwt = false
 

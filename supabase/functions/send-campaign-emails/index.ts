@@ -4,6 +4,23 @@ const corsHeaders = {
 };
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { pickVariantForLead } from '../_shared/campaign-variants.js';
+import { logCampaignOperationEvent } from '../_shared/campaign-operation-events.js';
+
+type TemplateRow = {
+  id: string;
+  body: string | null;
+  subject: string | null;
+  image_url: string | null;
+  include_proposal_link: boolean | null;
+  experiment_group: string | null;
+  variant_key: string | null;
+  target_persona: string | null;
+  campaign_objective: string | null;
+  cta_trigger: string | null;
+  channel: string | null;
+  is_active: boolean | null;
+};
 
 function resolveBaseOrigin(domain: string | null | undefined, _requestOrigin: string | null): string {
   const fallback = 'https://envpro.com.br';
@@ -40,6 +57,9 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let logUserId: string | null = null;
+  let logCampaignId: string | null = null;
+
   try {
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY is not configured');
@@ -53,6 +73,7 @@ Deno.serve(async (req) => {
     const bodyData = await req.json();
     const { campaign_id } = bodyData;
     if (!campaign_id) throw new Error('campaign_id is required');
+    logCampaignId = campaign_id;
 
     const isServiceRoleCall =
       !!serviceKey &&
@@ -84,6 +105,7 @@ Deno.serve(async (req) => {
       userId = user.id;
       userEmail = user.email || null;
     }
+    logUserId = userId;
 
     // Get campaign with template_id
     const { data: campaign, error: campErr } = await supabase
@@ -95,20 +117,34 @@ Deno.serve(async (req) => {
     if (campaign.user_id !== userId) throw new Error('Forbidden');
 
     // Fetch template if set
-    let template: { body: string; subject: string; image_url: string; include_proposal_link: boolean } | null = null;
+    let template: TemplateRow | null = null;
     if (campaign.template_id) {
       const { data: tpl } = await supabase
         .from('message_templates')
-        .select('body, subject, image_url, include_proposal_link')
+        .select('id, body, subject, image_url, include_proposal_link, experiment_group, variant_key, target_persona, campaign_objective, cta_trigger, channel, is_active')
         .eq('id', campaign.template_id)
         .single();
-      template = tpl as any;
+      template = (tpl as TemplateRow | null) || null;
     }
+
+    let variants: TemplateRow[] = [];
+    if (template?.experiment_group) {
+      const { data: variantRows } = await supabase
+        .from('message_templates')
+        .select('id, body, subject, image_url, include_proposal_link, experiment_group, variant_key, target_persona, campaign_objective, cta_trigger, channel, is_active')
+        .eq('user_id', userId)
+        .eq('channel', 'email')
+        .eq('experiment_group', template.experiment_group)
+        .eq('is_active', true)
+        .order('variant_key');
+      variants = (variantRows as TemplateRow[]) || [];
+    }
+    if (variants.length === 0 && template) variants = [template];
 
     // Get pending campaign presentations
     const { data: cpRows } = await supabase
       .from('campaign_presentations')
-      .select('id, presentation_id')
+      .select('id, presentation_id, variant_id')
       .eq('campaign_id', campaign_id)
       .eq('send_status', 'pending');
 
@@ -128,13 +164,39 @@ Deno.serve(async (req) => {
     // Get user profile
     const { data: profile } = await supabase
       .from('profiles')
-      .select('company_name, email, campaign_sender_email, campaign_sender_name, proposal_link_domain')
+      .select('company_name, email, campaign_sender_email, campaign_sender_name, campaign_reply_to_email, email_sender_status, email_sender_domain, email_sender_error, proposal_link_domain')
       .eq('user_id', userId)
       .single();
 
+    if (profile?.campaign_sender_email && profile?.email_sender_status !== 'ready') {
+      await logCampaignOperationEvent(supabase, {
+        userId,
+        campaignId: campaign_id,
+        channel: 'email',
+        eventType: 'blocked',
+        source: 'send-campaign-emails',
+        reasonCode: 'email-sender-not-ready',
+        message: profile?.email_sender_error || 'Valide o dominio do remetente no Resend antes de enviar campanhas com email do cliente.',
+        metadata: {
+          sender_domain: profile?.email_sender_domain || null,
+          sender_email: profile?.campaign_sender_email || null,
+        },
+      });
+      return new Response(JSON.stringify({
+        error: profile?.email_sender_error || 'Valide o dominio do remetente no Resend antes de enviar campanhas com email do cliente.',
+        code: 'email_sender_not_ready',
+        sender_domain: profile?.email_sender_domain || null,
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const senderName = profile?.campaign_sender_name || profile?.company_name || 'envPRO';
     const fromEmail = profile?.campaign_sender_email || 'onboarding@resend.dev';
+    const replyToEmail = profile?.campaign_reply_to_email || null;
     const baseOrigin = resolveBaseOrigin(profile?.proposal_link_domain, req.headers.get('origin'));
+    const variantMap = new Map((variants || []).map((variant) => [variant.id, variant]));
 
     const replaceVariables = (text: string, pres: any, publicUrl: string) => {
       return text
@@ -150,13 +212,56 @@ Deno.serve(async (req) => {
     };
 
     let sentCount = 0;
+    let failedCount = 0;
 
     for (const pres of (presentations || [])) {
       const businessEmail = pres.business_email || null;
       const cpRow = cpRows.find(r => r.presentation_id === pres.id);
 
-      if (!businessEmail) continue;
       if (!cpRow) continue;
+      const now = new Date().toISOString();
+      const chosenVariant =
+        (cpRow.variant_id ? variantMap.get(cpRow.variant_id) : null) ||
+        pickVariantForLead(
+          {
+            id: pres.id,
+            business_category: pres.business_category || null,
+            analysis_data: pres.analysis_data,
+          },
+          variants,
+          template,
+        );
+      const variantId = chosenVariant?.id || null;
+
+      if (!businessEmail) {
+        await supabase
+          .from('campaign_presentations')
+          .update({
+            send_status: 'failed',
+            delivery_status: 'failed',
+            last_status_at: now,
+            variant_id: variantId,
+          })
+          .eq('id', cpRow.id);
+
+        await supabase.from('campaign_message_attempts').insert({
+          user_id: userId,
+          campaign_presentation_id: cpRow.id,
+          campaign_id,
+          presentation_id: pres.id,
+          template_id: campaign.template_id || null,
+          variant_id: variantId,
+          channel: 'email',
+          send_mode: 'api',
+          provider: 'resend',
+          attempt_no: 1,
+          status: 'failed',
+          error_reason: 'missing_business_email',
+          metadata: { channel: 'email' },
+        });
+        failedCount++;
+        continue;
+      }
 
       const tracked = new URLSearchParams({
         cid: campaign_id,
@@ -166,22 +271,27 @@ Deno.serve(async (req) => {
       });
       if (campaign.template_id) {
         tracked.set('tid', campaign.template_id);
-        tracked.set('vid', campaign.template_id);
+      }
+      if (variantId) {
+        tracked.set('vid', variantId);
       }
       const publicUrl = `${baseOrigin}/presentation/${pres.public_id}?${tracked.toString()}`;
 
       let emailSubject: string;
       let emailHtml: string;
 
-      if (template) {
+      if (chosenVariant) {
         emailSubject = replaceVariables(template.subject || `${pres.business_name} — Análise Digital Personalizada`, pres, publicUrl);
-        const bodyContent = replaceVariables(template.body, pres, publicUrl);
+        const bodyContent = replaceVariables(chosenVariant.body || '', pres, publicUrl);
+        if (chosenVariant.subject) {
+          emailSubject = replaceVariables(chosenVariant.subject, pres, publicUrl);
+        }
         
         emailHtml = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            ${template.image_url ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${template.image_url}" alt="" style="max-width: 100%; max-height: 200px; border-radius: 8px;" /></div>` : ''}
+            ${chosenVariant.image_url ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${chosenVariant.image_url}" alt="" style="max-width: 100%; max-height: 200px; border-radius: 8px;" /></div>` : ''}
             <div style="color: #444; line-height: 1.8; font-size: 15px; white-space: pre-wrap;">${bodyContent}</div>
-            ${template.include_proposal_link ? `
+            ${chosenVariant.include_proposal_link ? `
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${publicUrl}" 
                    style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 14px 32px; 
@@ -232,11 +342,23 @@ Deno.serve(async (req) => {
             to: [businessEmail],
             subject: emailSubject,
             html: emailHtml,
+            ...(replyToEmail ? { reply_to: replyToEmail } : {}),
           }),
         });
 
+        const responseText = await resendResponse.text().catch(() => '');
+        let responseData: any = {};
+        if (responseText) {
+          try {
+            responseData = JSON.parse(responseText);
+          } catch {
+            responseData = { raw: responseText };
+          }
+        }
+
         if (resendResponse.ok) {
           const sentAt = new Date().toISOString();
+          const providerMessageId = responseData?.id || `resend:${cpRow.id}:${sentAt}`;
           await supabase
             .from('campaign_presentations')
             .update({
@@ -244,7 +366,8 @@ Deno.serve(async (req) => {
               sent_at: sentAt,
               delivery_status: 'sent',
               last_status_at: sentAt,
-              variant_id: campaign.template_id || null,
+              provider_message_id: providerMessageId,
+              variant_id: variantId,
             })
             .eq('id', cpRow.id);
 
@@ -254,13 +377,15 @@ Deno.serve(async (req) => {
             campaign_id,
             presentation_id: pres.id,
             template_id: campaign.template_id || null,
-            variant_id: campaign.template_id || null,
+            variant_id: variantId,
             channel: 'email',
             send_mode: 'api',
             provider: 'resend',
+            attempt_no: 1,
             status: 'sent',
+            provider_message_id: providerMessageId,
             sent_at: sentAt,
-            metadata: { channel: 'email' },
+            metadata: { channel: 'email', response_id: responseData?.id || null },
           });
 
           await supabase.from('message_conversion_events').insert({
@@ -270,7 +395,7 @@ Deno.serve(async (req) => {
             campaign_id,
             campaign_presentation_id: cpRow.id,
             template_id: campaign.template_id || null,
-            variant_id: campaign.template_id || null,
+            variant_id: variantId,
             channel: 'email',
             pipeline_stage_id: pres.pipeline_stage_id || null,
             niche: pres.business_category || null,
@@ -280,15 +405,71 @@ Deno.serve(async (req) => {
           });
           sentCount++;
         } else {
-          const errData = await resendResponse.json();
-          console.error(`Failed to send to ${businessEmail}:`, errData);
+          const errorReason =
+            responseData?.message ||
+            responseData?.error ||
+            responseText ||
+            `Resend failed with status ${resendResponse.status}`;
+          console.error(`Failed to send to ${businessEmail}:`, responseData);
           await supabase
             .from('campaign_presentations')
-            .update({ send_status: 'failed' })
+            .update({
+              send_status: 'failed',
+              delivery_status: 'failed',
+              last_status_at: now,
+              variant_id: variantId,
+            })
             .eq('id', cpRow.id);
+
+          await supabase.from('campaign_message_attempts').insert({
+            user_id: userId,
+            campaign_presentation_id: cpRow.id,
+            campaign_id,
+            presentation_id: pres.id,
+            template_id: campaign.template_id || null,
+            variant_id: variantId,
+            channel: 'email',
+            send_mode: 'api',
+            provider: 'resend',
+            attempt_no: 1,
+            status: 'failed',
+            error_reason: errorReason,
+            metadata: {
+              channel: 'email',
+              response_status: resendResponse.status,
+              response_body: responseData,
+            },
+          });
+          failedCount++;
         }
       } catch (emailErr) {
         console.error(`Error sending email to ${businessEmail}:`, emailErr);
+        await supabase
+          .from('campaign_presentations')
+          .update({
+            send_status: 'failed',
+            delivery_status: 'failed',
+            last_status_at: now,
+            variant_id: variantId,
+          })
+          .eq('id', cpRow.id);
+
+        await supabase.from('campaign_message_attempts').insert({
+          user_id: userId,
+          campaign_presentation_id: cpRow.id,
+          campaign_id,
+          presentation_id: pres.id,
+          template_id: campaign.template_id || null,
+          variant_id: variantId,
+          channel: 'email',
+          send_mode: 'api',
+          provider: 'resend',
+          attempt_no: 1,
+          status: 'failed',
+          error_reason: emailErr instanceof Error ? emailErr.message : 'email_send_failed',
+          metadata: { channel: 'email' },
+        });
+        failedCount++;
       }
     }
 
@@ -296,6 +477,39 @@ Deno.serve(async (req) => {
     if (sentCount > 0) {
       await logApiUsage(userId, 'resend', 'send_email', sentCount * 0.1, { campaign_id, sentCount });
     }
+
+    if (failedCount > 0) {
+      await logCampaignOperationEvent(supabase, {
+        userId,
+        campaignId: campaign_id,
+        channel: 'email',
+        eventType: 'dispatch_failed',
+        source: 'send-campaign-emails',
+        reasonCode: 'dispatch-error',
+        message: `${failedCount} lead(s) falharam durante o envio da campanha por email.`,
+        metadata: {
+          sent: sentCount,
+          failed: failedCount,
+          total_pending: cpRows.length,
+        },
+      });
+    }
+
+    await logCampaignOperationEvent(supabase, {
+      userId,
+      campaignId: campaign_id,
+      channel: 'email',
+      eventType: 'dispatch_completed',
+      source: 'send-campaign-emails',
+      message: `Campanha por email processada. ${sentCount} enviado(s), ${failedCount} falha(s).`,
+      metadata: {
+        sent: sentCount,
+        failed: failedCount,
+        total_pending: cpRows.length,
+        sender_email: fromEmail,
+        reply_to_email: replyToEmail,
+      },
+    });
 
     // Update campaign status
     await supabase
@@ -322,11 +536,31 @@ Deno.serve(async (req) => {
       }).catch(() => {});
     }
 
-    return new Response(JSON.stringify({ success: true, sent: sentCount }), {
+    return new Response(JSON.stringify({ success: true, sent: sentCount, failed: failedCount }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Send campaign emails error:', error);
+    if (logUserId && logCampaignId) {
+      try {
+        const svc = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+          { auth: { persistSession: false } }
+        );
+        await logCampaignOperationEvent(svc, {
+          userId: logUserId,
+          campaignId: logCampaignId,
+          channel: 'email',
+          eventType: 'dispatch_failed',
+          source: 'send-campaign-emails',
+          reasonCode: 'dispatch-error',
+          message: error instanceof Error ? error.message : 'Failed',
+        });
+      } catch (logError) {
+        console.error('Failed to persist campaign email operation event:', logError);
+      }
+    }
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Failed' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

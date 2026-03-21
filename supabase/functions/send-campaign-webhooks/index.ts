@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { logCampaignOperationEvent } from "../_shared/campaign-operation-events.js";
 import {
   buildCampaignWebhookHeaders,
   buildCampaignWebhookPayload,
@@ -52,6 +53,9 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let logUserId: string | null = null;
+  let logCampaignId: string | null = null;
+
   try {
     const authHeader = req.headers.get("Authorization") || "";
     if (!authHeader) throw new Error("Unauthorized");
@@ -72,6 +76,7 @@ Deno.serve(async (req) => {
     const bodyData = await req.json();
     const { campaign_id } = bodyData;
     if (!campaign_id) throw new Error("campaign_id is required");
+    logCampaignId = campaign_id;
 
     const isServiceRoleCall =
       !!serviceKey &&
@@ -86,6 +91,7 @@ Deno.serve(async (req) => {
       if (userError || !user) throw new Error("Unauthorized");
       userId = user.id;
     }
+    logUserId = userId;
 
     const { data: campaignData, error: campaignError } = await svc
       .from("campaigns")
@@ -109,6 +115,15 @@ Deno.serve(async (req) => {
     const senderName = profile.company_name || "Nossa Empresa";
     const webhookUrl = normalizeWebhookUrl(profile.campaign_webhook_url || envWebhookUrl);
     if (!webhookUrl) {
+      await logCampaignOperationEvent(svc, {
+        userId,
+        campaignId: campaign_id,
+        channel: "webhook",
+        eventType: "blocked",
+        source: "send-campaign-webhooks",
+        reasonCode: "missing-webhook-target",
+        message: "Configure a URL do webhook do n8n em Configuracoes > Integracoes antes de enviar campanhas.",
+      });
       return new Response(
         JSON.stringify({
           success: false,
@@ -363,6 +378,39 @@ Deno.serve(async (req) => {
     }
 
     if (sentCount > 0 || failedCount > 0 || cpRows.length > 0) {
+      if (failedCount > 0) {
+        await logCampaignOperationEvent(svc, {
+          userId,
+          campaignId: campaign.id,
+          channel: "webhook",
+          eventType: "dispatch_failed",
+          source: "send-campaign-webhooks",
+          reasonCode: "dispatch-error",
+          message: `${failedCount} lead(s) falharam durante o envio do webhook da campanha.`,
+          metadata: {
+            sent: sentCount,
+            failed: failedCount,
+            total_pending: cpRows.length,
+            webhook_url: webhookUrl,
+          },
+        });
+      }
+
+      await logCampaignOperationEvent(svc, {
+        userId,
+        campaignId: campaign.id,
+        channel: "webhook",
+        eventType: "dispatch_completed",
+        source: "send-campaign-webhooks",
+        message: `Campanha por webhook processada. ${sentCount} enviado(s), ${failedCount} falha(s).`,
+        metadata: {
+          sent: sentCount,
+          failed: failedCount,
+          total_pending: cpRows.length,
+          webhook_url: webhookUrl,
+        },
+      });
+
       await svc
         .from("campaigns")
         .update({ status: "sent", sent_at: new Date().toISOString() })
@@ -381,6 +429,24 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error("send-campaign-webhooks error:", error);
+    if (logUserId && logCampaignId) {
+      try {
+        const svc = createClient(Deno.env.get("SUPABASE_URL") || "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "", {
+          auth: { persistSession: false },
+        });
+        await logCampaignOperationEvent(svc, {
+          userId: logUserId,
+          campaignId: logCampaignId,
+          channel: "webhook",
+          eventType: "dispatch_failed",
+          source: "send-campaign-webhooks",
+          reasonCode: "dispatch-error",
+          message: error instanceof Error ? error.message : "Failed",
+        });
+      } catch (logError) {
+        console.error("Failed to persist campaign webhook operation event:", logError);
+      }
+    }
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Failed" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },

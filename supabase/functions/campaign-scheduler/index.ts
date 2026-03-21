@@ -10,6 +10,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCampaignDispatchTarget } from "../_shared/campaign-routing.js";
+import { logCampaignOperationEvent } from "../_shared/campaign-operation-events.js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -65,8 +66,22 @@ Deno.serve(async (req) => {
       if (!dispatchTarget) {
         await svc
           .from("campaigns")
-          .update({ status: "cancelled", updated_at: now })
+          .update({
+            status: "cancelled",
+            blocking_reason: "unsupported-channel",
+            last_blocked_at: now,
+            updated_at: now,
+          })
           .eq("id", campaign.id);
+        await logCampaignOperationEvent(svc, {
+          userId: campaign.user_id,
+          campaignId: campaign.id,
+          channel: campaign.channel,
+          eventType: "cancelled",
+          source: "scheduler",
+          reasonCode: "unsupported-channel",
+          message: "Campanha cancelada pelo scheduler porque o canal nao e suportado.",
+        });
         results.push({ campaign_id: campaign.id, name: campaign.name, skipped: true, reason: "unsupported-channel" });
         continue;
       }
@@ -118,17 +133,47 @@ Deno.serve(async (req) => {
           }
         }
 
-        if (sendData?.code === "missing_meta_credentials" || sendData?.code === "missing_webhook_target") {
+        if (
+          sendData?.code === "missing_meta_credentials" ||
+          sendData?.code === "missing_webhook_target" ||
+          sendData?.code === "email_sender_not_ready"
+        ) {
+          const blockingReason =
+            sendData?.code === "missing_meta_credentials"
+              ? "missing-meta-credentials"
+              : sendData?.code === "missing_webhook_target"
+                ? "missing-webhook-target"
+                : "email-sender-not-ready";
+
           await svc
             .from("campaigns")
-            .update({ status: "cancelled", updated_at: new Date().toISOString() })
+            .update({
+              status: "cancelled",
+              blocking_reason: blockingReason,
+              last_blocked_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
             .eq("id", campaign.id);
+          await logCampaignOperationEvent(svc, {
+            userId: campaign.user_id,
+            campaignId: campaign.id,
+            channel: campaign.channel,
+            eventType: "cancelled",
+            source: "scheduler",
+            reasonCode: blockingReason,
+            message:
+              blockingReason === "missing-meta-credentials"
+                ? "Campanha cancelada pelo scheduler porque a Meta oficial nao estava configurada."
+                : blockingReason === "missing-webhook-target"
+                  ? "Campanha cancelada pelo scheduler porque o webhook nao estava configurado."
+                  : "Campanha cancelada pelo scheduler porque o remetente de email nao estava validado.",
+          });
 
           results.push({
             campaign_id: campaign.id,
             name: campaign.name,
             skipped: true,
-            reason: sendData?.code === "missing_meta_credentials" ? "missing-meta-credentials" : "missing-webhook-target",
+            reason: blockingReason,
           });
           continue;
         }
@@ -149,6 +194,15 @@ Deno.serve(async (req) => {
           .from("campaigns")
           .update({ status: "scheduled", updated_at: new Date().toISOString() })
           .eq("id", campaign.id);
+        await logCampaignOperationEvent(svc, {
+          userId: campaign.user_id,
+          campaignId: campaign.id,
+          channel: campaign.channel,
+          eventType: "dispatch_failed",
+          source: "scheduler",
+          reasonCode: "dispatch-error",
+          message: sendErr?.message || "invoke_failed",
+        });
 
         results.push({
           campaign_id: campaign.id,

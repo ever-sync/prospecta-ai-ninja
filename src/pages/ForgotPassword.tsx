@@ -9,7 +9,7 @@ import { BRAND } from '@/config/brand';
 import { supabase } from '@/integrations/supabase/client';
 import { getPasswordResetRedirectUrl } from '@/lib/auth-redirects';
 import loginLogo from '@/logos/Group 157.svg';
-import loginSideImage from '@/logos/imglogin.jpg';
+import loginSideImage from '@/logos/login-bg.png';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();

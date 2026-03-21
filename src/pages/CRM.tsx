@@ -61,8 +61,8 @@ const filterQueryKeys = [
 ] as const;
 
 const parseMode = (value: string | null): CRMMode => {
-  if (value === 'kanban' || value === 'list') return value;
-  return 'queue';
+  if (value === 'queue' || value === 'list') return value;
+  return 'kanban';
 };
 
 const parseFiltersFromParams = (params: URLSearchParams): CRMFilters => ({

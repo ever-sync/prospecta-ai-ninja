@@ -203,10 +203,10 @@ const Admin = ({ initialTab = 'dashboard' }: AdminProps) => {
         <TabsList>
           <TabsTrigger value="dashboard">📊 Dashboard</TabsTrigger>
           <TabsTrigger value="usuarios">👥 Usuários</TabsTrigger>
+          <TabsTrigger value="feedbacks">💬 Feedbacks</TabsTrigger>
           <TabsTrigger value="custos">💰 Custos & APIs</TabsTrigger>
           <TabsTrigger value="planos">👑 Planos</TabsTrigger>
           <TabsTrigger value="emails">📧 Emails</TabsTrigger>
-          <TabsTrigger value="feedbacks">💬 Feedbacks</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-8">

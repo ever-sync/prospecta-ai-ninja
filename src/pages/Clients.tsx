@@ -8,7 +8,7 @@ import {
   MessageCircle,
   Phone,
   Search,
-  Star,
+  Target,
   UserRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -157,15 +157,15 @@ export default function Clients() {
         <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-[#8a8a92]">Carteira</p>
-            <h1 className="mt-1 text-2xl font-bold text-[#1A1A1A]">Clientes</h1>
+            <h1 className="mt-1 text-2xl font-bold text-[#1A1A1A]">Alvos</h1>
             <p className="mt-1 text-sm text-[#696971]">
               Leads com proposta gerada ou enviados em campanhas.
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-2xl border border-[#ececf0] bg-white px-5 py-3">
-            <Star className="h-5 w-5 text-[#EF3333]" />
+            <Target className="h-5 w-5 text-[#EF3333]" />
             <span className="text-2xl font-bold text-[#1A1A1A]">{loading ? '-' : clients.length}</span>
-            <span className="text-sm text-[#8a8a92]">clientes</span>
+            <span className="text-sm text-[#8a8a92]">alvos</span>
           </div>
         </div>
 
@@ -193,7 +193,7 @@ export default function Clients() {
               <Building2 className="h-7 w-7 text-[#8a8a92]" />
             </div>
             <p className="mt-4 text-base font-semibold text-[#1A1A1A]">
-              {search ? 'Nenhum cliente encontrado' : 'Nenhum cliente ainda'}
+              {search ? 'Nenhum alvo encontrado' : 'Nenhum alvo ainda'}
             </p>
             <p className="mt-1 max-w-xs text-sm text-[#8a8a92]">
               {search

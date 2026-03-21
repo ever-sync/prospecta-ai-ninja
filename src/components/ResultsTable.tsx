@@ -178,7 +178,6 @@ export const ResultsTable = ({
                 <Checkbox checked={allSelected} onCheckedChange={onToggleAll} />
               </TableHead>
               <TableHead className="font-semibold text-[#1A1A1A]">Lead</TableHead>
-              <TableHead className="font-semibold text-[#1A1A1A]">Sinais</TableHead>
               <TableHead className="font-semibold text-[#1A1A1A]">Contato</TableHead>
               <TableHead className="text-center font-semibold text-[#1A1A1A]">Prioridade</TableHead>
               <TableHead className="text-right font-semibold text-[#1A1A1A]">Acao</TableHead>
@@ -238,26 +237,6 @@ export const ResultsTable = ({
                     </div>
                   </TableCell>
 
-                  <TableCell>
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap gap-2">
-                        {signal.signalFlags.map((flag) => (
-                          <span
-                            key={flag}
-                            className="rounded-full border border-[#ececf0] bg-[#fcfcfd] px-2.5 py-1 text-[11px] font-medium text-[#6e6e76]"
-                          >
-                            {flag}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="text-xs font-medium text-[#8b8b93]">
-                        Completude de contato: {signal.contactCompleteness}/3
-                      </div>
-                      <div className="text-xs font-medium text-[#8b8b93]">
-                        Presenca online: {signal.onlinePresenceScore}/100
-                      </div>
-                    </div>
-                  </TableCell>
 
                   <TableCell>
                     <div className="space-y-2 text-sm text-[#1A1A1A]">

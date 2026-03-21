@@ -362,7 +362,32 @@ export const BusinessAnalysisPanel = ({
         </div>
       )}
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="rounded-[22px] border border-[#ececf0] bg-[#fafafc] p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-[#1A1A1A]">
+            <Sparkles className="h-4 w-4 text-[#EF3333]" />
+            Sinais de oportunidade
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {signal.signalFlags.map((flag) => (
+              <span
+                key={flag}
+                className="rounded-full border border-[#e8e8ec] bg-white px-2.5 py-1 text-[11px] font-medium text-[#6d6d75]"
+              >
+                {flag}
+              </span>
+            ))}
+          </div>
+          <div className="mt-4 space-y-2">
+            <div className="text-xs font-medium text-[#8b8b93]">
+              Completude de contato: <span className="text-[#1A1A1A] font-semibold">{signal.contactCompleteness}/3</span>
+            </div>
+            <div className="text-xs font-medium text-[#8b8b93]">
+              Presenca online: <span className="text-[#1A1A1A] font-semibold">{signal.onlinePresenceScore}/100</span>
+            </div>
+          </div>
+        </div>
+
         <div className="rounded-[22px] border border-[#ececf0] bg-[#fafafc] p-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-[#1A1A1A]">
             <MapPin className="h-4 w-4 text-[#EF3333]" />
@@ -386,16 +411,6 @@ export const BusinessAnalysisPanel = ({
                 ? "Vale ler melhor o contexto antes de disparar a proposta."
                 : "Exige reforco de contexto ou contato antes de entrar na fila principal."}
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {signal.signalFlags.map((flag) => (
-              <span
-                key={flag}
-                className="rounded-full border border-[#e8e8ec] bg-white px-2.5 py-1 text-[11px] font-medium text-[#6d6d75]"
-              >
-                {flag}
-              </span>
-            ))}
-          </div>
         </div>
       </div>
 

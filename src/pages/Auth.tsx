@@ -11,7 +11,7 @@ import { getAuthPersistencePreference, setAuthPersistencePreference, supabase } 
 import { BRAND } from '@/config/brand';
 import { detectDocumentType, formatBrazilPhone, formatCpfCnpj, normalizeDocumentDigits, validateBrazilPhone, validateCpfCnpj } from '@/lib/br-utils';
 import loginLogo from '@/logos/Group 157.svg';
-import loginSideImage from '@/logos/imglogin.jpg';
+import loginSideImage from '@/logos/login-bg.png';
 
 const hasFullName = (value: string) => value.trim().split(/\s+/).filter(Boolean).length >= 2;
 const getPasswordChecks = (value: string) => ({

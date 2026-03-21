@@ -23,6 +23,7 @@ import {
   Eye,
   Bot,
   Star,
+  Target,
 } from 'lucide-react';
 
 const WhatsAppIcon = ({ className, strokeWidth: _sw }: { className?: string; strokeWidth?: number }) => (
@@ -53,7 +54,6 @@ const SIDEBAR_STORAGE_KEY = 'prospecta.sidebar.collapsed';
 const menuItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { path: '/crm', label: 'CRM', icon: Users },
-  { path: '/clients', label: 'Clientes', icon: Star },
   { path: '/dna', label: 'DNA', icon: Fingerprint },
   { path: '/search', label: 'Scanner', icon: SearchIcon },
   { path: '/robots', label: 'Robôs', icon: Bot, comingSoon: true },
@@ -61,6 +61,7 @@ const menuItems = [
   { path: '/presentations', label: 'Apresentações', icon: FileBarChart },
   { path: '/campaigns', label: 'Campanhas', icon: Send },
   { path: '/templates', label: 'Templates', icon: FileStack },
+  { path: '/clients', label: 'Alvos', icon: Target },
 ];
 
 const generalItems = [
@@ -148,8 +149,8 @@ const routeMeta: Record<string, { eyebrow: string; title: string; description: s
   },
   '/clients': {
     eyebrow: 'Carteira',
-    title: 'Clientes',
-    description: 'Leads que aceitaram sua proposta e se tornaram clientes.',
+    title: 'Alvos',
+    description: 'Leads que aceitaram sua proposta e se tornaram alvos ativos.',
   },
   '/templates': {
     eyebrow: 'Playbooks',

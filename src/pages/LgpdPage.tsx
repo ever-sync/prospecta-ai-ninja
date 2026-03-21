@@ -10,7 +10,7 @@ import { COOKIE_CONSENT_NAME } from "@/config/legal";
 const resolveConsentLabel = (value?: string) => {
   if (value === "accepted") return "Cookies opcionais aceitos";
   if (value === "declined") return "Somente cookies essenciais";
-  return "Consentimento ainda n?o definido";
+  return "Consentimento ainda não definido";
 };
 
 const LgpdPage = () => {
@@ -29,7 +29,7 @@ const LgpdPage = () => {
   return (
     <LegalPageLayout
       title="LGPD e Cookies"
-      summary="Esta p?gina resume como a envPRO trata dados pessoais sob a perspectiva da LGPD, quais s?o os seus direitos e como voc? pode revisar o consentimento relacionado a cookies e tecnologias locais."
+      summary="Esta página resume como a envPRO trata dados pessoais sob a perspectiva da LGPD, quais são os seus direitos e como você pode revisar o consentimento relacionado a cookies e tecnologias locais."
     >
       <Card className="rounded-[28px] border border-[#f2d4d8] bg-[#fff7f8] p-8 shadow-[0_14px_36px_rgba(20,20,24,0.06)]">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -40,7 +40,7 @@ const LgpdPage = () => {
               {resolveConsentLabel(consentValue)}
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-[#5f5f67]">
-              Se quiser rever sua escolha, limpe o registro de consentimento. O banner voltar? a aparecer no site para que voc?
+              Se quiser rever sua escolha, limpe o registro de consentimento. O banner voltará a aparecer no site para que você
               possa aceitar ou recusar cookies opcionais novamente.
             </p>
           </div>
@@ -60,34 +60,34 @@ const LgpdPage = () => {
         <h2 className="text-2xl font-semibold text-[#1A1A1A]">1. Seus direitos como titular</h2>
         <ul className="mt-4 space-y-2 text-sm leading-7 text-[#5f5f67]">
           <li>Confirmar se tratamos seus dados pessoais.</li>
-          <li>Solicitar acesso, corre??o, atualiza??o ou complementa??o de dados.</li>
-          <li>Solicitar anonimiza??o, bloqueio ou elimina??o quando houver excesso ou irregularidade.</li>
-          <li>Solicitar informa??es sobre compartilhamento e portabilidade, quando aplic?vel.</li>
-          <li>Revogar consentimento e pedir elimina??o de dados tratados com essa base legal, observadas as exce??es legais.</li>
+          <li>Solicitar acesso, correção, atualização ou complementação de dados.</li>
+          <li>Solicitar anonimização, bloqueio ou eliminação quando houver excesso ou irregularidade.</li>
+          <li>Solicitar informações sobre compartilhamento e portabilidade, quando aplicável.</li>
+          <li>Revogar consentimento e pedir eliminação de dados tratados com essa base legal, observadas as exceções legais.</li>
         </ul>
       </section>
 
       <section className="rounded-[28px] border border-[#ececf0] bg-white p-8 shadow-[0_14px_36px_rgba(20,20,24,0.06)]">
         <h2 className="text-2xl font-semibold text-[#1A1A1A]">2. Como exercitar esses direitos</h2>
         <p className="mt-4 text-sm leading-7 text-[#5f5f67]">
-          Para exerc?cio de direitos previstos na LGPD, envie sua solicita??o para {BRAND.contactEmail} com o assunto
-          "LGPD - Solicita??o do Titular". Se o tema for operacional ou t?cnico, tamb?m atendemos por {BRAND.supportEmail}.
+          Para exercício de direitos previstos na LGPD, envie sua solicitação para {BRAND.contactEmail} com o assunto
+          "LGPD - Solicitação do Titular". Se o tema for operacional ou técnico, também atendemos por {BRAND.supportEmail}.
         </p>
         <p className="mt-4 text-sm leading-7 text-[#5f5f67]">
-          Para valida??o de identidade e seguran?a, podemos solicitar informa??es adicionais antes de atender a demanda.
+          Para validação de identidade e segurança, podemos solicitar informações adicionais antes de atender a demanda.
         </p>
       </section>
 
       <section className="rounded-[28px] border border-[#ececf0] bg-white p-8 shadow-[0_14px_36px_rgba(20,20,24,0.06)]">
         <h2 className="text-2xl font-semibold text-[#1A1A1A]">3. Cookies usados pelo site</h2>
         <ul className="mt-4 space-y-2 text-sm leading-7 text-[#5f5f67]">
-          <li>Cookies essenciais para autentica??o, seguran?a e prote??o de rotas.</li>
-          <li>Prefer?ncias locais da interface, como estado de navega??o e consentimento.</li>
-          <li>Registros necess?rios para formul?rios, fluxo comercial e opera??o t?cnica do site.</li>
+          <li>Cookies essenciais para autenticação, segurança e proteção de rotas.</li>
+          <li>Preferências locais da interface, como estado de navegação e consentimento.</li>
+          <li>Registros necessários para formulários, fluxo comercial e operação técnica do site.</li>
         </ul>
         <p className="mt-4 text-sm leading-7 text-[#5f5f67]">
-          Se houver ativa??o futura de recursos opcionais de medi??o, personaliza??o ou automa??o que dependam de consentimento,
-          o banner LGPD continuar? sendo o ponto de controle dessa escolha.
+          Se houver ativação futura de recursos opcionais de medição, personalização ou automação que dependam de consentimento,
+          o banner LGPD continuará sendo o ponto de controle dessa escolha.
         </p>
       </section>
 

@@ -44,10 +44,10 @@ export const LegalPageLayout = ({ title, summary, children }: LegalPageLayoutPro
       <main className="pb-24">
         <section className="border-b border-[#ececf0] bg-[linear-gradient(180deg,#fff_0%,#fff5f6_100%)]">
           <div className="mx-auto max-w-6xl px-6 py-16">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#ef3333]">Base jur?dica do site</p>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#ef3333]">Base jurídica do site</p>
             <h1 className="max-w-3xl text-4xl font-bold leading-tight lg:text-5xl">{title}</h1>
             <p className="mt-6 max-w-3xl text-lg leading-relaxed text-[#66666d]">{summary}</p>
-            <p className="mt-4 text-sm font-medium text-[#8a8a92]">?ltima atualiza??o: {LEGAL_LAST_UPDATED}</p>
+            <p className="mt-4 text-sm font-medium text-[#8a8a92]">Última atualização: {LEGAL_LAST_UPDATED}</p>
           </div>
         </section>
 

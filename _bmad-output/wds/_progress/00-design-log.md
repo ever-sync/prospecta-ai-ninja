@@ -93,3 +93,20 @@
 - Converted the architecture analysis into a phased execution plan with security, refactor, quality, performance, and CI workstreams.
 - Prioritized baseline stabilization and auth hardening before large-scale refactors.
 - Added explicit acceptance criteria and immediate backlog items for execution.
+
+### 2026-03-21 - Bugfix: Settings integrations isolated per card
+- Reworked the Integrations screen so WhatsApp, E-Mail, Webhook, Domain, Firecrawl, and ElevenLabs no longer share the same save side effects.
+- Added per-modal draft state reset on cancel/close so badges reflect persisted values instead of unsaved edits.
+- Removed the company settings side effect that could persist `elevenlabs_voice_id` from outside the ElevenLabs modal.
+- Added payload contract tests to guarantee each integration save only updates its own profile fields.
+- Firecrawl now requires an explicit validation step before saving a replacement key.
+
+### 2026-03-21 - Analysis: email campaign flow audited
+- Mapped the email campaign path from preview and sender settings through `send-campaign-emails` and the scheduler.
+- Identified a preview-vs-send mismatch for A/B variants, silent skips for leads without email, and incomplete failure telemetry.
+- Documented missing server-side plan enforcement and sender-domain validation as operational risks.
+
+### 2026-03-21 - Planning: client-owned campaign email implementation outlined
+- Created a phased plan to support customer-branded campaign sending using verified sender domains and reply-to routing first.
+- Scoped backend validation, Settings UX, persistence model, and sender readiness enforcement.
+- Deferred SMTP and OAuth mailbox integration to a second phase due to higher operational complexity.

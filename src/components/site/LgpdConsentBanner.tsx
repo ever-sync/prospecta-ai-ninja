@@ -31,19 +31,19 @@ export const LgpdConsentBanner = () => {
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#ef3333]">LGPD e Cookies</p>
         <p className="text-sm leading-relaxed text-[#4f4f57]">
-          A {BRAND.name} usa cookies e armazenamento local para autentica??o, seguran?a, prefer?ncias do usu?rio
-          e registro do consentimento. Recursos opcionais s? devem ser ativados mediante sua autoriza??o.
+          A {BRAND.name} usa cookies e armazenamento local para autenticação, segurança, preferências do usuário
+          e registro do consentimento. Recursos opcionais só devem ser ativados mediante sua autorização.
         </p>
         <p className="text-sm leading-relaxed text-[#6d6d75]">
           Leia nossa{" "}
           <Link to="/politica-de-privacidade" className="font-semibold text-[#ef3333] underline-offset-4 hover:underline">
-            Pol?tica de Privacidade
+            Política de Privacidade
           </Link>
           , os{" "}
           <Link to="/termos-de-uso" className="font-semibold text-[#ef3333] underline-offset-4 hover:underline">
             Termos de Uso
           </Link>
-          {" "}e a p?gina de{" "}
+          {" "}e a página de{" "}
           <Link to="/lgpd" className="font-semibold text-[#ef3333] underline-offset-4 hover:underline">
             LGPD
           </Link>

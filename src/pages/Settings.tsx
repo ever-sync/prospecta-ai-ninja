@@ -50,6 +50,15 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { getEmailChangeRedirectUrl } from '@/lib/auth-redirects';
 import { formatBrazilPhone, formatCpfCnpj, validateBrazilPhone } from '@/lib/br-utils';
+import {
+  buildDomainIntegrationPayload,
+  buildElevenLabsIntegrationPayload,
+  buildEmailIntegrationPayload,
+  buildWebhookIntegrationPayload,
+  buildWhatsAppIntegrationPayload,
+  normalizeWebhookUrl,
+  validateEmailAddress,
+} from '@/lib/settings/integration-payloads';
 
 const fieldClass = 'h-11 rounded-xl border-[#e6e6eb] bg-[#fcfcfd] focus-visible:ring-[#ef3333]';
 const cardClass = 'rounded-[22px] border border-[#ececf0] bg-white p-6 shadow-[0_10px_24px_rgba(18,18,22,0.05)]';
@@ -59,6 +68,7 @@ type SettingsTab = (typeof SETTINGS_TABS)[number];
 type ApiProvider = 'gemini' | 'claude_code' | 'groq' | 'openai' | 'other';
 type WhatsAppConnectionType = 'meta_official';
 type MetaReadinessLevel = 'ready' | 'partial' | 'blocked';
+type IntegrationKey = 'whatsapp' | 'email' | 'webhook' | 'dominio' | 'firecrawl' | 'elevenlabs';
 
 type MetaReadinessCheck = {
   key: string;
@@ -125,14 +135,6 @@ const maskApiKey = (value: string) => {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 };
 
-const normalizeWebhookUrl = (value: string) => {
-  const raw = value.trim();
-  if (!raw) return '';
-  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-  const parsed = new URL(withScheme);
-  return parsed.toString();
-};
-
 const Settings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -157,11 +159,15 @@ const Settings = () => {
   const [officialAccessToken, setOfficialAccessToken] = useState('');
   const [officialPhoneNumberId, setOfficialPhoneNumberId] = useState('');
   const [officialWabaId, setOfficialWabaId] = useState('');
+  const [whatsAppDraft, setWhatsAppDraft] = useState({ accessToken: '', phoneNumberId: '', wabaId: '' });
   const [campaignSenderEmail, setCampaignSenderEmail] = useState('');
   const [campaignSenderName, setCampaignSenderName] = useState('');
+  const [emailDraft, setEmailDraft] = useState({ senderEmail: '', senderName: '' });
   const [proposalLinkDomain, setProposalLinkDomain] = useState('');
+  const [domainDraft, setDomainDraft] = useState('');
   const [campaignWebhookUrl, setCampaignWebhookUrl] = useState('');
   const [campaignWebhookSecret, setCampaignWebhookSecret] = useState('');
+  const [webhookDraft, setWebhookDraft] = useState({ url: '', secret: '' });
   const [firecrawlApiKey, setFirecrawlApiKey] = useState('');
   const [firecrawlApiKeyInput, setFirecrawlApiKeyInput] = useState('');
   const [showFirecrawlKey, setShowFirecrawlKey] = useState(false);
@@ -169,7 +175,8 @@ const Settings = () => {
   const [firecrawlValidationStatus, setFirecrawlValidationStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
   const [savingFirecrawlKey, setSavingFirecrawlKey] = useState(false);
   const [showFirecrawlGuide, setShowFirecrawlGuide] = useState(false);
-  const [activeIntegration, setActiveIntegration] = useState<string | null>(null);
+  const [voiceIdDraft, setVoiceIdDraft] = useState('');
+  const [activeIntegration, setActiveIntegration] = useState<IntegrationKey | null>(null);
 
   type MetaConnectionStatus = 'idle' | 'testing' | 'connected' | 'error';
   const [metaStatus, setMetaStatus] = useState<MetaConnectionStatus>('idle');
@@ -233,6 +240,36 @@ const Settings = () => {
       });
   }, [user]);
 
+  useEffect(() => {
+    setWhatsAppDraft({
+      accessToken: officialAccessToken,
+      phoneNumberId: officialPhoneNumberId,
+      wabaId: officialWabaId,
+    });
+  }, [officialAccessToken, officialPhoneNumberId, officialWabaId]);
+
+  useEffect(() => {
+    setEmailDraft({
+      senderEmail: campaignSenderEmail,
+      senderName: campaignSenderName,
+    });
+  }, [campaignSenderEmail, campaignSenderName]);
+
+  useEffect(() => {
+    setWebhookDraft({
+      url: campaignWebhookUrl,
+      secret: campaignWebhookSecret,
+    });
+  }, [campaignWebhookUrl, campaignWebhookSecret]);
+
+  useEffect(() => {
+    setDomainDraft(proposalLinkDomain);
+  }, [proposalLinkDomain]);
+
+  useEffect(() => {
+    setVoiceIdDraft(voiceId);
+  }, [voiceId]);
+
   const loadApiKeys = async () => {
     if (!user) return;
     setLoadingApiKeys(true);
@@ -243,7 +280,7 @@ const Settings = () => {
       .order('created_at');
 
     if (error) {
-      toast({ title: 'Erro', description: 'N?o foi poss?vel carregar as chaves de API.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Não foi possível carregar as chaves de API.', variant: 'destructive' });
     } else {
       setApiKeys((data || []) as UserAiApiKey[]);
     }
@@ -308,15 +345,15 @@ const Settings = () => {
   const handleSave = async () => {
     if (!user) return;
     if (!fullName.trim()) {
-      toast({ title: 'Campo obrigat?rio', description: 'Informe o nome completo do respons?vel.', variant: 'destructive' });
+      toast({ title: 'Campo obrigatório', description: 'Informe o nome completo do responsável.', variant: 'destructive' });
       return;
     }
     if (!companyName.trim()) {
-      toast({ title: 'Campo obrigat?rio', description: 'Informe o nome da empresa.', variant: 'destructive' });
+      toast({ title: 'Campo obrigatório', description: 'Informe o nome da empresa.', variant: 'destructive' });
       return;
     }
     if (!validateBrazilPhone(phone)) {
-      toast({ title: 'Telefone inv?lido', description: 'Informe um telefone v?lido com DDD.', variant: 'destructive' });
+      toast({ title: 'Telefone inválido', description: 'Informe um telefone válido com DDD.', variant: 'destructive' });
       return;
     }
 
@@ -326,7 +363,6 @@ const Settings = () => {
       .update({
         company_name: companyName.trim(),
         company_logo_url: logoUrl,
-        elevenlabs_voice_id: voiceId || null,
         full_name: fullName.trim(),
         phone: formatBrazilPhone(phone),
       })
@@ -334,19 +370,19 @@ const Settings = () => {
     if (error) {
       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Salvo!', description: 'Configura??es atualizadas com sucesso.' });
+      toast({ title: 'Salvo!', description: 'Configurações atualizadas com sucesso.' });
     }
     setSaving(false);
   };
 
   const handleRequestEmailChange = async () => {
     if (!pendingAccessEmail.trim()) {
-      toast({ title: 'Campo obrigat?rio', description: 'Informe o novo email de acesso.', variant: 'destructive' });
+      toast({ title: 'Campo obrigatório', description: 'Informe o novo email de acesso.', variant: 'destructive' });
       return;
     }
 
     if (pendingAccessEmail.trim().toLowerCase() === (email || '').trim().toLowerCase()) {
-      toast({ title: 'Sem altera??o', description: 'Informe um email diferente do atual.', variant: 'destructive' });
+      toast({ title: 'Sem alteração', description: 'Informe um email diferente do atual.', variant: 'destructive' });
       return;
     }
 
@@ -360,8 +396,8 @@ const Settings = () => {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
       toast({
-        title: 'Verifica??o enviada',
-        description: 'Confira o novo email para concluir a altera??o do acesso.',
+        title: 'Verificação enviada',
+        description: 'Confira o novo email para concluir a alteração do acesso.',
       });
       setEmailChangeDialogOpen(false);
       setPendingAccessEmail('');
@@ -376,12 +412,12 @@ const Settings = () => {
     const customProvider = customProviderName.trim();
 
     if (!apiKey) {
-      toast({ title: 'Campo obrigat?rio', description: 'Informe uma chave de API v?lida.', variant: 'destructive' });
+      toast({ title: 'Campo obrigatório', description: 'Informe uma chave de API válida.', variant: 'destructive' });
       return;
     }
 
     if (apiProvider === 'other' && !customProvider) {
-      toast({ title: 'Campo obrigat?rio', description: 'Informe o nome do provedor personalizado.', variant: 'destructive' });
+      toast({ title: 'Campo obrigatório', description: 'Informe o nome do provedor personalizado.', variant: 'destructive' });
       return;
     }
 
@@ -401,7 +437,7 @@ const Settings = () => {
     } else {
       toast({
         title: providerAlreadyConnected ? 'Chave atualizada' : 'Provedor conectado',
-        description: 'Configura??o de API salva com sucesso.',
+        description: 'Configuração de API salva com sucesso.',
       });
       setProviderApiKey('');
       if (apiProvider === 'other') setCustomProviderName('');
@@ -415,7 +451,7 @@ const Settings = () => {
     setDeletingApiKeyId(keyId);
     const { error } = await supabase.from('user_ai_api_keys').delete().eq('id', keyId);
     if (error) {
-      toast({ title: 'Erro', description: 'N?o foi poss?vel remover a chave.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Não foi possível remover a chave.', variant: 'destructive' });
     } else {
       setApiKeys((prev) => prev.filter((item) => item.id !== keyId));
       toast({ title: 'Removido', description: 'Chave de API removida com sucesso.' });
@@ -448,27 +484,27 @@ const Settings = () => {
         const looksValid = keyToValidate.startsWith('fc-') && keyToValidate.length > 20;
         if (looksValid) {
           setFirecrawlValidationStatus('valid');
-          toast({ title: 'Formato aceito', description: 'Chave aceita pelo formato. A valida??o online n?o est? dispon?vel no momento.' });
+          toast({ title: 'Formato aceito', description: 'Chave aceita pelo formato. A validação online não está disponível no momento.' });
         } else {
           setFirecrawlValidationStatus('invalid');
-          toast({ title: 'Formato inv?lido', description: 'A chave deve come?ar com "fc-" e ter pelo menos 20 caracteres.', variant: 'destructive' });
+          toast({ title: 'Formato inválido', description: 'A chave deve começar com "fc-" e ter pelo menos 20 caracteres.', variant: 'destructive' });
         }
       } else if (error || !data?.valid) {
         setFirecrawlValidationStatus('invalid');
-        toast({ title: 'Chave inv?lida', description: data?.error || 'N?o foi poss?vel validar a chave.', variant: 'destructive' });
+        toast({ title: 'Chave inválida', description: data?.error || 'Não foi possível validar a chave.', variant: 'destructive' });
       } else {
         setFirecrawlValidationStatus('valid');
-        toast({ title: 'Chave v?lida!', description: 'Sua chave Firecrawl foi validada com sucesso.' });
+        toast({ title: 'Chave válida!', description: 'Sua chave Firecrawl foi validada com sucesso.' });
       }
     } catch {
       // Unexpected throw — fallback to format check
       const looksValid = keyToValidate.startsWith('fc-') && keyToValidate.length > 20;
       if (looksValid) {
         setFirecrawlValidationStatus('valid');
-        toast({ title: 'Formato aceito', description: 'Chave aceita pelo formato. A valida??o online n?o est? dispon?vel no momento.' });
+        toast({ title: 'Formato aceito', description: 'Chave aceita pelo formato. A validação online não está disponível no momento.' });
       } else {
         setFirecrawlValidationStatus('invalid');
-        toast({ title: 'Formato inv?lido', description: 'A chave deve come?ar com "fc-" e ter pelo menos 20 caracteres.', variant: 'destructive' });
+        toast({ title: 'Formato inválido', description: 'A chave deve começar com "fc-" e ter pelo menos 20 caracteres.', variant: 'destructive' });
       }
     }
     setValidatingFirecrawl(false);
@@ -478,6 +514,14 @@ const Settings = () => {
     if (!user) return;
     const keyToSave = firecrawlApiKeyInput.trim();
     if (!keyToSave) return;
+    if (firecrawlValidationStatus !== 'valid') {
+      toast({
+        title: 'Valide antes de salvar',
+        description: 'Use o botao Validar para confirmar a chave Firecrawl antes de salvar.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSavingFirecrawlKey(true);
     const { error } = await supabase.from('profiles').update({ firecrawl_api_key: keyToSave }).eq('user_id', user.id);
     if (error) {
@@ -543,15 +587,216 @@ const Settings = () => {
         setFirecrawlApiKeyInput('');
         setFirecrawlValidationStatus('idle');
       }
-      toast({ title: 'Integra??es atualizadas', description: 'Configura??es de WhatsApp, email, dom?nio, webhook e Firecrawl salvas.' });
+      toast({ title: 'Integrações atualizadas', description: 'Configurações de WhatsApp, email, domínio, webhook e Firecrawl salvas.' });
       window.dispatchEvent(new CustomEvent('onboarding:refetch'));
     }
     setSavingIntegrations(false);
   };
 
+  const persistIntegration = async (payload: Record<string, unknown>, successTitle: string, successDescription: string) => {
+    if (!user) return false;
+    setSavingIntegrations(true);
+
+    const { error } = await supabase.from('profiles').update(payload).eq('user_id', user.id);
+    if (error) {
+      toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
+      setSavingIntegrations(false);
+      return false;
+    }
+
+    toast({ title: successTitle, description: successDescription });
+    window.dispatchEvent(new CustomEvent('onboarding:refetch'));
+    setSavingIntegrations(false);
+    return true;
+  };
+
+  const resetIntegrationDraft = (integration: IntegrationKey | null) => {
+    if (!integration) return;
+
+    switch (integration) {
+      case 'whatsapp':
+        setWhatsAppDraft({
+          accessToken: officialAccessToken,
+          phoneNumberId: officialPhoneNumberId,
+          wabaId: officialWabaId,
+        });
+        setMetaStatus('idle');
+        setMetaStatusInfo({});
+        break;
+      case 'email':
+        setEmailDraft({
+          senderEmail: campaignSenderEmail,
+          senderName: campaignSenderName,
+        });
+        break;
+      case 'webhook':
+        setWebhookDraft({
+          url: campaignWebhookUrl,
+          secret: campaignWebhookSecret,
+        });
+        break;
+      case 'dominio':
+        setDomainDraft(proposalLinkDomain);
+        break;
+      case 'elevenlabs':
+        setVoiceIdDraft(voiceId);
+        break;
+      case 'firecrawl':
+        setFirecrawlApiKeyInput('');
+        setFirecrawlValidationStatus('idle');
+        break;
+      default:
+        break;
+    }
+  };
+
+  const openIntegration = (integration: IntegrationKey) => {
+    resetIntegrationDraft(integration);
+    setActiveIntegration(integration);
+  };
+
+  const closeIntegration = (integration: IntegrationKey | null = activeIntegration) => {
+    resetIntegrationDraft(integration);
+    setActiveIntegration(null);
+  };
+
+  const handleSaveWhatsAppIntegration = async () => {
+    const accessToken = whatsAppDraft.accessToken.trim();
+    const phoneNumberId = whatsAppDraft.phoneNumberId.trim();
+    const wabaId = whatsAppDraft.wabaId.trim();
+
+    if ((accessToken || phoneNumberId || wabaId) && (!accessToken || !phoneNumberId)) {
+      toast({
+        title: 'Configuracao incompleta',
+        description: 'Informe o Access Token e o Phone Number ID juntos para salvar o WhatsApp.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const payload = buildWhatsAppIntegrationPayload({
+      accessToken: whatsAppDraft.accessToken,
+      phoneNumberId: whatsAppDraft.phoneNumberId,
+      wabaId: whatsAppDraft.wabaId,
+      connectionType: whatsAppConnectionType,
+    }) as Record<string, string | null>;
+
+    const ok = await persistIntegration(
+      payload,
+      'WhatsApp salvo',
+      'Configuracao oficial do WhatsApp atualizada com sucesso.'
+    );
+
+    if (!ok) return;
+
+    setOfficialAccessToken(payload.whatsapp_official_access_token || '');
+    setOfficialPhoneNumberId(payload.whatsapp_official_phone_number_id || '');
+    setOfficialWabaId(payload.whatsapp_business_account_id || '');
+  };
+
+  const handleSaveEmailIntegration = async () => {
+    const senderEmail = emailDraft.senderEmail.trim();
+    if (senderEmail && !validateEmailAddress(senderEmail)) {
+      toast({
+        title: 'Email invalido',
+        description: 'Informe um email remetente valido.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const payload = buildEmailIntegrationPayload({
+      senderEmail: emailDraft.senderEmail,
+      senderName: emailDraft.senderName,
+    }) as Record<string, string | null>;
+
+    const ok = await persistIntegration(
+      payload,
+      'E-Mail salvo',
+      'Remetente das propostas e campanhas atualizado com sucesso.'
+    );
+
+    if (!ok) return;
+
+    setCampaignSenderEmail(payload.campaign_sender_email || '');
+    setCampaignSenderName(payload.campaign_sender_name || '');
+  };
+
+  const handleSaveWebhookIntegration = async () => {
+    let payload: Record<string, string | null>;
+
+    try {
+      payload = buildWebhookIntegrationPayload({
+        url: webhookDraft.url,
+        secret: webhookDraft.secret,
+      }) as Record<string, string | null>;
+    } catch {
+      toast({
+        title: 'Webhook invalido',
+        description: 'Informe uma URL valida para o webhook do n8n.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const ok = await persistIntegration(
+      payload,
+      'Webhook salvo',
+      'Webhook de campanhas atualizado com sucesso.'
+    );
+
+    if (!ok) return;
+
+    setCampaignWebhookUrl(payload.campaign_webhook_url || '');
+    setCampaignWebhookSecret(payload.campaign_webhook_secret || '');
+  };
+
+  const handleSaveDomainIntegration = async () => {
+    let payload: Record<string, string | null>;
+
+    try {
+      payload = buildDomainIntegrationPayload({
+        domain: domainDraft,
+      }) as Record<string, string | null>;
+    } catch {
+      toast({
+        title: 'Dominio invalido',
+        description: 'Informe apenas o dominio ou origem base, sem caminhos adicionais.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const ok = await persistIntegration(
+      payload,
+      'Dominio salvo',
+      'Dominio das propostas atualizado com sucesso.'
+    );
+
+    if (!ok) return;
+
+    setProposalLinkDomain(payload.proposal_link_domain || '');
+  };
+
+  const handleSaveElevenLabsIntegration = async () => {
+    const payload = buildElevenLabsIntegrationPayload({
+      voiceId: voiceIdDraft,
+    }) as Record<string, string | null>;
+
+    const ok = await persistIntegration(
+      payload,
+      'ElevenLabs salvo',
+      'Voice ID atualizado com sucesso.'
+    );
+
+    if (!ok) return;
+
+    setVoiceId(payload.elevenlabs_voice_id || '');
+  };
+
   const handleTestMetaConnection = async () => {
-    const token = officialAccessToken.trim();
-    const phoneId = officialPhoneNumberId.trim();
+    const token = whatsAppDraft.accessToken.trim();
+    const phoneId = whatsAppDraft.phoneNumberId.trim();
     if (!token || !phoneId) {
       toast({ title: 'Campos obrigatorios', description: 'Preencha o Access Token e o Phone Number ID antes de testar.', variant: 'destructive' });
       return;
@@ -560,7 +805,7 @@ const Settings = () => {
     setMetaStatusInfo({});
     try {
       const { data, error } = await supabase.functions.invoke('validate-meta-whatsapp', {
-        body: { accessToken: token, phoneNumberId: phoneId, wabaId: officialWabaId.trim() || undefined },
+        body: { accessToken: token, phoneNumberId: phoneId, wabaId: whatsAppDraft.wabaId.trim() || undefined },
       });
       if (error) throw error;
       const validation = data as MetaValidationResponse | undefined;
@@ -618,7 +863,7 @@ const Settings = () => {
       setFirecrawlApiKey('');
       setFirecrawlApiKeyInput('');
       setFirecrawlValidationStatus('idle');
-      toast({ title: 'Chave removida', description: 'Chave Firecrawl removida. Ser? usada a chave do sistema.' });
+      toast({ title: 'Chave removida', description: 'Chave Firecrawl removida. Será usada a chave do sistema.' });
     }
   };
 
@@ -627,7 +872,7 @@ const Settings = () => {
     try {
       await startCheckout(planId);
     } catch {
-      toast({ title: 'Erro', description: 'N?o foi poss?vel iniciar o checkout.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Não foi possível iniciar o checkout.', variant: 'destructive' });
     }
     setCheckoutLoading(null);
   };
@@ -636,7 +881,7 @@ const Settings = () => {
     try {
       await openCustomerPortal();
     } catch {
-      toast({ title: 'Erro', description: 'N?o foi poss?vel abrir o portal de gerenciamento.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Não foi possível abrir o portal de gerenciamento.', variant: 'destructive' });
     }
   };
 
@@ -644,7 +889,7 @@ const Settings = () => {
 
   const usageItems = useMemo(
     () => [
-      { label: 'Apresenta??es', used: subscription?.usage.presentations || 0, limit: subscription?.limits.presentations || 50 },
+      { label: 'Apresentações', used: subscription?.usage.presentations || 0, limit: subscription?.limits.presentations || 50 },
       { label: 'Campanhas', used: subscription?.usage.campaigns || 0, limit: subscription?.limits.campaigns || 2 },
       { label: 'Emails enviados', used: subscription?.usage.emails || 0, limit: subscription?.limits.emails || 50 },
     ],
@@ -659,15 +904,15 @@ const Settings = () => {
             <p className="text-sm font-medium text-[#75757d]">Painel Administrativo</p>
             <h1 className="mt-1 flex items-center gap-2 text-3xl font-semibold tracking-tight text-[#1A1A1A] lg:text-4xl">
               <Settings2 className="h-7 w-7 text-[#EF3333]" />
-              Configura??es
+              Configurações
             </h1>
-            <p className="mt-2 text-sm text-[#66666d] lg:text-base">Gerencie dados da empresa, assinatura, integra??es e chaves de IA no mesmo padr?o visual do dashboard.</p>
+            <p className="mt-2 text-sm text-[#66666d] lg:text-base">Gerencie dados da empresa, assinatura, integrações e chaves de IA no mesmo padrão visual do dashboard.</p>
           </div>
           <div className="rounded-2xl border border-[#f2d4d8] bg-[#fff5f6] px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#b94456]">Dica</p>
             <p className="mt-1 flex items-center gap-1 text-sm font-semibold text-[#7f2432]">
               <Sparkles className="h-4 w-4" />
-              Complete o perfil para mais convers?o
+              Complete o perfil para mais conversão
             </p>
           </div>
         </div>
@@ -694,7 +939,7 @@ const Settings = () => {
             className="flex h-11 items-center gap-2 rounded-2xl text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-[#1A1A1A] data-[state=active]:shadow-[inset_0_0_0_1px_rgba(239,51,51,0.22)]"
           >
             <SlidersHorizontal className="h-4 w-4 text-[#EF3333]" />
-            Integra??es/APIs
+            Integrações/APIs
           </TabsTrigger>
           <TabsTrigger
             value="apis"
@@ -735,7 +980,7 @@ const Settings = () => {
                   <Label htmlFor="fullName" className="text-sm text-[#1A1A1A]">
                     Nome completo
                   </Label>
-                  <Input id="fullName" className={fieldClass} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nome do respons?vel" />
+                  <Input id="fullName" className={fieldClass} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nome do responsável" />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="companyName" className="text-sm text-[#1A1A1A]">
@@ -755,7 +1000,7 @@ const Settings = () => {
                     disabled
                     placeholder="Documento principal"
                   />
-                  <p className="text-xs text-[#6d6d75]">Esse documento define o perfil da empresa e n?o pode ser alterado ap?s o cadastro.</p>
+                  <p className="text-xs text-[#6d6d75]">Esse documento define o perfil da empresa e não pode ser alterado após o cadastro.</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="settingsEmail" className="text-sm text-[#1A1A1A]">
@@ -763,10 +1008,10 @@ const Settings = () => {
                   </Label>
                   <Input id="settingsEmail" className={`${fieldClass} bg-[#f7f7fa] text-[#65656d]`} type="email" value={email} readOnly disabled placeholder="contato@empresa.com" />
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-xs text-[#6d6d75]">O email de acesso s? pode ser alterado com verifica??o.</p>
+                    <p className="text-xs text-[#6d6d75]">O email de acesso só pode ser alterado com verificação.</p>
                     <Button type="button" variant="outline" size="sm" className="h-9 rounded-xl border-[#f1d2d7] text-[#b2374b] hover:bg-[#fff3f5]" onClick={() => setEmailChangeDialogOpen(true)}>
                       <ShieldCheck className="h-3.5 w-3.5" />
-                      Alterar com verifica??o
+                      Alterar com verificação
                     </Button>
                   </div>
                 </div>
@@ -780,7 +1025,7 @@ const Settings = () => {
 
               <Button onClick={handleSave} disabled={saving} className="h-12 w-full rounded-xl gradient-primary text-primary-foreground font-semibold gap-2">
                 <Save className="h-4 w-4" />
-                {saving ? 'Salvando...' : 'Salvar Configura??es'}
+                {saving ? 'Salvando...' : 'Salvar Configurações'}
               </Button>
             </div>
           </Card>
@@ -799,7 +1044,7 @@ const Settings = () => {
             <Card className={cardClass}>
               <h3 className="mb-4 flex items-center gap-2 font-semibold text-[#1A1A1A]">
                 <BarChart3 className="h-5 w-5 text-[#EF3333]" />
-                Uso do M?s
+                Uso do Mês
               </h3>
               {subLoading ? (
                 <div className="flex items-center justify-center py-4">
@@ -853,7 +1098,7 @@ const Settings = () => {
                         <p className="font-semibold text-[#1A1A1A]">{plan.name}</p>
                         <p className="text-xl font-bold text-[#1A1A1A]">
                           {priceFormatted}
-                          <span className="text-xs font-normal text-[#6d6d75]">/m?s</span>
+                          <span className="text-xs font-normal text-[#6d6d75]">/mês</span>
                         </p>
                       </div>
                       <ul className="space-y-1.5">
@@ -909,7 +1154,7 @@ const Settings = () => {
                 {/* WhatsApp */}
                 <button
                   type="button"
-                  onClick={() => setActiveIntegration('whatsapp')}
+                  onClick={() => openIntegration('whatsapp')}
                   className="group flex flex-col items-start gap-3 rounded-2xl border border-[#ececf0] bg-white p-5 text-left transition-all hover:border-[#d9e4ff] hover:shadow-md"
                 >
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#25D366]/10">
@@ -919,15 +1164,18 @@ const Settings = () => {
                     <p className="text-sm font-semibold text-[#1A1A1A]">WhatsApp</p>
                     <p className="mt-0.5 text-xs text-[#6d6d75]">Atenda seus clientes no WhatsApp via Meta Cloud API</p>
                   </div>
-                  {officialAccessToken && (
-                    <Badge className="rounded-full border-[#cde8d9] bg-[#f0faf4] text-[10px] text-[#2d7a4a]">Conectado</Badge>
+                  {officialAccessToken && officialPhoneNumberId && (
+                    <Badge className="rounded-full border-[#cde8d9] bg-[#f0faf4] text-[10px] text-[#2d7a4a]">Configurado</Badge>
+                  )}
+                  {((officialAccessToken && !officialPhoneNumberId) || (!officialAccessToken && officialPhoneNumberId)) && (
+                    <Badge className="rounded-full border-[#f2d4d8] bg-[#fff3f5] text-[10px] text-[#8c2535]">Incompleto</Badge>
                   )}
                 </button>
 
                 {/* Email */}
                 <button
                   type="button"
-                  onClick={() => setActiveIntegration('email')}
+                  onClick={() => openIntegration('email')}
                   className="group flex flex-col items-start gap-3 rounded-2xl border border-[#ececf0] bg-white p-5 text-left transition-all hover:border-[#d9e4ff] hover:shadow-md"
                 >
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EA4335]/10">
@@ -945,7 +1193,7 @@ const Settings = () => {
                 {/* Webhook n8n */}
                 <button
                   type="button"
-                  onClick={() => setActiveIntegration('webhook')}
+                  onClick={() => openIntegration('webhook')}
                   className="group flex flex-col items-start gap-3 rounded-2xl border border-[#ececf0] bg-white p-5 text-left transition-all hover:border-[#d9e4ff] hover:shadow-md"
                 >
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#FF6D00]/10">
@@ -963,7 +1211,7 @@ const Settings = () => {
                 {/* Domínio */}
                 <button
                   type="button"
-                  onClick={() => setActiveIntegration('dominio')}
+                  onClick={() => openIntegration('dominio')}
                   className="group flex flex-col items-start gap-3 rounded-2xl border border-[#ececf0] bg-white p-5 text-left transition-all hover:border-[#d9e4ff] hover:shadow-md"
                 >
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#356DFF]/10">
@@ -981,7 +1229,7 @@ const Settings = () => {
                 {/* Firecrawl */}
                 <button
                   type="button"
-                  onClick={() => setActiveIntegration('firecrawl')}
+                  onClick={() => openIntegration('firecrawl')}
                   className="group flex flex-col items-start gap-3 rounded-2xl border border-[#ececf0] bg-white p-5 text-left transition-all hover:border-[#d9e4ff] hover:shadow-md"
                 >
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EF3333]/10">
@@ -1001,7 +1249,7 @@ const Settings = () => {
                 {/* ElevenLabs */}
                 <button
                   type="button"
-                  onClick={() => setActiveIntegration('elevenlabs')}
+                  onClick={() => openIntegration('elevenlabs')}
                   className="group flex flex-col items-start gap-3 rounded-2xl border border-[#ececf0] bg-white p-5 text-left transition-all hover:border-[#d9e4ff] hover:shadow-md"
                 >
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#8B5CF6]/10">
@@ -1021,7 +1269,7 @@ const Settings = () => {
         </TabsContent>
 
         {/* ═══════ DIALOG: WhatsApp ═══════ */}
-        <Dialog open={activeIntegration === 'whatsapp'} onOpenChange={(open) => !open && setActiveIntegration(null)}>
+        <Dialog open={activeIntegration === 'whatsapp'} onOpenChange={(open) => !open && closeIntegration('whatsapp')}>
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl rounded-[22px] border border-[#ececf0] bg-white p-0">
             <div className="flex items-center gap-3 border-b border-[#f0f0f3] px-6 py-5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#25D366]/10">
@@ -1044,22 +1292,22 @@ const Settings = () => {
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label className="text-sm text-[#1A1A1A]">Meta Access Token</Label>
-                  <Input type="password" className={fieldClass} value={officialAccessToken} onChange={(e) => { setOfficialAccessToken(e.target.value); setMetaStatus('idle'); setMetaStatusInfo({}); }} placeholder="Cole o token permanente da Meta" />
+                  <Input type="password" className={fieldClass} value={whatsAppDraft.accessToken} onChange={(e) => { setWhatsAppDraft((prev) => ({ ...prev, accessToken: e.target.value })); setMetaStatus('idle'); setMetaStatusInfo({}); }} placeholder="Cole o token permanente da Meta" />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm text-[#1A1A1A]">Phone Number ID</Label>
-                  <Input className={fieldClass} value={officialPhoneNumberId} onChange={(e) => { setOfficialPhoneNumberId(e.target.value); setMetaStatus('idle'); setMetaStatusInfo({}); }} placeholder="Ex: 123456789012345" />
+                  <Input className={fieldClass} value={whatsAppDraft.phoneNumberId} onChange={(e) => { setWhatsAppDraft((prev) => ({ ...prev, phoneNumberId: e.target.value })); setMetaStatus('idle'); setMetaStatusInfo({}); }} placeholder="Ex: 123456789012345" />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label className="text-sm text-[#1A1A1A]">
                     WABA ID <span className="text-[#9b9ba3] font-normal">(WhatsApp Business Account ID)</span>
                   </Label>
-                  <Input className={fieldClass} value={officialWabaId} onChange={(e) => { setOfficialWabaId(e.target.value); setMetaStatus('idle'); setMetaStatusInfo({}); }} placeholder="Ex: 102098765432100" />
+                  <Input className={fieldClass} value={whatsAppDraft.wabaId} onChange={(e) => { setWhatsAppDraft((prev) => ({ ...prev, wabaId: e.target.value })); setMetaStatus('idle'); setMetaStatusInfo({}); }} placeholder="Ex: 102098765432100" />
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
-                <Button type="button" variant="outline" onClick={handleTestMetaConnection} disabled={metaStatus === 'testing' || !officialAccessToken.trim() || !officialPhoneNumberId.trim()} className="h-9 rounded-xl border-[#e0e0e8] gap-2">
+                <Button type="button" variant="outline" onClick={handleTestMetaConnection} disabled={metaStatus === 'testing' || !whatsAppDraft.accessToken.trim() || !whatsAppDraft.phoneNumberId.trim()} className="h-9 rounded-xl border-[#e0e0e8] gap-2">
                   {metaStatus === 'testing' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
                   Testar conexão
                 </Button>
@@ -1176,8 +1424,8 @@ const Settings = () => {
               )}
             </div>
             <DialogFooter className="border-t border-[#f0f0f3] px-6 py-4">
-              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setActiveIntegration(null)}>Cancelar</Button>
-              <Button onClick={handleSaveIntegrations} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => closeIntegration('whatsapp')}>Cancelar</Button>
+              <Button onClick={handleSaveWhatsAppIntegration} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
                 {savingIntegrations ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Salvar
               </Button>
@@ -1186,7 +1434,7 @@ const Settings = () => {
         </Dialog>
 
         {/* ═══════ DIALOG: Email ═══════ */}
-        <Dialog open={activeIntegration === 'email'} onOpenChange={(open) => !open && setActiveIntegration(null)}>
+        <Dialog open={activeIntegration === 'email'} onOpenChange={(open) => !open && closeIntegration('email')}>
           <DialogContent className="sm:max-w-lg rounded-[22px] border border-[#ececf0] bg-white p-0">
             <div className="flex items-center gap-3 border-b border-[#f0f0f3] px-6 py-5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EA4335]/10">
@@ -1200,16 +1448,16 @@ const Settings = () => {
             <div className="space-y-4 px-6 py-5">
               <div className="space-y-2">
                 <Label className="text-sm text-[#1A1A1A]">Email remetente das propostas</Label>
-                <Input className={fieldClass} type="email" value={campaignSenderEmail} onChange={(e) => setCampaignSenderEmail(e.target.value)} placeholder="Ex: comercial@seudominio.com" />
+                <Input className={fieldClass} type="email" value={emailDraft.senderEmail} onChange={(e) => setEmailDraft((prev) => ({ ...prev, senderEmail: e.target.value }))} placeholder="Ex: comercial@seudominio.com" />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm text-[#1A1A1A]">Nome do remetente (opcional)</Label>
-                <Input className={fieldClass} value={campaignSenderName} onChange={(e) => setCampaignSenderName(e.target.value)} placeholder="Ex: Equipe EnvPRO" />
+                <Input className={fieldClass} value={emailDraft.senderName} onChange={(e) => setEmailDraft((prev) => ({ ...prev, senderName: e.target.value }))} placeholder="Ex: Equipe EnvPRO" />
               </div>
             </div>
             <DialogFooter className="border-t border-[#f0f0f3] px-6 py-4">
-              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setActiveIntegration(null)}>Cancelar</Button>
-              <Button onClick={handleSaveIntegrations} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => closeIntegration('email')}>Cancelar</Button>
+              <Button onClick={handleSaveEmailIntegration} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
                 {savingIntegrations ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Salvar
               </Button>
@@ -1218,7 +1466,7 @@ const Settings = () => {
         </Dialog>
 
         {/* ═══════ DIALOG: Webhook n8n ═══════ */}
-        <Dialog open={activeIntegration === 'webhook'} onOpenChange={(open) => !open && setActiveIntegration(null)}>
+        <Dialog open={activeIntegration === 'webhook'} onOpenChange={(open) => !open && closeIntegration('webhook')}>
           <DialogContent className="sm:max-w-lg rounded-[22px] border border-[#ececf0] bg-white p-0">
             <div className="flex items-center gap-3 border-b border-[#f0f0f3] px-6 py-5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FF6D00]/10">
@@ -1232,18 +1480,18 @@ const Settings = () => {
             <div className="space-y-4 px-6 py-5">
               <div className="space-y-2">
                 <Label className="text-sm text-[#1A1A1A]">URL do Webhook</Label>
-                <Input className={fieldClass} value={campaignWebhookUrl} onChange={(e) => setCampaignWebhookUrl(e.target.value)} placeholder="https://seu-n8n.com/webhook/..." />
+                <Input className={fieldClass} value={webhookDraft.url} onChange={(e) => setWebhookDraft((prev) => ({ ...prev, url: e.target.value }))} placeholder="https://seu-n8n.com/webhook/..." />
                 <p className="text-xs text-[#6d6d75]">Cada lead da campanha será enviado por POST para essa URL.</p>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm text-[#1A1A1A]">Segredo do webhook (opcional)</Label>
-                <Input type="password" className={fieldClass} value={campaignWebhookSecret} onChange={(e) => setCampaignWebhookSecret(e.target.value)} placeholder="Token para validar a requisição no n8n" />
+                <Input type="password" className={fieldClass} value={webhookDraft.secret} onChange={(e) => setWebhookDraft((prev) => ({ ...prev, secret: e.target.value }))} placeholder="Token para validar a requisição no n8n" />
                 <p className="text-xs text-[#6d6d75]">Se preenchido, o valor será enviado no header <span className="font-mono">X-N8N-Webhook-Secret</span>.</p>
               </div>
             </div>
             <DialogFooter className="border-t border-[#f0f0f3] px-6 py-4">
-              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setActiveIntegration(null)}>Cancelar</Button>
-              <Button onClick={handleSaveIntegrations} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => closeIntegration('webhook')}>Cancelar</Button>
+              <Button onClick={handleSaveWebhookIntegration} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
                 {savingIntegrations ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Salvar
               </Button>
@@ -1252,7 +1500,7 @@ const Settings = () => {
         </Dialog>
 
         {/* ═══════ DIALOG: Domínio ═══════ */}
-        <Dialog open={activeIntegration === 'dominio'} onOpenChange={(open) => !open && setActiveIntegration(null)}>
+        <Dialog open={activeIntegration === 'dominio'} onOpenChange={(open) => !open && closeIntegration('dominio')}>
           <DialogContent className="sm:max-w-lg rounded-[22px] border border-[#ececf0] bg-white p-0">
             <div className="flex items-center gap-3 border-b border-[#f0f0f3] px-6 py-5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#356DFF]/10">
@@ -1266,13 +1514,13 @@ const Settings = () => {
             <div className="space-y-4 px-6 py-5">
               <div className="space-y-2">
                 <Label className="text-sm text-[#1A1A1A]">Domínio do link das propostas</Label>
-                <Input className={fieldClass} value={proposalLinkDomain} onChange={(e) => setProposalLinkDomain(e.target.value)} placeholder="Ex: app.seudominio.com" />
+                <Input className={fieldClass} value={domainDraft} onChange={(e) => setDomainDraft(e.target.value)} placeholder="Ex: app.seudominio.com" />
                 <p className="text-xs text-[#7b7b83]">Use o domínio sem barra final. Pode informar com ou sem https://.</p>
               </div>
             </div>
             <DialogFooter className="border-t border-[#f0f0f3] px-6 py-4">
-              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setActiveIntegration(null)}>Cancelar</Button>
-              <Button onClick={handleSaveIntegrations} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => closeIntegration('dominio')}>Cancelar</Button>
+              <Button onClick={handleSaveDomainIntegration} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
                 {savingIntegrations ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Salvar
               </Button>
@@ -1281,7 +1529,7 @@ const Settings = () => {
         </Dialog>
 
         {/* ═══════ DIALOG: Firecrawl ═══════ */}
-        <Dialog open={activeIntegration === 'firecrawl'} onOpenChange={(open) => !open && setActiveIntegration(null)}>
+        <Dialog open={activeIntegration === 'firecrawl'} onOpenChange={(open) => !open && closeIntegration('firecrawl')}>
           <DialogContent className="sm:max-w-lg rounded-[22px] border border-[#ececf0] bg-white p-0">
             <div className="flex items-center gap-3 border-b border-[#f0f0f3] px-6 py-5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EF3333]/10">
@@ -1332,13 +1580,13 @@ const Settings = () => {
               {!firecrawlApiKey && firecrawlValidationStatus === 'idle' && <p className="text-xs text-[#7b7b83]">Sem chave configurada será usada a chave padrão do sistema.</p>}
             </div>
             <DialogFooter className="border-t border-[#f0f0f3] px-6 py-4">
-              <Button type="button" className="rounded-xl" onClick={() => setActiveIntegration(null)}>Fechar</Button>
+              <Button type="button" className="rounded-xl" onClick={() => closeIntegration('firecrawl')}>Fechar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
         {/* ═══════ DIALOG: ElevenLabs ═══════ */}
-        <Dialog open={activeIntegration === 'elevenlabs'} onOpenChange={(open) => !open && setActiveIntegration(null)}>
+        <Dialog open={activeIntegration === 'elevenlabs'} onOpenChange={(open) => !open && closeIntegration('elevenlabs')}>
           <DialogContent className="sm:max-w-lg rounded-[22px] border border-[#ececf0] bg-white p-0">
             <div className="flex items-center gap-3 border-b border-[#f0f0f3] px-6 py-5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#8B5CF6]/10">
@@ -1357,7 +1605,7 @@ const Settings = () => {
                 {voiceId && <span className="ml-auto rounded-full border border-[#d1f0dd] bg-[#f0faf4] px-2 py-0.5 text-[10px] font-semibold text-[#2d7a4a]">Configurado</span>}
               </div>
               <div className="space-y-1">
-                <Input id="voiceId" className={fieldClass} value={voiceId} onChange={(e) => setVoiceId(e.target.value)} placeholder="Cole aqui o ID da sua voz clonada" />
+                <Input id="voiceId" className={fieldClass} value={voiceIdDraft} onChange={(e) => setVoiceIdDraft(e.target.value)} placeholder="Cole aqui o ID da sua voz clonada" />
                 <p className="text-xs text-[#6d6d75]">
                   Clone sua voz no{' '}
                   <a href="https://elevenlabs.io/voice-lab" target="_blank" rel="noopener noreferrer" className="text-[#b22b40] hover:underline">ElevenLabs Voice Lab</a>
@@ -1366,8 +1614,8 @@ const Settings = () => {
               </div>
             </div>
             <DialogFooter className="border-t border-[#f0f0f3] px-6 py-4">
-              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setActiveIntegration(null)}>Cancelar</Button>
-              <Button onClick={handleSaveIntegrations} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => closeIntegration('elevenlabs')}>Cancelar</Button>
+              <Button onClick={handleSaveElevenLabsIntegration} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
                 {savingIntegrations ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Salvar
               </Button>
@@ -1438,7 +1686,7 @@ const Settings = () => {
                     {savingApiKey ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     {providerAlreadyConnected ? 'Atualizar chave' : 'Salvar chave'}
                   </Button>
-                  <p className="text-xs text-[#7b7b83]">As chaves ficam vinculadas apenas ao seu usu?rio. O gasto com tokens ? cobrado diretamente pelo provedor de IA.</p>
+                  <p className="text-xs text-[#7b7b83]">As chaves ficam vinculadas apenas ao seu usuário. O gasto com tokens é cobrado diretamente pelo provedor de IA.</p>
                 </div>
               </div>
 
@@ -1482,7 +1730,7 @@ const Settings = () => {
           <DialogHeader>
             <DialogTitle className="text-[#1A1A1A]">Alterar email de acesso</DialogTitle>
             <DialogDescription className="text-[#6d6d75]">
-              Enviaremos um link de verifica??o para o novo email. A troca s? ser? conclu?da depois da confirma??o.
+              Enviaremos um link de verificação para o novo email. A troca só será concluída depois da confirmação.
             </DialogDescription>
           </DialogHeader>
 
@@ -1511,7 +1759,7 @@ const Settings = () => {
               Cancelar
             </Button>
             <Button type="button" className="rounded-xl gradient-primary text-primary-foreground" onClick={handleRequestEmailChange} disabled={sendingAccessEmailChange}>
-              {sendingAccessEmailChange ? 'Enviando...' : 'Enviar verifica??o'}
+              {sendingAccessEmailChange ? 'Enviando...' : 'Enviar verificação'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1560,14 +1808,14 @@ const Settings = () => {
                 {
                   step: 2,
                   title: 'Crie sua conta gratuitamente',
-                  description: 'Cadastre-se com seu email ou conta Google. O plano gratuito j? inclui cr?ditos suficientes para come?ar.',
+                  description: 'Cadastre-se com seu email ou conta Google. O plano gratuito já inclui créditos suficientes para começar.',
                 },
                 {
                   step: 3,
                   title: 'Acesse o painel da API',
                   description: (
                     <>
-                      Ap?s entrar, v? no menu lateral e clique em <strong>API Keys</strong> ou acesse diretamente{' '}
+                      Após entrar, vá no menu lateral e clique em <strong>API Keys</strong> ou acesse diretamente{' '}
                       <a
                         href="https://www.firecrawl.dev/app/api-keys"
                         target="_blank"
@@ -1582,12 +1830,12 @@ const Settings = () => {
                 {
                   step: 4,
                   title: 'Gere uma nova chave',
-                  description: 'Clique em "Create new key", d? um nome para identificar (ex: "Prospecta") e confirme.',
+                  description: 'Clique em "Create new key", dê um nome para identificar (ex: "Prospecta") e confirme.',
                 },
                 {
                   step: 5,
                   title: 'Copie e cole aqui',
-                  description: 'Copie a chave gerada (come?a com "fc-..."), volte para esta p?gina, cole no campo acima e clique em Validar.',
+                  description: 'Copie a chave gerada (começa com "fc-..."), volte para esta página, cole no campo acima e clique em Validar.',
                 },
               ].map(({ step, title, description }) => (
                 <li key={step} className="flex gap-4">

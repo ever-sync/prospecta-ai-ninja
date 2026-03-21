@@ -367,7 +367,7 @@ const Auth = () => {
               onClick={() => setIsLogin(!isLogin)}
               className="text-sm text-muted-foreground hover:text-primary transition-colors"
             >
-              {isLogin ? 'Nao tem conta? Criar uma agora' : 'Ja tem conta? Fazer login'}
+              {isLogin ? 'Não tem conta? Criar uma agora' : 'Já tem conta? Fazer login'}
             </button>
           </div>
         </div>

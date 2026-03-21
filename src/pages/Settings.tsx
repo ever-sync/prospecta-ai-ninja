@@ -31,6 +31,9 @@ import {
   WifiOff,
   Phone,
   AlertTriangle,
+  Globe,
+  Link2,
+  Webhook,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -166,6 +169,7 @@ const Settings = () => {
   const [firecrawlValidationStatus, setFirecrawlValidationStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
   const [savingFirecrawlKey, setSavingFirecrawlKey] = useState(false);
   const [showFirecrawlGuide, setShowFirecrawlGuide] = useState(false);
+  const [activeIntegration, setActiveIntegration] = useState<string | null>(null);
 
   type MetaConnectionStatus = 'idle' | 'testing' | 'connected' | 'error';
   const [metaStatus, setMetaStatus] = useState<MetaConnectionStatus>('idle');
@@ -897,522 +901,479 @@ const Settings = () => {
           <Card className={cardClass}>
             <div className="space-y-6">
               <div>
-                <h3 className="mb-1 font-semibold text-[#1A1A1A]">Integra??es</h3>
-                <p className="text-sm text-[#6d6d75]">Conecte WhatsApp, configure email remetente, dom?nio das propostas, webhook do n8n e sua chave Firecrawl para raspagem de sites.</p>
+                <h3 className="mb-1 font-semibold text-[#1A1A1A]">Integrações</h3>
+                <p className="text-sm text-[#6d6d75]">Clique em um card para configurar a integração.</p>
               </div>
 
-              <div className="rounded-2xl border border-[#ececf0] bg-[#fafafd] p-4">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div className="md:col-span-2 flex items-center justify-between rounded-2xl border border-[#d9e4ff] bg-[#f4f7ff] px-4 py-3">
-                    <div>
-                      <p className="text-sm font-semibold text-[#1A1A1A]">Modo WhatsApp</p>
-                      <p className="text-xs text-[#5a5a62]">Somente Meta Cloud API oficial permanece habilitada neste produto.</p>
-                    </div>
-                    <Badge className="rounded-full border-[#d9e4ff] bg-white text-[#365fc2]">Oficial</Badge>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {/* WhatsApp */}
+                <button
+                  type="button"
+                  onClick={() => setActiveIntegration('whatsapp')}
+                  className="group flex flex-col items-start gap-3 rounded-2xl border border-[#ececf0] bg-white p-5 text-left transition-all hover:border-[#d9e4ff] hover:shadow-md"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#25D366]/10">
+                    <MessageCircle className="h-6 w-6 text-[#25D366]" />
                   </div>
-
-                  <div className="md:col-span-2 space-y-4">
-                      {/* Credentials */}
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label className="text-sm text-[#1A1A1A]">Meta Access Token</Label>
-                          <Input
-                            type="password"
-                            className={fieldClass}
-                            value={officialAccessToken}
-                            onChange={(e) => { setOfficialAccessToken(e.target.value); setMetaStatus('idle'); setMetaStatusInfo({}); }}
-                            placeholder="Cole o token permanente da Meta"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm text-[#1A1A1A]">Phone Number ID</Label>
-                          <Input
-                            className={fieldClass}
-                            value={officialPhoneNumberId}
-                            onChange={(e) => { setOfficialPhoneNumberId(e.target.value); setMetaStatus('idle'); setMetaStatusInfo({}); }}
-                            placeholder="Ex: 123456789012345"
-                          />
-                        </div>
-                        <div className="space-y-2 md:col-span-2">
-                          <Label className="text-sm text-[#1A1A1A]">
-                            WABA ID <span className="text-[#9b9ba3] font-normal">(WhatsApp Business Account ID — necessario para aprovar templates)</span>
-                          </Label>
-                          <Input
-                            className={fieldClass}
-                            value={officialWabaId}
-                            onChange={(e) => { setOfficialWabaId(e.target.value); setMetaStatus('idle'); setMetaStatusInfo({}); }}
-                            placeholder="Ex: 102098765432100"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Test button + status */}
-                      <div className="flex flex-wrap items-center gap-3">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={handleTestMetaConnection}
-                          disabled={metaStatus === 'testing' || !officialAccessToken.trim() || !officialPhoneNumberId.trim()}
-                          className="h-9 rounded-xl border-[#e0e0e8] gap-2"
-                        >
-                          {metaStatus === 'testing'
-                            ? <Loader2 className="h-4 w-4 animate-spin" />
-                            : <Wifi className="h-4 w-4" />}
-                          Testar conexao
-                        </Button>
-
-                        {metaStatus === 'connected' && (
-                          <div className="flex items-center gap-2 rounded-xl border border-[#cde8d9] bg-[#eef8f3] px-3 py-1.5">
-                            <CheckCircle2 className="h-4 w-4 text-[#1f8f47]" />
-                            <span className="text-sm font-medium text-[#1f6e38]">
-                              {metaStatusInfo.displayPhoneNumber
-                                ? `${metaStatusInfo.verifiedName || 'Conectado'} · ${metaStatusInfo.displayPhoneNumber}`
-                                : 'Conectado'}
-                            </span>
-                            {metaStatusInfo.qualityRating && (
-                              <Badge className="rounded-full border-[#cde8d9] bg-white text-[#2a7a50] text-[10px] px-2">
-                                {metaStatusInfo.qualityRating}
-                              </Badge>
-                            )}
-                            {metaStatusInfo.codeVerificationStatus && (
-                              <Badge className="rounded-full border-[#cde8d9] bg-white text-[#2a7a50] text-[10px] px-2">
-                                Code {metaStatusInfo.codeVerificationStatus}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-
-                        {metaStatus === 'error' && (
-                          <div className="flex items-center gap-2 rounded-xl border border-[#f2d4d8] bg-[#fff3f5] px-3 py-1.5">
-                            <WifiOff className="h-4 w-4 text-[#b2374b]" />
-                            <span className="text-sm text-[#8c2535]">{metaStatusInfo.error || 'Credenciais invalidas'}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {metaStatusInfo.readiness && (
-                        <div
-                          className={`rounded-2xl border p-4 space-y-4 ${
-                            metaStatusInfo.readiness === 'ready'
-                              ? 'border-[#cde8d9] bg-[#eef8f3]'
-                              : metaStatusInfo.readiness === 'partial'
-                                ? 'border-[#f5c842]/40 bg-[#fffbeb]'
-                                : 'border-[#f2d4d8] bg-[#fff3f5]'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="space-y-1">
-                              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8b8b92]">Prontidao da integracao</p>
-                              <p className="text-sm text-[#44444c]">{metaStatusInfo.summary || 'Diagnostico da integracao oficial do WhatsApp.'}</p>
-                            </div>
-                            <Badge
-                              className={`rounded-full px-2.5 py-1 text-[10px] ${
-                                metaStatusInfo.readiness === 'ready'
-                                  ? 'border-[#cde8d9] bg-white text-[#1f6e38]'
-                                  : metaStatusInfo.readiness === 'partial'
-                                    ? 'border-[#f5c842]/50 bg-white text-[#8b5e00]'
-                                    : 'border-[#f2d4d8] bg-white text-[#8c2535]'
-                              }`}
-                            >
-                              {metaStatusInfo.readiness === 'ready'
-                                ? 'Pronta'
-                                : metaStatusInfo.readiness === 'partial'
-                                  ? 'Parcial'
-                                  : 'Bloqueada'}
-                            </Badge>
-                          </div>
-
-                          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                            {(metaStatusInfo.checks || []).map((check) => (
-                              <div key={check.key} className="flex gap-2 rounded-xl border border-[#e7e7ee] bg-white/85 p-3">
-                                {check.ok ? (
-                                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#1f8f47]" />
-                                ) : check.severity === 'danger' ? (
-                                  <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#b2374b]" />
-                                ) : (
-                                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#d97706]" />
-                                )}
-                                <div className="space-y-0.5">
-                                  <p className="text-sm font-medium text-[#1A1A1A]">{check.label}</p>
-                                  <p className="text-[11px] leading-relaxed text-[#6d6d75]">{check.detail}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {metaStatusInfo.issues && metaStatusInfo.issues.length > 0 && (
-                            <div className="rounded-xl border border-[#e7e7ee] bg-white/70 p-3">
-                              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8b8b92]">Itens que exigem atencao</p>
-                              <ul className="mt-2 space-y-2">
-                                {metaStatusInfo.issues.map((issue) => (
-                                  <li key={issue.key} className="flex gap-2">
-                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#d97706]" />
-                                    <div className="space-y-0.5">
-                                      <p className="text-sm font-medium text-[#1A1A1A]">{issue.title}</p>
-                                      <p className="text-[11px] leading-relaxed text-[#6d6d75]">{issue.detail}</p>
-                                      {issue.action && (
-                                        <p className="text-[11px] leading-relaxed text-[#8b5e00]">
-                                          Ação recomendada: {issue.action}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Webhook info (shown after test or always when credentials filled) */}
-                      {metaStatusInfo.webhookUrl && (
-                        <div className="rounded-2xl border border-[#e8e8ef] bg-[#f5f5fa] p-4 space-y-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8b8b92]">Configure no painel Meta Developer</p>
-                          <div className="space-y-2">
-                            <Label className="text-xs text-[#5a5a62]">URL do Webhook</Label>
-                            <div className="flex gap-2">
-                              <Input readOnly value={metaStatusInfo.webhookUrl} className="h-9 rounded-xl border-[#dcdce4] bg-white text-xs font-mono text-[#3a3a42]" />
-                              <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-xl border-[#dcdce4]" onClick={() => copyToClipboard(metaStatusInfo.webhookUrl!, 'URL do Webhook')}>
-                                <Copy className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                          {metaStatusInfo.verifyToken && (
-                            <div className="space-y-2">
-                              <Label className="text-xs text-[#5a5a62]">Verify Token</Label>
-                              <div className="flex gap-2">
-                                <Input readOnly value={metaStatusInfo.verifyToken} className="h-9 rounded-xl border-[#dcdce4] bg-white text-xs font-mono text-[#3a3a42]" />
-                                <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-xl border-[#dcdce4]" onClick={() => copyToClipboard(metaStatusInfo.verifyToken!, 'Verify Token')}>
-                                  <Copy className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                          <p className="text-[11px] text-[#8b8b92]">No Meta for Developers: App → WhatsApp → Configuracao → Webhooks → Editar → cole a URL e o Verify Token → Verificar → ative o campo <strong>messages</strong>.</p>
-                        </div>
-                      )}
-
-                      {/* APP_SECRET warning — required for delivery receipts */}
-                      {false && (<div className="rounded-2xl border border-[#f5c842]/60 bg-[#fffbeb] p-4 space-y-2">
-                        <div className="flex items-start gap-2">
-                          <AlertTriangle className="h-4 w-4 shrink-0 text-[#d97706] mt-0.5" />
-                          <p className="text-xs font-semibold text-[#92400e]">Recibos de entrega desativados sem o App Secret</p>
-                        </div>
-                        <p className="text-[11px] text-[#78350f] leading-relaxed">
-                          Para receber confirmacoes de entrega e leitura das mensagens, configure o segredo do app Meta como variavel de ambiente no Supabase:
-                        </p>
-                        <ol className="text-[11px] text-[#78350f] space-y-1 list-none">
-                          {[
-                            'No Meta for Developers: App → Configuracoes → Basico → copie o "Segredo do Aplicativo".',
-                            'No Supabase: Settings → Edge Functions → Secrets → + Add secret.',
-                            'Nome: META_WHATSAPP_APP_SECRET  |  Valor: (o segredo copiado)',
-                            'Salve. Os status "Entregue" e "Lido" passarao a aparecer no painel.',
-                          ].map((step, i) => (
-                            <li key={i} className="flex gap-2">
-                              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#fde68a] text-[9px] font-bold text-[#92400e]">{i + 1}</span>
-                              <span>{step}</span>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>)}
-
-                      {/* Setup guide toggle */}
-                      <button
-                        type="button"
-                        onClick={() => setShowMetaGuide((v) => !v)}
-                        className="flex items-center gap-1.5 text-xs text-[#6060c8] hover:text-[#4040a8] font-medium"
-                      >
-                        {showMetaGuide ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                        {showMetaGuide ? 'Ocultar guia de configuracao' : 'Como obter as credenciais Meta?'}
-                      </button>
-
-                      {showMetaGuide && (
-                        <div className="rounded-2xl border border-[#e4e4f0] bg-[#f8f8fd] p-4 text-sm text-[#44444c] space-y-3">
-                          <p className="font-semibold text-[#1A1A1A]">Passo a passo — Meta WhatsApp Cloud API</p>
-                          <ol className="space-y-2 list-none">
-                            {[
-                              'Acesse developers.facebook.com e crie um App do tipo "Business".',
-                              'No app, va em "WhatsApp" → "Configuracao" e adicione um numero de telefone (pode ser o numero real da empresa).',
-                              'Copie o "Phone Number ID" que aparece na pagina de configuracao — cole no campo acima.',
-                              'Gere um Token de Acesso Permanente: va em "Configuracoes do Sistema" → "Usuarios do Sistema" → adicione um usuario com permissao de administrador → gere o token com escopo "whatsapp_business_messaging".',
-                              'Cole o token permanente no campo "Meta Access Token" acima.',
-                              'Configure o META_WHATSAPP_APP_SECRET no Supabase para receber status de entrega e leitura.',
-                              'Clique em "Testar conexao" para validar. Se der OK, salve as integracoes.',
-                              'Depois de salvar, clique novamente em "Testar conexao" para ver a URL do Webhook e o Verify Token.',
-                              'No painel Meta: WhatsApp → Configuracao → Webhooks → Editar → cole a URL e o Verify Token → ative o campo "messages".',
-                            ].map((step, i) => (
-                              <li key={i} className="flex gap-2.5">
-                                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#e8e8f8] text-[10px] font-bold text-[#5050b0]">{i + 1}</span>
-                                <span className="leading-relaxed">{step}</span>
-                              </li>
-                            ))}
-                          </ol>
-                          <p className="text-xs text-[#8b8b92] pt-1">O custo de mensagens e cobrado diretamente pela Meta. As primeiras 1.000 conversas por mes sao gratuitas.</p>
-                        </div>
-                      )}
-                    </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label className="text-sm text-[#1A1A1A]">Email remetente das propostas</Label>
-                    <Input
-                      className={fieldClass}
-                      type="email"
-                      value={campaignSenderEmail}
-                      onChange={(e) => setCampaignSenderEmail(e.target.value)}
-                      placeholder="Ex: comercial@seudominio.com"
-                    />
+                  <div>
+                    <p className="text-sm font-semibold text-[#1A1A1A]">WhatsApp</p>
+                    <p className="mt-0.5 text-xs text-[#6d6d75]">Atenda seus clientes no WhatsApp via Meta Cloud API</p>
                   </div>
+                  {officialAccessToken && (
+                    <Badge className="rounded-full border-[#cde8d9] bg-[#f0faf4] text-[10px] text-[#2d7a4a]">Conectado</Badge>
+                  )}
+                </button>
 
-                  <div className="space-y-2">
-                    <Label className="text-sm text-[#1A1A1A]">Nome do remetente (opcional)</Label>
-                    <Input
-                      className={fieldClass}
-                      value={campaignSenderName}
-                      onChange={(e) => setCampaignSenderName(e.target.value)}
-                      placeholder="Ex: Equipe EnvPRO"
-                    />
+                {/* Email */}
+                <button
+                  type="button"
+                  onClick={() => setActiveIntegration('email')}
+                  className="group flex flex-col items-start gap-3 rounded-2xl border border-[#ececf0] bg-white p-5 text-left transition-all hover:border-[#d9e4ff] hover:shadow-md"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EA4335]/10">
+                    <Mail className="h-6 w-6 text-[#EA4335]" />
                   </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <Label className="text-sm text-[#1A1A1A]">Dom?nio do link das propostas</Label>
-                    <Input
-                      className={fieldClass}
-                      value={proposalLinkDomain}
-                      onChange={(e) => setProposalLinkDomain(e.target.value)}
-                      placeholder="Ex: app.seudominio.com"
-                    />
+                  <div>
+                    <p className="text-sm font-semibold text-[#1A1A1A]">E-Mail</p>
+                    <p className="mt-0.5 text-xs text-[#6d6d75]">Configure o remetente das propostas e campanhas</p>
                   </div>
+                  {campaignSenderEmail && (
+                    <Badge className="rounded-full border-[#cde8d9] bg-[#f0faf4] text-[10px] text-[#2d7a4a]">Configurado</Badge>
+                  )}
+                </button>
 
-                  <div className="space-y-2 md:col-span-2">
-                    <Label className="text-sm text-[#1A1A1A]">Webhook das campanhas (n8n)</Label>
-                    <Input
-                      className={fieldClass}
-                      value={campaignWebhookUrl}
-                      onChange={(e) => setCampaignWebhookUrl(e.target.value)}
-                      placeholder="https://seu-n8n.com/webhook/..."
-                    />
-                    <p className="text-xs text-[#6d6d75]">
-                      Cada lead da campanha será enviado por POST para essa URL. Use uma URL de webhook do n8n ou de outro orquestrador HTTP.
-                    </p>
+                {/* Webhook n8n */}
+                <button
+                  type="button"
+                  onClick={() => setActiveIntegration('webhook')}
+                  className="group flex flex-col items-start gap-3 rounded-2xl border border-[#ececf0] bg-white p-5 text-left transition-all hover:border-[#d9e4ff] hover:shadow-md"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#FF6D00]/10">
+                    <Webhook className="h-6 w-6 text-[#FF6D00]" />
                   </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <Label className="text-sm text-[#1A1A1A]">Segredo do webhook (opcional)</Label>
-                    <Input
-                      type="password"
-                      className={fieldClass}
-                      value={campaignWebhookSecret}
-                      onChange={(e) => setCampaignWebhookSecret(e.target.value)}
-                      placeholder="Token para validar a requisição no n8n"
-                    />
-                    <p className="text-xs text-[#6d6d75]">
-                      Se preenchido, o valor será enviado no header <span className="font-mono">X-N8N-Webhook-Secret</span>.
-                    </p>
+                  <div>
+                    <p className="text-sm font-semibold text-[#1A1A1A]">Webhook / n8n</p>
+                    <p className="mt-0.5 text-xs text-[#6d6d75]">Envie leads das campanhas via webhook para n8n ou outro orquestrador</p>
                   </div>
-                </div>
+                  {campaignWebhookUrl && (
+                    <Badge className="rounded-full border-[#cde8d9] bg-[#f0faf4] text-[10px] text-[#2d7a4a]">Configurado</Badge>
+                  )}
+                </button>
 
-                <p className="mt-3 text-xs text-[#7b7b83]">Use o dom?nio sem barra final. Pode informar com ou sem https://.</p>
-
-                <div className="mt-4">
-                  <Button onClick={handleSaveIntegrations} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
-                    {savingIntegrations ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    Salvar Integra??es
-                  </Button>
-                </div>
-              </div>
-
-              {/* Firecrawl API Key */}
-              <div className="rounded-2xl border border-[#ececf0] bg-[#fafafd] p-4">
-                <div className="mb-3 flex items-start gap-2">
-                  <Flame className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#EF3333]" />
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-[#1A1A1A]">Firecrawl</p>
-                      <a
-                        href="https://firecrawl.dev"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 rounded-md border border-[#e6e6eb] bg-white px-2 py-0.5 text-[11px] font-medium text-[#356DFF] hover:bg-[#f0f4ff] transition-colors"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        firecrawl.dev
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => setShowFirecrawlGuide(true)}
-                        className="inline-flex items-center gap-1 rounded-md border border-[#e6e6eb] bg-white px-2 py-0.5 text-[11px] font-medium text-[#6d6d75] hover:bg-[#f5f5f7] transition-colors"
-                      >
-                        Como obter minha chave?
-                      </button>
-                      {firecrawlApiKey && (
-                        <span className="ml-auto rounded-full border border-[#d1f0dd] bg-[#f0faf4] px-2 py-0.5 text-[10px] font-semibold text-[#2d7a4a]">
-                          Configurada
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-0.5 text-xs text-[#6d6d75]">Chave usada para buscar e raspar sites de prospects automaticamente.</p>
+                {/* Domínio */}
+                <button
+                  type="button"
+                  onClick={() => setActiveIntegration('dominio')}
+                  className="group flex flex-col items-start gap-3 rounded-2xl border border-[#ececf0] bg-white p-5 text-left transition-all hover:border-[#d9e4ff] hover:shadow-md"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#356DFF]/10">
+                    <Globe className="h-6 w-6 text-[#356DFF]" />
                   </div>
-                </div>
+                  <div>
+                    <p className="text-sm font-semibold text-[#1A1A1A]">Domínio</p>
+                    <p className="mt-0.5 text-xs text-[#6d6d75]">Configure o domínio do link das propostas</p>
+                  </div>
+                  {proposalLinkDomain && (
+                    <Badge className="rounded-full border-[#cde8d9] bg-[#f0faf4] text-[10px] text-[#2d7a4a]">Configurado</Badge>
+                  )}
+                </button>
 
-                {firecrawlApiKey && (
-                  <div className="mb-3 flex items-center justify-between rounded-xl border border-[#ececf0] bg-white px-3 py-2">
-                    <p className="text-xs text-[#6d6d75]">
-                      Chave atual: <span className="font-mono">{maskApiKey(firecrawlApiKey)}</span>
-                    </p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 rounded-lg text-xs text-[#b2374b] hover:bg-[#fff3f5]"
-                      onClick={handleRemoveFirecrawlKey}
-                    >
-                      <Trash2 className="mr-1 h-3 w-3" />
-                      Remover
-                    </Button>
+                {/* Firecrawl */}
+                <button
+                  type="button"
+                  onClick={() => setActiveIntegration('firecrawl')}
+                  className="group flex flex-col items-start gap-3 rounded-2xl border border-[#ececf0] bg-white p-5 text-left transition-all hover:border-[#d9e4ff] hover:shadow-md"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EF3333]/10">
+                    <Flame className="h-6 w-6 text-[#EF3333]" />
                   </div>
-                )}
+                  <div>
+                    <p className="text-sm font-semibold text-[#1A1A1A]">Firecrawl</p>
+                    <p className="mt-0.5 text-xs text-[#6d6d75]">Raspagem automática de sites de prospects</p>
+                  </div>
+                  {firecrawlApiKey ? (
+                    <Badge className="rounded-full border-[#cde8d9] bg-[#f0faf4] text-[10px] text-[#2d7a4a]">Chave própria</Badge>
+                  ) : (
+                    <Badge className="rounded-full border-[#e6e6eb] bg-[#fafafd] text-[10px] text-[#7b7b83]">Chave padrão</Badge>
+                  )}
+                </button>
 
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      type={showFirecrawlKey ? 'text' : 'password'}
-                      className={`${fieldClass} pr-10`}
-                      value={firecrawlApiKeyInput}
-                      onChange={(e) => {
-                        setFirecrawlApiKeyInput(e.target.value);
-                        setFirecrawlValidationStatus('idle');
-                      }}
-                      placeholder={firecrawlApiKey ? 'Nova chave para substituir a atual' : 'Cole sua chave Firecrawl aqui'}
-                      onPaste={() => setFirecrawlValidationStatus('idle')}
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9b9ba3] hover:text-[#1A1A1A]"
-                      onClick={() => setShowFirecrawlKey((v) => !v)}
-                    >
-                      {showFirecrawlKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+                {/* ElevenLabs */}
+                <button
+                  type="button"
+                  onClick={() => setActiveIntegration('elevenlabs')}
+                  className="group flex flex-col items-start gap-3 rounded-2xl border border-[#ececf0] bg-white p-5 text-left transition-all hover:border-[#d9e4ff] hover:shadow-md"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#8B5CF6]/10">
+                    <Mic className="h-6 w-6 text-[#8B5CF6]" />
                   </div>
-                  <Button
-                    variant="outline"
-                    className="h-11 rounded-xl border-[#e6e6eb] gap-1.5 text-sm"
-                    disabled={!firecrawlApiKeyInput.trim() || validatingFirecrawl}
-                    onClick={handleValidateFirecrawlKey}
-                  >
-                    {validatingFirecrawl ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : firecrawlValidationStatus === 'valid' ? (
-                      <CheckCircle2 className="h-4 w-4 text-[#2d7a4a]" />
-                    ) : firecrawlValidationStatus === 'invalid' ? (
-                      <XCircle className="h-4 w-4 text-[#b2374b]" />
-                    ) : (
-                      <ShieldCheck className="h-4 w-4" />
-                    )}
-                    Validar
-                  </Button>
-                  <Button
-                    className="h-11 rounded-xl bg-[#EF3333] gap-1.5 text-sm text-white hover:bg-[#d42d2d]"
-                    disabled={!firecrawlApiKeyInput.trim() || savingFirecrawlKey}
-                    onClick={handleSaveFirecrawlKey}
-                  >
-                    {savingFirecrawlKey ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    Salvar
-                  </Button>
-                </div>
-
-                {firecrawlValidationStatus === 'valid' && (
-                  <p className="mt-2 flex items-center gap-1 text-xs text-[#2d7a4a]">
-                    <CheckCircle2 className="h-3 w-3" /> Chave validada com sucesso.
-                  </p>
-                )}
-                {firecrawlValidationStatus === 'invalid' && (
-                  <p className="mt-2 flex items-center gap-1 text-xs text-[#b2374b]">
-                    <XCircle className="h-3 w-3" /> Chave inv?lida. Verifique e tente novamente.
-                  </p>
-                )}
-                {!firecrawlApiKey && firecrawlValidationStatus === 'idle' && (
-                  <p className="mt-2 text-xs text-[#7b7b83]">Sem chave configurada ser? usada a chave padr?o do sistema.</p>
-                )}
-              </div>
-
-              {/* ElevenLabs Voice ID */}
-              <div className="rounded-2xl border border-[#ececf0] bg-[#fafafd] p-4">
-                <div className="mb-3 flex items-start gap-2">
-                  <Mic className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#EF3333]" />
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-[#1A1A1A]">ElevenLabs</p>
-                      <a
-                        href="https://elevenlabs.io"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 rounded-md border border-[#e6e6eb] bg-white px-2 py-0.5 text-[11px] font-medium text-[#356DFF] hover:bg-[#f0f4ff] transition-colors"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        elevenlabs.io
-                      </a>
-                      {voiceId && (
-                        <span className="ml-auto rounded-full border border-[#d1f0dd] bg-[#f0faf4] px-2 py-0.5 text-[10px] font-semibold text-[#2d7a4a]">
-                          Configurado
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-0.5 text-xs text-[#6d6d75]">Voice ID para enviar ?udios com sua voz clonada nas propostas.</p>
+                  <div>
+                    <p className="text-sm font-semibold text-[#1A1A1A]">ElevenLabs</p>
+                    <p className="mt-0.5 text-xs text-[#6d6d75]">Envie áudios com sua voz clonada nas propostas</p>
                   </div>
-                </div>
-                <div className="space-y-1">
-                  <Input
-                    id="voiceId"
-                    className={fieldClass}
-                    value={voiceId}
-                    onChange={(e) => setVoiceId(e.target.value)}
-                    placeholder="Cole aqui o ID da sua voz clonada"
-                  />
-                  <p className="text-xs text-[#6d6d75]">
-                    Clone sua voz no{' '}
-                    <a href="https://elevenlabs.io/voice-lab" target="_blank" rel="noopener noreferrer" className="text-[#b22b40] hover:underline">
-                      ElevenLabs Voice Lab
-                    </a>{' '}
-                    e cole o Voice ID aqui.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-white p-3">
-                  <div className="flex items-center gap-3">
-                    <MessageCircle className="h-5 w-5 text-[#EF3333]" />
-                    <div>
-                      <p className="text-sm font-medium text-[#1A1A1A]">WhatsApp</p>
-                      <p className="text-xs text-[#6d6d75]">Meta Cloud API (oficial)</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-medium text-[#365fc2]">Oficial</span>
-                </div>
-                <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-white p-3">
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-5 w-5 text-[#EF3333]" />
-                    <div>
-                      <p className="text-sm font-medium text-[#1A1A1A]">Email e Link</p>
-                      <p className="text-xs text-[#6d6d75]">{campaignSenderEmail || 'Remetente padr?o'} / {proposalLinkDomain || 'Dom?nio padr?o'}</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-medium text-[#9b2a3d]">Configuravel</span>
-                </div>
-                <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-white p-3">
-                  <div className="flex items-center gap-3">
-                    <Flame className="h-5 w-5 text-[#EF3333]" />
-                    <div>
-                      <p className="text-sm font-medium text-[#1A1A1A]">Firecrawl</p>
-                      <p className="text-xs text-[#6d6d75]">{firecrawlApiKey ? maskApiKey(firecrawlApiKey) : 'Chave do sistema'}</p>
-                    </div>
-                  </div>
-                  <span className={`text-xs font-medium ${firecrawlApiKey ? 'text-[#2d7a4a]' : 'text-[#7b7b83]'}`}>
-                    {firecrawlApiKey ? 'Pr?pria' : 'Padr?o'}
-                  </span>
-                </div>
+                  {voiceId && (
+                    <Badge className="rounded-full border-[#cde8d9] bg-[#f0faf4] text-[10px] text-[#2d7a4a]">Configurado</Badge>
+                  )}
+                </button>
               </div>
             </div>
           </Card>
         </TabsContent>
+
+        {/* ═══════ DIALOG: WhatsApp ═══════ */}
+        <Dialog open={activeIntegration === 'whatsapp'} onOpenChange={(open) => !open && setActiveIntegration(null)}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl rounded-[22px] border border-[#ececf0] bg-white p-0">
+            <div className="flex items-center gap-3 border-b border-[#f0f0f3] px-6 py-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#25D366]/10">
+                <MessageCircle className="h-5 w-5 text-[#25D366]" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-[#1A1A1A]">WhatsApp — Meta Cloud API</DialogTitle>
+                <DialogDescription className="text-xs text-[#6d6d75]">Configure suas credenciais da Meta para enviar mensagens via WhatsApp oficial.</DialogDescription>
+              </div>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <div className="flex items-center justify-between rounded-2xl border border-[#d9e4ff] bg-[#f4f7ff] px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-[#1A1A1A]">Modo WhatsApp</p>
+                  <p className="text-xs text-[#5a5a62]">Somente Meta Cloud API oficial permanece habilitada.</p>
+                </div>
+                <Badge className="rounded-full border-[#d9e4ff] bg-white text-[#365fc2]">Oficial</Badge>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-sm text-[#1A1A1A]">Meta Access Token</Label>
+                  <Input type="password" className={fieldClass} value={officialAccessToken} onChange={(e) => { setOfficialAccessToken(e.target.value); setMetaStatus('idle'); setMetaStatusInfo({}); }} placeholder="Cole o token permanente da Meta" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm text-[#1A1A1A]">Phone Number ID</Label>
+                  <Input className={fieldClass} value={officialPhoneNumberId} onChange={(e) => { setOfficialPhoneNumberId(e.target.value); setMetaStatus('idle'); setMetaStatusInfo({}); }} placeholder="Ex: 123456789012345" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-sm text-[#1A1A1A]">
+                    WABA ID <span className="text-[#9b9ba3] font-normal">(WhatsApp Business Account ID)</span>
+                  </Label>
+                  <Input className={fieldClass} value={officialWabaId} onChange={(e) => { setOfficialWabaId(e.target.value); setMetaStatus('idle'); setMetaStatusInfo({}); }} placeholder="Ex: 102098765432100" />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Button type="button" variant="outline" onClick={handleTestMetaConnection} disabled={metaStatus === 'testing' || !officialAccessToken.trim() || !officialPhoneNumberId.trim()} className="h-9 rounded-xl border-[#e0e0e8] gap-2">
+                  {metaStatus === 'testing' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
+                  Testar conexão
+                </Button>
+                {metaStatus === 'connected' && (
+                  <div className="flex items-center gap-2 rounded-xl border border-[#cde8d9] bg-[#eef8f3] px-3 py-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-[#1f8f47]" />
+                    <span className="text-sm font-medium text-[#1f6e38]">
+                      {metaStatusInfo.displayPhoneNumber ? `${metaStatusInfo.verifiedName || 'Conectado'} · ${metaStatusInfo.displayPhoneNumber}` : 'Conectado'}
+                    </span>
+                    {metaStatusInfo.qualityRating && <Badge className="rounded-full border-[#cde8d9] bg-white text-[#2a7a50] text-[10px] px-2">{metaStatusInfo.qualityRating}</Badge>}
+                  </div>
+                )}
+                {metaStatus === 'error' && (
+                  <div className="flex items-center gap-2 rounded-xl border border-[#f2d4d8] bg-[#fff3f5] px-3 py-1.5">
+                    <WifiOff className="h-4 w-4 text-[#b2374b]" />
+                    <span className="text-sm text-[#8c2535]">{metaStatusInfo.error || 'Credenciais inválidas'}</span>
+                  </div>
+                )}
+              </div>
+
+              {metaStatusInfo.readiness && (
+                <div className={`rounded-2xl border p-4 space-y-4 ${metaStatusInfo.readiness === 'ready' ? 'border-[#cde8d9] bg-[#eef8f3]' : metaStatusInfo.readiness === 'partial' ? 'border-[#f5c842]/40 bg-[#fffbeb]' : 'border-[#f2d4d8] bg-[#fff3f5]'}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8b8b92]">Prontidão da integração</p>
+                      <p className="text-sm text-[#44444c]">{metaStatusInfo.summary || 'Diagnóstico da integração oficial do WhatsApp.'}</p>
+                    </div>
+                    <Badge className={`rounded-full px-2.5 py-1 text-[10px] ${metaStatusInfo.readiness === 'ready' ? 'border-[#cde8d9] bg-white text-[#1f6e38]' : metaStatusInfo.readiness === 'partial' ? 'border-[#f5c842]/50 bg-white text-[#8b5e00]' : 'border-[#f2d4d8] bg-white text-[#8c2535]'}`}>
+                      {metaStatusInfo.readiness === 'ready' ? 'Pronta' : metaStatusInfo.readiness === 'partial' ? 'Parcial' : 'Bloqueada'}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    {(metaStatusInfo.checks || []).map((check) => (
+                      <div key={check.key} className="flex gap-2 rounded-xl border border-[#e7e7ee] bg-white/85 p-3">
+                        {check.ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#1f8f47]" /> : check.severity === 'danger' ? <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#b2374b]" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#d97706]" />}
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-medium text-[#1A1A1A]">{check.label}</p>
+                          <p className="text-[11px] leading-relaxed text-[#6d6d75]">{check.detail}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {metaStatusInfo.issues && metaStatusInfo.issues.length > 0 && (
+                    <div className="rounded-xl border border-[#e7e7ee] bg-white/70 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8b8b92]">Itens que exigem atenção</p>
+                      <ul className="mt-2 space-y-2">
+                        {metaStatusInfo.issues.map((issue) => (
+                          <li key={issue.key} className="flex gap-2">
+                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#d97706]" />
+                            <div className="space-y-0.5">
+                              <p className="text-sm font-medium text-[#1A1A1A]">{issue.title}</p>
+                              <p className="text-[11px] leading-relaxed text-[#6d6d75]">{issue.detail}</p>
+                              {issue.action && <p className="text-[11px] leading-relaxed text-[#8b5e00]">Ação recomendada: {issue.action}</p>}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {metaStatusInfo.webhookUrl && (
+                <div className="rounded-2xl border border-[#e8e8ef] bg-[#f5f5fa] p-4 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8b8b92]">Configure no painel Meta Developer</p>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-[#5a5a62]">URL do Webhook</Label>
+                    <div className="flex gap-2">
+                      <Input readOnly value={metaStatusInfo.webhookUrl} className="h-9 rounded-xl border-[#dcdce4] bg-white text-xs font-mono text-[#3a3a42]" />
+                      <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-xl border-[#dcdce4]" onClick={() => copyToClipboard(metaStatusInfo.webhookUrl!, 'URL do Webhook')}><Copy className="h-3.5 w-3.5" /></Button>
+                    </div>
+                  </div>
+                  {metaStatusInfo.verifyToken && (
+                    <div className="space-y-2">
+                      <Label className="text-xs text-[#5a5a62]">Verify Token</Label>
+                      <div className="flex gap-2">
+                        <Input readOnly value={metaStatusInfo.verifyToken} className="h-9 rounded-xl border-[#dcdce4] bg-white text-xs font-mono text-[#3a3a42]" />
+                        <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-xl border-[#dcdce4]" onClick={() => copyToClipboard(metaStatusInfo.verifyToken!, 'Verify Token')}><Copy className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-[#8b8b92]">No Meta for Developers: App → WhatsApp → Configuração → Webhooks → Editar → cole a URL e o Verify Token → Verificar → ative o campo <strong>messages</strong>.</p>
+                </div>
+              )}
+
+              <button type="button" onClick={() => setShowMetaGuide((v) => !v)} className="flex items-center gap-1.5 text-xs text-[#6060c8] hover:text-[#4040a8] font-medium">
+                {showMetaGuide ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                {showMetaGuide ? 'Ocultar guia de configuração' : 'Como obter as credenciais Meta?'}
+              </button>
+
+              {showMetaGuide && (
+                <div className="rounded-2xl border border-[#e4e4f0] bg-[#f8f8fd] p-4 text-sm text-[#44444c] space-y-3">
+                  <p className="font-semibold text-[#1A1A1A]">Passo a passo — Meta WhatsApp Cloud API</p>
+                  <ol className="space-y-2 list-none">
+                    {[
+                      'Acesse developers.facebook.com e crie um App do tipo "Business".',
+                      'No app, va em "WhatsApp" → "Configuração" e adicione um número de telefone.',
+                      'Copie o "Phone Number ID" que aparece na página de configuração — cole no campo acima.',
+                      'Gere um Token de Acesso Permanente: va em "Configurações do Sistema" → "Usuários do Sistema" → adicione um usuário com permissão de administrador → gere o token com escopo "whatsapp_business_messaging".',
+                      'Cole o token permanente no campo "Meta Access Token" acima.',
+                      'Configure o META_WHATSAPP_APP_SECRET no Supabase para receber status de entrega e leitura.',
+                      'Clique em "Testar conexão" para validar. Se der OK, salve as integrações.',
+                      'Depois de salvar, clique novamente em "Testar conexão" para ver a URL do Webhook e o Verify Token.',
+                      'No painel Meta: WhatsApp → Configuração → Webhooks → Editar → cole a URL e o Verify Token → ative o campo "messages".',
+                    ].map((step, i) => (
+                      <li key={i} className="flex gap-2.5">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#e8e8f8] text-[10px] font-bold text-[#5050b0]">{i + 1}</span>
+                        <span className="leading-relaxed">{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="text-xs text-[#8b8b92] pt-1">O custo de mensagens é cobrado diretamente pela Meta. As primeiras 1.000 conversas por mês são gratuitas.</p>
+                </div>
+              )}
+            </div>
+            <DialogFooter className="border-t border-[#f0f0f3] px-6 py-4">
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setActiveIntegration(null)}>Cancelar</Button>
+              <Button onClick={handleSaveIntegrations} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
+                {savingIntegrations ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ═══════ DIALOG: Email ═══════ */}
+        <Dialog open={activeIntegration === 'email'} onOpenChange={(open) => !open && setActiveIntegration(null)}>
+          <DialogContent className="sm:max-w-lg rounded-[22px] border border-[#ececf0] bg-white p-0">
+            <div className="flex items-center gap-3 border-b border-[#f0f0f3] px-6 py-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EA4335]/10">
+                <Mail className="h-5 w-5 text-[#EA4335]" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-[#1A1A1A]">Configuração de E-Mail</DialogTitle>
+                <DialogDescription className="text-xs text-[#6d6d75]">Configure o remetente das propostas e campanhas por email.</DialogDescription>
+              </div>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <div className="space-y-2">
+                <Label className="text-sm text-[#1A1A1A]">Email remetente das propostas</Label>
+                <Input className={fieldClass} type="email" value={campaignSenderEmail} onChange={(e) => setCampaignSenderEmail(e.target.value)} placeholder="Ex: comercial@seudominio.com" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm text-[#1A1A1A]">Nome do remetente (opcional)</Label>
+                <Input className={fieldClass} value={campaignSenderName} onChange={(e) => setCampaignSenderName(e.target.value)} placeholder="Ex: Equipe EnvPRO" />
+              </div>
+            </div>
+            <DialogFooter className="border-t border-[#f0f0f3] px-6 py-4">
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setActiveIntegration(null)}>Cancelar</Button>
+              <Button onClick={handleSaveIntegrations} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
+                {savingIntegrations ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ═══════ DIALOG: Webhook n8n ═══════ */}
+        <Dialog open={activeIntegration === 'webhook'} onOpenChange={(open) => !open && setActiveIntegration(null)}>
+          <DialogContent className="sm:max-w-lg rounded-[22px] border border-[#ececf0] bg-white p-0">
+            <div className="flex items-center gap-3 border-b border-[#f0f0f3] px-6 py-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FF6D00]/10">
+                <Webhook className="h-5 w-5 text-[#FF6D00]" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-[#1A1A1A]">Webhook das Campanhas</DialogTitle>
+                <DialogDescription className="text-xs text-[#6d6d75]">Envie leads via POST para n8n ou outro orquestrador HTTP.</DialogDescription>
+              </div>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <div className="space-y-2">
+                <Label className="text-sm text-[#1A1A1A]">URL do Webhook</Label>
+                <Input className={fieldClass} value={campaignWebhookUrl} onChange={(e) => setCampaignWebhookUrl(e.target.value)} placeholder="https://seu-n8n.com/webhook/..." />
+                <p className="text-xs text-[#6d6d75]">Cada lead da campanha será enviado por POST para essa URL.</p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm text-[#1A1A1A]">Segredo do webhook (opcional)</Label>
+                <Input type="password" className={fieldClass} value={campaignWebhookSecret} onChange={(e) => setCampaignWebhookSecret(e.target.value)} placeholder="Token para validar a requisição no n8n" />
+                <p className="text-xs text-[#6d6d75]">Se preenchido, o valor será enviado no header <span className="font-mono">X-N8N-Webhook-Secret</span>.</p>
+              </div>
+            </div>
+            <DialogFooter className="border-t border-[#f0f0f3] px-6 py-4">
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setActiveIntegration(null)}>Cancelar</Button>
+              <Button onClick={handleSaveIntegrations} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
+                {savingIntegrations ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ═══════ DIALOG: Domínio ═══════ */}
+        <Dialog open={activeIntegration === 'dominio'} onOpenChange={(open) => !open && setActiveIntegration(null)}>
+          <DialogContent className="sm:max-w-lg rounded-[22px] border border-[#ececf0] bg-white p-0">
+            <div className="flex items-center gap-3 border-b border-[#f0f0f3] px-6 py-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#356DFF]/10">
+                <Globe className="h-5 w-5 text-[#356DFF]" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-[#1A1A1A]">Domínio das Propostas</DialogTitle>
+                <DialogDescription className="text-xs text-[#6d6d75]">Configure o domínio usado nos links das propostas enviadas.</DialogDescription>
+              </div>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <div className="space-y-2">
+                <Label className="text-sm text-[#1A1A1A]">Domínio do link das propostas</Label>
+                <Input className={fieldClass} value={proposalLinkDomain} onChange={(e) => setProposalLinkDomain(e.target.value)} placeholder="Ex: app.seudominio.com" />
+                <p className="text-xs text-[#7b7b83]">Use o domínio sem barra final. Pode informar com ou sem https://.</p>
+              </div>
+            </div>
+            <DialogFooter className="border-t border-[#f0f0f3] px-6 py-4">
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setActiveIntegration(null)}>Cancelar</Button>
+              <Button onClick={handleSaveIntegrations} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
+                {savingIntegrations ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ═══════ DIALOG: Firecrawl ═══════ */}
+        <Dialog open={activeIntegration === 'firecrawl'} onOpenChange={(open) => !open && setActiveIntegration(null)}>
+          <DialogContent className="sm:max-w-lg rounded-[22px] border border-[#ececf0] bg-white p-0">
+            <div className="flex items-center gap-3 border-b border-[#f0f0f3] px-6 py-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EF3333]/10">
+                <Flame className="h-5 w-5 text-[#EF3333]" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-[#1A1A1A]">Firecrawl</DialogTitle>
+                <DialogDescription className="text-xs text-[#6d6d75]">Chave usada para buscar e raspar sites de prospects automaticamente.</DialogDescription>
+              </div>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <a href="https://firecrawl.dev" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border border-[#e6e6eb] bg-white px-2 py-0.5 text-[11px] font-medium text-[#356DFF] hover:bg-[#f0f4ff] transition-colors">
+                  <ExternalLink className="h-3 w-3" /> firecrawl.dev
+                </a>
+                <button type="button" onClick={() => setShowFirecrawlGuide(true)} className="inline-flex items-center gap-1 rounded-md border border-[#e6e6eb] bg-white px-2 py-0.5 text-[11px] font-medium text-[#6d6d75] hover:bg-[#f5f5f7] transition-colors">Como obter minha chave?</button>
+                {firecrawlApiKey && <span className="ml-auto rounded-full border border-[#d1f0dd] bg-[#f0faf4] px-2 py-0.5 text-[10px] font-semibold text-[#2d7a4a]">Configurada</span>}
+              </div>
+
+              {firecrawlApiKey && (
+                <div className="flex items-center justify-between rounded-xl border border-[#ececf0] bg-[#fafafd] px-3 py-2">
+                  <p className="text-xs text-[#6d6d75]">Chave atual: <span className="font-mono">{maskApiKey(firecrawlApiKey)}</span></p>
+                  <Button variant="ghost" size="sm" className="h-7 rounded-lg text-xs text-[#b2374b] hover:bg-[#fff3f5]" onClick={handleRemoveFirecrawlKey}>
+                    <Trash2 className="mr-1 h-3 w-3" /> Remover
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input type={showFirecrawlKey ? 'text' : 'password'} className={`${fieldClass} pr-10`} value={firecrawlApiKeyInput} onChange={(e) => { setFirecrawlApiKeyInput(e.target.value); setFirecrawlValidationStatus('idle'); }} placeholder={firecrawlApiKey ? 'Nova chave para substituir a atual' : 'Cole sua chave Firecrawl aqui'} onPaste={() => setFirecrawlValidationStatus('idle')} />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9b9ba3] hover:text-[#1A1A1A]" onClick={() => setShowFirecrawlKey((v) => !v)}>
+                    {showFirecrawlKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <Button variant="outline" className="h-11 rounded-xl border-[#e6e6eb] gap-1.5 text-sm" disabled={!firecrawlApiKeyInput.trim() || validatingFirecrawl} onClick={handleValidateFirecrawlKey}>
+                  {validatingFirecrawl ? <Loader2 className="h-4 w-4 animate-spin" /> : firecrawlValidationStatus === 'valid' ? <CheckCircle2 className="h-4 w-4 text-[#2d7a4a]" /> : firecrawlValidationStatus === 'invalid' ? <XCircle className="h-4 w-4 text-[#b2374b]" /> : <ShieldCheck className="h-4 w-4" />}
+                  Validar
+                </Button>
+                <Button className="h-11 rounded-xl bg-[#EF3333] gap-1.5 text-sm text-white hover:bg-[#d42d2d]" disabled={!firecrawlApiKeyInput.trim() || savingFirecrawlKey} onClick={handleSaveFirecrawlKey}>
+                  {savingFirecrawlKey ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  Salvar
+                </Button>
+              </div>
+
+              {firecrawlValidationStatus === 'valid' && <p className="flex items-center gap-1 text-xs text-[#2d7a4a]"><CheckCircle2 className="h-3 w-3" /> Chave validada com sucesso.</p>}
+              {firecrawlValidationStatus === 'invalid' && <p className="flex items-center gap-1 text-xs text-[#b2374b]"><XCircle className="h-3 w-3" /> Chave inválida. Verifique e tente novamente.</p>}
+              {!firecrawlApiKey && firecrawlValidationStatus === 'idle' && <p className="text-xs text-[#7b7b83]">Sem chave configurada será usada a chave padrão do sistema.</p>}
+            </div>
+            <DialogFooter className="border-t border-[#f0f0f3] px-6 py-4">
+              <Button type="button" className="rounded-xl" onClick={() => setActiveIntegration(null)}>Fechar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ═══════ DIALOG: ElevenLabs ═══════ */}
+        <Dialog open={activeIntegration === 'elevenlabs'} onOpenChange={(open) => !open && setActiveIntegration(null)}>
+          <DialogContent className="sm:max-w-lg rounded-[22px] border border-[#ececf0] bg-white p-0">
+            <div className="flex items-center gap-3 border-b border-[#f0f0f3] px-6 py-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#8B5CF6]/10">
+                <Mic className="h-5 w-5 text-[#8B5CF6]" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-[#1A1A1A]">ElevenLabs</DialogTitle>
+                <DialogDescription className="text-xs text-[#6d6d75]">Voice ID para enviar áudios com sua voz clonada nas propostas.</DialogDescription>
+              </div>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <div className="flex items-center gap-2">
+                <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border border-[#e6e6eb] bg-white px-2 py-0.5 text-[11px] font-medium text-[#356DFF] hover:bg-[#f0f4ff] transition-colors">
+                  <ExternalLink className="h-3 w-3" /> elevenlabs.io
+                </a>
+                {voiceId && <span className="ml-auto rounded-full border border-[#d1f0dd] bg-[#f0faf4] px-2 py-0.5 text-[10px] font-semibold text-[#2d7a4a]">Configurado</span>}
+              </div>
+              <div className="space-y-1">
+                <Input id="voiceId" className={fieldClass} value={voiceId} onChange={(e) => setVoiceId(e.target.value)} placeholder="Cole aqui o ID da sua voz clonada" />
+                <p className="text-xs text-[#6d6d75]">
+                  Clone sua voz no{' '}
+                  <a href="https://elevenlabs.io/voice-lab" target="_blank" rel="noopener noreferrer" className="text-[#b22b40] hover:underline">ElevenLabs Voice Lab</a>
+                  {' '}e cole o Voice ID aqui.
+                </p>
+              </div>
+            </div>
+            <DialogFooter className="border-t border-[#f0f0f3] px-6 py-4">
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setActiveIntegration(null)}>Cancelar</Button>
+              <Button onClick={handleSaveIntegrations} disabled={savingIntegrations} className="h-11 rounded-xl gradient-primary text-primary-foreground gap-2">
+                {savingIntegrations ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <TabsContent value="apis" className="mt-0">
           <Card className={cardClass}>

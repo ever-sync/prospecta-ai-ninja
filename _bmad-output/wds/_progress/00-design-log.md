@@ -17,7 +17,7 @@
 
 | Task | Started | Agent |
 |---|---|---|
-| Documentation webhook guide | 2026-03-21 | Codex |
+| Campaign webhook to n8n | 2026-03-21 | Codex |
 
 ---
 
@@ -31,6 +31,8 @@
 | Campaign delivery | Evolution | WhatsApp official-only | built | 2026-03-21 |
 | Navigation | Evolution | Documentation shortcut | built | 2026-03-21 |
 | Documentation | Evolution | Webhook guide | built | 2026-03-21 |
+| Campaign delivery | Evolution | Webhook n8n dispatch | built | 2026-03-21 |
+| Platform | Analysis | End-to-end architecture | analyzed | 2026-03-21 |
 
 ---
 
@@ -71,3 +73,23 @@
 - Added a dedicated webhook guide to the documentation page.
 - Documented the inbound Meta callback flow, endpoints, required secrets, processed statuses, and common failure modes.
 - Clarified that the campaign `webhook` channel is not an outbound dispatcher.
+
+### 2026-03-21 - Evolution: campaign webhook now dispatches to n8n
+- Added a shared webhook payload helper and enabled `webhook` as a dispatchable campaign channel.
+- Created `send-campaign-webhooks` to POST each pending lead to the configured n8n URL with traceable headers and payload.
+- Added campaign-level webhook settings in Integrations for the URL and optional shared secret.
+- Updated campaign preview, scheduler routing, and documentation to reflect the n8n outbound flow.
+
+### 2026-03-21 - Evolution: webhook usage guide expanded in Documentation
+- Added an explicit "Como usar" section to the Documentation page for campaign webhooks.
+- Included a step-by-step setup flow, n8n checklist, and payload example directly in the page.
+
+### 2026-03-21 - Analysis: end-to-end platform architecture mapped
+- Reviewed the full product surface across frontend, edge functions, migrations, configuration, and validation tooling.
+- Documented the main flows for scanner, proposal generation, campaign dispatch, CRM consolidation, and billing.
+- Identified the main engineering risks: broad public edge-function surface, oversized modules, weak static quality gates, and sparse automated coverage.
+
+### 2026-03-21 - Planning: end-to-end remediation plan created
+- Converted the architecture analysis into a phased execution plan with security, refactor, quality, performance, and CI workstreams.
+- Prioritized baseline stabilization and auth hardening before large-scale refactors.
+- Added explicit acceptance criteria and immediate backlog items for execution.

@@ -45,6 +45,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import sidebarExpandedLogo from '@/logos/dark.svg';
 import sidebarCollapsedLogo from '@/logos/favicon.svg';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
+import { FeedbackDialog } from '@/components/FeedbackDialog';
+import { MessageSquare } from 'lucide-react';
 
 const SIDEBAR_STORAGE_KEY = 'prospecta.sidebar.collapsed';
 
@@ -236,6 +238,7 @@ export const AppLayout = () => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1';
   });
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -541,7 +544,20 @@ export const AppLayout = () => {
           </div>
         </div>
 
-        <div className={cn('border-t border-[#1f1f25]', collapsed ? 'p-2' : 'p-3')}>
+        <div className={cn('border-t border-[#1f1f25] flex flex-col gap-1', collapsed ? 'p-2' : 'p-3')}>
+          <button
+            type="button"
+            onClick={() => setFeedbackOpen(true)}
+            title="Feedback"
+            className={cn(
+              'flex w-full items-center rounded-2xl text-sm font-medium text-[#b7b7bf] transition-colors hover:bg-[#1f1f25] hover:text-white',
+              collapsed ? 'h-11 justify-center px-0' : 'h-11 gap-3 px-2.5'
+            )}
+          >
+            <MessageSquare className="h-[18px] w-[18px] shrink-0" strokeWidth={1.8} />
+            {!collapsed && <span>Feedback</span>}
+          </button>
+
           <button
             type="button"
             onClick={handleSignOut}
@@ -555,6 +571,8 @@ export const AppLayout = () => {
             {!collapsed && <span>Sair</span>}
           </button>
         </div>
+
+        <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       </div>
     );
   };

@@ -15,6 +15,7 @@ import PlanManager from '@/components/admin/PlanManager';
 import ApiUsageMonitor from '@/components/admin/ApiUsageMonitor';
 import SystemEmailsManager from '@/components/admin/SystemEmailsManager';
 import UsersManager from '@/components/admin/UsersManager';
+import FeedbacksManager from '@/components/admin/FeedbacksManager';
 import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
 
 interface AdminStats {
@@ -102,7 +103,7 @@ const StatCard = ({ icon: Icon, label, value, sub, color }: {
   </Card>
 );
 
-type AdminTab = 'dashboard' | 'usuarios' | 'custos' | 'planos' | 'emails';
+type AdminTab = 'dashboard' | 'usuarios' | 'custos' | 'planos' | 'emails' | 'feedbacks';
 
 interface AdminProps {
   initialTab?: AdminTab;
@@ -205,6 +206,7 @@ const Admin = ({ initialTab = 'dashboard' }: AdminProps) => {
           <TabsTrigger value="custos">💰 Custos & APIs</TabsTrigger>
           <TabsTrigger value="planos">👑 Planos</TabsTrigger>
           <TabsTrigger value="emails">📧 Emails</TabsTrigger>
+          <TabsTrigger value="feedbacks">💬 Feedbacks</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-8">
@@ -423,6 +425,10 @@ const Admin = ({ initialTab = 'dashboard' }: AdminProps) => {
 
         <TabsContent value="emails">
           <SystemEmailsManager />
+        </TabsContent>
+
+        <TabsContent value="feedbacks">
+          <FeedbacksManager />
         </TabsContent>
       </Tabs>
     </div>

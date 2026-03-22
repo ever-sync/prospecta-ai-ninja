@@ -14,7 +14,7 @@ serve(async (req) => {
 
   try {
     const { business, provider } = await req.json();
-    const { user, svc } = await getAuthenticatedUserContext(req);
+    const { user, svc } = await getAuthenticatedUserContext(req, { requireBillingAccess: true });
     const llm = await resolveUserLLM(svc, user.id, provider);
 
     const categoryLabels: Record<string, string> = {

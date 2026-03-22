@@ -58,6 +58,33 @@ const stats = [
   { icon: Zap, value: "50x", label: "Mais produtivo", desc: "Escala com o poder da IA" },
 ];
 
+const offerHighlights = [
+  "Scanner comercial com leitura de mercado e sinais digitais",
+  "Geracao de propostas consultivas e links publicos",
+  "Campanhas por email, WhatsApp oficial e webhook/n8n",
+  "CRM com historico operacional e follow-up",
+  "Onboarding guiado para colocar a operacao de pe rapidamente",
+];
+
+const faqItems = [
+  {
+    question: "Para quem a envPRO foi feita?",
+    answer: "Para agencias, consultores e times comerciais B2B que vendem presenca digital, site, SEO, reputacao ou growth para PMEs e negocios locais.",
+  },
+  {
+    question: "Preciso contratar Firecrawl e IA separadamente?",
+    answer: "Sim. A envPRO cobra a plataforma e voce conecta suas proprias chaves de IA e Firecrawl, mantendo controle total do custo variavel.",
+  },
+  {
+    question: "Consigo usar meu proprio email ou webhook?",
+    answer: "Sim. O produto ja suporta remetente do cliente, webhook para n8n e WhatsApp oficial da Meta, desde que a configuracao operacional esteja pronta.",
+  },
+  {
+    question: "Quanto tempo leva para colocar de pe?",
+    answer: "O fluxo guiado foi desenhado para sair do cadastro ate a primeira proposta e primeira campanha no mesmo dia, sem implantacao longa.",
+  },
+];
+
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
@@ -152,8 +179,8 @@ const MarketingLanding = () => {
               variants={itemVariants}
               className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-[#66666d] lg:mx-0 lg:text-xl"
             >
-              Transforme a invisibilidade do Google em uma agenda cheia de reuniões. A {BRAND.name} opera como um scanner
-              comercial que encontra oportunidades, gera leitura consultiva e acelera conversas reais.
+              A {BRAND.name} foi desenhada para agencias, consultores e operacoes comerciais que precisam sair da prospeccao
+              manual e operar com scanner, proposta, campanha e CRM no mesmo fluxo.
             </motion.p>
 
             <motion.div variants={itemVariants} className="flex flex-col items-center gap-4 sm:flex-row lg:justify-start">
@@ -305,6 +332,38 @@ const MarketingLanding = () => {
         </div>
       </section>
 
+      <section className="bg-[#f8f8fa] py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#ef3333]">Oferta</p>
+              <h2 className="mt-4 text-4xl font-bold tracking-tight text-[#1A1A1A] lg:text-5xl">
+                Um sistema para sair da prospeccao manual e operar com cadencia real.
+              </h2>
+              <p className="mt-5 max-w-2xl text-lg leading-relaxed text-[#66666d]">
+                A oferta da {BRAND.name} nao e "mais um CRM". E um sistema operacional de prospeccao consultiva para vender
+                servicos de marketing, reputacao, site, SEO e growth com mais velocidade e mais contexto.
+              </p>
+            </div>
+
+            <Card className="rounded-[36px] border border-[#ececf0] bg-white p-8 shadow-[0_20px_50px_rgba(20,20,24,0.06)]">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#ef3333]">O que entra</p>
+              <ul className="mt-5 space-y-3">
+                {offerHighlights.map((item) => (
+                  <li key={item} className="flex items-start gap-3 text-sm leading-6 text-[#1A1A1A]">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#ef3333]" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6 rounded-2xl bg-[#fff5f6] p-4 text-sm leading-6 text-[#9b4458]">
+                Voce entra com a operacao e com as chaves dos provedores. A plataforma entra com o fluxo, a orquestracao e a camada comercial.
+              </div>
+            </Card>
+          </div>
+        </div>
+      </section>
+
       <section id="pricing" className="relative mx-6 mb-16 overflow-hidden rounded-[60px] bg-foreground py-24 text-white">
         <div className="absolute top-0 right-0 -mt-24 -mr-24 h-[500px] w-[500px] rounded-full bg-[#ef3333]/10 blur-[120px]" />
         <div className="relative z-10 mx-auto max-w-7xl px-6">
@@ -316,13 +375,16 @@ const MarketingLanding = () => {
                 Sem surpresas.
               </h2>
               <p className="mb-8 text-lg leading-relaxed text-white/60">
-                A plataforma custa R$ 79,90/mes. Voce conecta suas proprias chaves de IA (Gemini, etc.) e Firecrawl —
-                esses custos ficam direto com os provedores, sem margem da {BRAND.name}.
+                A oferta de lancamento da plataforma e R$ 297/mes. Voce conecta suas proprias chaves de IA e Firecrawl,
+                entao o custo variavel fica direto com os provedores e o controle continua na sua mao.
               </p>
               <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/75">
+                  Oferta de lancamento
+                </div>
                 <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                   <CheckCircle2 className="h-6 w-6 text-[#ef3333]" />
-                  <span className="text-lg font-medium">Plataforma completa por R$ 79,90/mes</span>
+                  <span className="text-lg font-medium">Plataforma completa por R$ 297/mes</span>
                 </div>
                 <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                   <CheckCircle2 className="h-6 w-6 text-[#ef3333]" />
@@ -330,21 +392,20 @@ const MarketingLanding = () => {
                 </div>
                 <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                   <CheckCircle2 className="h-6 w-6 text-[#ef3333]" />
-                  <span className="text-lg font-medium">Sem taxa sobre uso. Você controla o gasto de API</span>
+                  <span className="text-lg font-medium">Onboarding guiado incluso para colocar a operacao de pe</span>
                 </div>
               </div>
             </div>
 
             <div className="lg:w-[400px]">
               <Card className="rounded-[40px] border-none bg-white p-10 text-[#1A1A1A] shadow-2xl">
-                <div className="mb-4 text-sm font-bold uppercase tracking-widest text-[#ef3333]">Acesso Completo</div>
+                <div className="mb-4 text-sm font-bold uppercase tracking-widest text-[#ef3333]">envPRO Operacao</div>
                 <div className="mb-1 flex items-end gap-2">
-                  <span className="text-5xl font-bold">R$ 79</span>
-                  <span className="mb-2 text-2xl font-bold text-[#66666d]">,90</span>
+                  <span className="text-5xl font-bold">R$ 297</span>
                 </div>
                 <p className="mb-1 text-sm text-[#66666d]">por mes · cancele quando quiser</p>
                 <p className="mb-6 mt-4 text-xs leading-5 text-[#9b9ba3]">
-                  APIs de IA (Gemini, etc.) e Firecrawl são contratadas separadamente direto com os provedores. Você tem controle total do gasto.
+                  Ideal para vender com mais contexto, mais velocidade e menos trabalho manual. APIs de IA e Firecrawl sao contratadas separadamente.
                 </p>
                 <Button
                   onClick={() => navigate('/auth')}
@@ -354,6 +415,23 @@ const MarketingLanding = () => {
                 </Button>
               </Card>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto mb-20 max-w-5xl px-6">
+        <div className="rounded-[40px] border border-[#ececf0] bg-white p-8 shadow-[0_14px_36px_rgba(20,20,24,0.06)] lg:p-10">
+          <div className="mb-8 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#ef3333]">FAQ comercial</p>
+            <h2 className="mt-3 text-3xl font-bold text-[#1A1A1A]">O que o cliente precisa saber antes de entrar</h2>
+          </div>
+          <div className="space-y-4">
+            {faqItems.map((item) => (
+              <div key={item.question} className="rounded-2xl border border-[#ececf0] bg-[#fafafb] p-5">
+                <p className="text-sm font-semibold text-[#1A1A1A]">{item.question}</p>
+                <p className="mt-2 text-sm leading-7 text-[#66666d]">{item.answer}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>

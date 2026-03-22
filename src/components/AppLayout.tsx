@@ -424,7 +424,19 @@ export const AppLayout = () => {
         };
       });
 
-      const merged = [...overdueTaskNotifications, ...conversionNotifications, ...createdNotifications]
+      const billingNotifications: PlatformNotification[] = subscription?.access_status === 'grace'
+        ? [{
+            id: 'billing-grace',
+            createdAt: subscription.grace_until || new Date().toISOString(),
+            title: 'Pagamento pendente',
+            description: subscription.block_reason || 'Regularize sua assinatura para evitar bloqueio da plataforma.',
+            href: '/settings?tab=faturamento',
+            icon: Clock3,
+            iconClassName: 'bg-[#fff4df] text-[#9a6500]',
+          }]
+        : [];
+
+      const merged = [...billingNotifications, ...overdueTaskNotifications, ...conversionNotifications, ...createdNotifications]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 12);
 
@@ -451,7 +463,7 @@ export const AppLayout = () => {
       active = false;
       void supabase.removeChannel(refreshChannel);
     };
-  }, [user]);
+  }, [subscription, user]);
 
   const renderSidebarContent = ({ mobile }: { mobile: boolean }) => {
     const collapsed = mobile ? false : isSidebarCollapsed;

@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logCampaignOperationEvent } from "../_shared/campaign-operation-events.js";
+import { HttpError, requireBillingAccess } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -460,7 +461,7 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Unauthorized");
+    if (!authHeader) throw new HttpError(401, "Unauthorized");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
@@ -484,9 +485,6 @@ Deno.serve(async (req) => {
       send_followups = false,
     } = bodyData;
 
-    if (!campaign_id) throw new Error("campaign_id is required");
-    logCampaignId = campaign_id;
-
     // Support internal calls from campaign-scheduler using service role key
     const isServiceRoleCall =
       serviceKey &&
@@ -501,10 +499,15 @@ Deno.serve(async (req) => {
         data: { user },
         error: userError,
       } = await userClient.auth.getUser();
-      if (userError || !user) throw new Error("Unauthorized");
+      if (userError || !user) throw new HttpError(401, "Unauthorized");
       userId = user.id;
     }
+
+    if (!campaign_id) throw new HttpError(400, "campaign_id is required");
+    logCampaignId = campaign_id;
+
     logUserId = userId;
+    await requireBillingAccess(svc, userId);
 
   const { data: campaignData, error: campaignError } = await svc
       .from("campaigns")
@@ -1341,9 +1344,16 @@ Deno.serve(async (req) => {
         console.error("Failed to persist campaign WhatsApp operation event:", logError);
       }
     }
+    const status = error instanceof HttpError ? error.status : 500;
+    const code = error instanceof HttpError && error.status === 402
+      ? "billing_blocked"
+      : undefined;
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Failed to send batch" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Failed to send batch",
+        ...(code ? { code } : {}),
+      }),
+      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

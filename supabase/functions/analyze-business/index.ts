@@ -97,7 +97,7 @@ serve(async (req) => {
 
   try {
     const { business, mode, provider } = await req.json();
-    const { user, svc } = await getAuthenticatedUserContext(req);
+    const { user, svc } = await getAuthenticatedUserContext(req, { requireBillingAccess: true });
     const llm = await resolveUserLLM(svc, user.id, provider);
 
     if (!["competitors", "score", "profile"].includes(mode)) {

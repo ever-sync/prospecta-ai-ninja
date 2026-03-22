@@ -18,6 +18,10 @@ type SettingsBillingSectionProps = {
   usageItems: UsageItem[];
   plans: PlanData[];
   currentPlan: string;
+  accessStatus: 'active' | 'grace' | 'blocked';
+  billingStatus: string | null;
+  blockReason: string | null;
+  graceUntil: string | null;
   checkoutLoading: string | null;
   onManageSubscription: () => void;
   onUpgrade: (planId: string) => void;
@@ -28,11 +32,29 @@ export const SettingsBillingSection = ({
   usageItems,
   plans,
   currentPlan,
+  accessStatus,
+  billingStatus,
+  blockReason,
+  graceUntil,
   checkoutLoading,
   onManageSubscription,
   onUpgrade,
 }: SettingsBillingSectionProps) => (
   <div className="space-y-5">
+    {accessStatus !== 'active' && (
+      <div className={`rounded-2xl border px-5 py-4 ${accessStatus === 'blocked' ? 'border-[#f5c2c7] bg-[#fff4f4]' : 'border-[#f7dfb6] bg-[#fff8ec]'}`}>
+        <p className={`text-sm font-semibold ${accessStatus === 'blocked' ? 'text-[#a92a36]' : 'text-[#9a6500]'}`}>
+          {accessStatus === 'blocked' ? 'Acesso bloqueado por inadimplencia' : 'Pagamento pendente em periodo de graca'}
+        </p>
+        <p className={`mt-1 text-sm leading-relaxed ${accessStatus === 'blocked' ? 'text-[#9b4458]' : 'text-[#8a6a22]'}`}>
+          {blockReason || 'Regularize sua assinatura para manter a plataforma liberada.'}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-4 text-xs text-[#6d6d75]">
+          {billingStatus && <span>Status Stripe: <strong>{billingStatus}</strong></span>}
+          {graceUntil && <span>Graca ate: <strong>{new Date(graceUntil).toLocaleString('pt-BR')}</strong></span>}
+        </div>
+      </div>
+    )}
     <div className="rounded-2xl border border-[#f2d4d8] bg-[#fff5f6] px-5 py-4">
       <p className="text-sm font-semibold text-[#7f2432]">Modelo de custo transparente</p>
       <p className="mt-1 text-sm leading-relaxed text-[#9b4458]">

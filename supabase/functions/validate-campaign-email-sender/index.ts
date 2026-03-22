@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { user, svc } = await getAuthenticatedUserContext(req);
+    const { user, svc } = await getAuthenticatedUserContext(req, { requireBillingAccess: true });
     const { senderEmail, senderName, replyToEmail } = await req.json();
 
     const normalizedSenderEmail = normalizeEmailAddress(senderEmail);

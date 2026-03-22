@@ -136,14 +136,17 @@ Deno.serve(async (req) => {
         if (
           sendData?.code === "missing_meta_credentials" ||
           sendData?.code === "missing_webhook_target" ||
-          sendData?.code === "email_sender_not_ready"
+          sendData?.code === "email_sender_not_ready" ||
+          sendData?.code === "billing_blocked"
         ) {
           const blockingReason =
             sendData?.code === "missing_meta_credentials"
               ? "missing-meta-credentials"
               : sendData?.code === "missing_webhook_target"
                 ? "missing-webhook-target"
-                : "email-sender-not-ready";
+                : sendData?.code === "billing_blocked"
+                  ? "billing-blocked"
+                  : "email-sender-not-ready";
 
           await svc
             .from("campaigns")
@@ -166,6 +169,8 @@ Deno.serve(async (req) => {
                 ? "Campanha cancelada pelo scheduler porque a Meta oficial nao estava configurada."
                 : blockingReason === "missing-webhook-target"
                   ? "Campanha cancelada pelo scheduler porque o webhook nao estava configurado."
+                  : blockingReason === "billing-blocked"
+                    ? "Campanha cancelada pelo scheduler porque a conta do usuario esta bloqueada por inadimplencia."
                   : "Campanha cancelada pelo scheduler porque o remetente de email nao estava validado.",
           });
 

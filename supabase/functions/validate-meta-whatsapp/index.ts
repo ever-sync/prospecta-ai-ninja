@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { user, svc } = await getAuthenticatedUserContext(req);
+    const { user, svc } = await getAuthenticatedUserContext(req, { requireBillingAccess: true });
     const { accessToken, phoneNumberId, wabaId } = await req.json();
 
     if (!accessToken?.trim() || !phoneNumberId?.trim()) {

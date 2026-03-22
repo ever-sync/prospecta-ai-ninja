@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { user, svc } = await getAuthenticatedUserContext(req);
+    const { user, svc } = await getAuthenticatedUserContext(req, { requireBillingAccess: true });
     const [llm, firecrawlApiKey] = await Promise.all([
       resolveUserLLM(svc, user.id, provider),
       resolveFirecrawlApiKey(svc, user.id),

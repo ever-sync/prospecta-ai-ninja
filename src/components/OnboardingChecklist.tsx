@@ -36,6 +36,13 @@ const STEPS: StepDef[] = [
     path: '/dna',
   },
   {
+    key: 'delivery_channel',
+    label: 'Configurar um canal de envio',
+    description: 'Ative email, WhatsApp oficial ou webhook para disparar campanhas reais.',
+    icon: Megaphone,
+    path: '/settings?tab=integracoes',
+  },
+  {
     key: 'firecrawl',
     label: 'Configurar chave Firecrawl',
     description: 'Adicione sua chave para buscar e raspar sites de prospects.',
@@ -50,13 +57,6 @@ const STEPS: StepDef[] = [
     path: '/settings?tab=apis',
   },
   {
-    key: 'first_search',
-    label: 'Gerar primeira busca',
-    description: 'Use o Scanner para encontrar empresas e oportunidades.',
-    icon: Search,
-    path: '/search',
-  },
-  {
     key: 'first_presentation',
     label: 'Gerar primeira apresentação',
     description: 'Crie uma proposta personalizada para um lead.',
@@ -69,6 +69,13 @@ const STEPS: StepDef[] = [
     description: 'Envie propostas de forma automatizada via campanha.',
     icon: Megaphone,
     path: '/campaigns',
+  },
+  {
+    key: 'first_reply',
+    label: 'Receber a primeira resposta',
+    description: 'Use o CRM para acompanhar aceite, recusa e follow-up dos leads.',
+    icon: Search,
+    path: '/crm',
   },
 ];
 
@@ -219,11 +226,12 @@ const OnboardingChecklist = () => {
   const [open, setOpen] = useState(false);
   const [completedSteps, setCompletedSteps] = useState<Record<string, boolean>>({
     dna: false,
+    delivery_channel: false,
     firecrawl: false,
     ai_key: false,
-    first_search: false,
     first_presentation: false,
     first_campaign: false,
+    first_reply: false,
   });
   const [loading, setLoading] = useState(true);
   const [celebrating, setCelebrating] = useState(false);
@@ -239,7 +247,7 @@ const OnboardingChecklist = () => {
     if (!user) return;
     setLoading(true);
     try {
-        const [dnaRes, profileRes, aiKeysRes, presentationsRes, campaignsRes] = await Promise.all([
+        const [dnaRes, profileRes, aiKeysRes, presentationsRes, campaignsRes, responsesRes] = await Promise.all([
           supabase
             .from('company_dna')
             .select('services, differentials, value_proposition')
@@ -247,7 +255,7 @@ const OnboardingChecklist = () => {
             .maybeSingle(),
           supabase
             .from('profiles')
-            .select('firecrawl_api_key')
+            .select('firecrawl_api_key, campaign_sender_email, email_sender_status, campaign_webhook_url, whatsapp_official_access_token, whatsapp_official_phone_number_id')
             .eq('user_id', user.id)
             .maybeSingle(),
           supabase
@@ -265,6 +273,12 @@ const OnboardingChecklist = () => {
             .select('id')
             .eq('user_id', user.id)
             .limit(1),
+          supabase
+            .from('message_conversion_events')
+            .select('id')
+            .eq('user_id', user.id)
+            .in('event_type', ['accepted', 'rejected', 'replied'])
+            .limit(1),
         ]);
 
         const dna = dnaRes.data as Record<string, unknown> | null;
@@ -275,19 +289,33 @@ const OnboardingChecklist = () => {
               (typeof dna.value_proposition === 'string' && dna.value_proposition.trim()))
         );
 
-        const profile = profileRes.data as { firecrawl_api_key?: string | null } | null;
+        const profile = profileRes.data as {
+          firecrawl_api_key?: string | null;
+          campaign_sender_email?: string | null;
+          email_sender_status?: string | null;
+          campaign_webhook_url?: string | null;
+          whatsapp_official_access_token?: string | null;
+          whatsapp_official_phone_number_id?: string | null;
+        } | null;
         const hasFirecrawl = Boolean(profile?.firecrawl_api_key?.trim());
+        const hasDeliveryChannel = Boolean(
+          (profile?.campaign_sender_email?.trim() && profile?.email_sender_status === 'ready') ||
+          profile?.campaign_webhook_url?.trim() ||
+          (profile?.whatsapp_official_access_token?.trim() && profile?.whatsapp_official_phone_number_id?.trim())
+        );
         const hasAiKey = Boolean(aiKeysRes.data && aiKeysRes.data.length > 0);
         const hasPresentations = Boolean(presentationsRes.data && presentationsRes.data.length > 0);
         const hasCampaigns = Boolean(campaignsRes.data && campaignsRes.data.length > 0);
+        const hasResponses = Boolean(responsesRes.data && responsesRes.data.length > 0);
 
         setCompletedSteps({
           dna: hasDna,
+          delivery_channel: hasDeliveryChannel,
           firecrawl: hasFirecrawl,
           ai_key: hasAiKey,
-          first_search: hasPresentations,
           first_presentation: hasPresentations,
           first_campaign: hasCampaigns,
+          first_reply: hasResponses,
         });
     } catch (err) {
       console.error('Onboarding check error:', err);

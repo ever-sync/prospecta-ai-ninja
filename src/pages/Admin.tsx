@@ -26,6 +26,10 @@ interface AdminStats {
     views: number;
     emails: number;
   };
+  billing: {
+    graceUsers: number;
+    blockedUsers: number;
+  };
   thisMonth: {
     presentations: number;
     views: number;
@@ -61,7 +65,7 @@ interface AdminStats {
     acceptanceRate: number;
   }>;
   operationalAlerts: Array<{
-    type: 'delivery_drop' | 'failure_spike' | 'acceptance_drop';
+    type: 'delivery_drop' | 'failure_spike' | 'acceptance_drop' | 'billing_grace' | 'billing_blocked';
     severity: 'warning' | 'critical';
     title: string;
     description: string;
@@ -216,6 +220,11 @@ const Admin = ({ initialTab = 'dashboard' }: AdminProps) => {
             <StatCard icon={Megaphone} label="Campanhas" value={stats.totals.campaigns} color="bg-warning/10 text-warning" />
             <StatCard icon={Eye} label="Visualizações" value={stats.totals.views} sub={`${stats.thisMonth.views} este mês`} color="bg-success/10 text-success" />
             <StatCard icon={Mail} label="Emails Enviados" value={stats.totals.emails} sub={`${stats.thisMonth.emails} este mês`} color="bg-primary/10 text-primary" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <StatCard icon={TrendingUp} label="Billing em graca" value={stats.billing.graceUsers} sub="Clientes com pagamento pendente" color="bg-warning/10 text-warning" />
+            <StatCard icon={ShieldCheck} label="Billing bloqueado" value={stats.billing.blockedUsers} sub="Contas travadas por inadimplencia" color="bg-destructive/10 text-destructive" />
           </div>
 
           <AdminCharts data={stats.dailyStats} period={period} onPeriodChange={handlePeriodChange} loading={chartLoading} />

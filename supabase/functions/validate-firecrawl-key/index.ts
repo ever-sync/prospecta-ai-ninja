@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    await getAuthenticatedUserContext(req);
+    await getAuthenticatedUserContext(req, { requireBillingAccess: true });
 
     const { apiKey } = await req.json();
 

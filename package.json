@@ -7,9 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "test": "node --test tests/campaign-routing.test.js tests/campaign-webhook.test.js tests/campaign-variants.test.js tests/campaign-saved-views.test.js tests/meta-whatsapp-readiness.test.js tests/email-sender-readiness.test.js tests/settings-integration-payloads.test.js tests/vite-manual-chunks.test.js tests/pwa-config.test.js",
+    "test": "node --test tests/campaign-routing.test.js tests/campaign-webhook.test.js tests/campaign-variants.test.js tests/campaign-saved-views.test.js tests/meta-whatsapp-readiness.test.js tests/email-sender-readiness.test.js tests/settings-integration-payloads.test.js tests/vite-manual-chunks.test.js tests/pwa-config.test.js tests/billing-access.test.js tests/publish-go-live-script.test.js tests/repair-migration-history-script.test.js",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "supabase:check-drift": "powershell -ExecutionPolicy Bypass -File scripts/check-migration-history-drift.ps1",
+    "supabase:backup-history": "powershell -ExecutionPolicy Bypass -File scripts/backup-remote-migration-history.ps1",
+    "supabase:repair-history:plan": "powershell -ExecutionPolicy Bypass -File scripts/repair-migration-history.ps1",
+    "supabase:repair-history": "powershell -ExecutionPolicy Bypass -File scripts/repair-migration-history.ps1 -RunDbPush",
+    "deploy:go-live": "powershell -ExecutionPolicy Bypass -File scripts/publish-go-live.ps1",
+    "deploy:functions-only": "powershell -ExecutionPolicy Bypass -File scripts/publish-go-live.ps1 -SkipMigrations"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

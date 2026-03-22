@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { userId } = await getAuthenticatedUserContext(req);
+    const { userId } = await getAuthenticatedUserContext(req, { requireBillingAccess: true });
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";

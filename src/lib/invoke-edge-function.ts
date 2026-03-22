@@ -5,6 +5,12 @@ type InvokeOptions = {
   headers?: Record<string, string>;
 };
 
+type EdgeFunctionErrorDetails = {
+  message: string;
+  code: string | null;
+  status: number | null;
+};
+
 const gatewayToken = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const MAX_QUOTA_RETRIES = 3;
 const FALLBACK_RETRY_MS = 30000;
@@ -38,32 +44,52 @@ const isRetryableQuotaError = async (response: Response) => {
   return /quota exceeded|rate limit|please retry in|generate_content_free_tier_requests/i.test(bodyText);
 };
 
-export const getEdgeFunctionErrorMessage = async (error: unknown) => {
+export const getEdgeFunctionErrorDetails = async (error: unknown): Promise<EdgeFunctionErrorDetails> => {
   const context =
     error && typeof error === "object" && "context" in error
       ? (error as { context?: Response }).context
       : undefined;
 
   if (context instanceof Response) {
+    const status = context.status;
     try {
       const payload = await context.clone().json();
+      const code = typeof payload?.code === "string" && payload.code.trim() ? payload.code : null;
       if (typeof payload?.error === "string" && payload.error.trim()) {
-        return payload.error;
+        return { message: payload.error, code, status };
       }
       if (typeof payload?.message === "string" && payload.message.trim()) {
-        return payload.message;
+        return { message: payload.message, code, status };
       }
     } catch {
       const text = await context.clone().text().catch(() => "");
-      if (text.trim()) return text;
+      if (text.trim()) return { message: text, code: null, status };
     }
+
+    return {
+      message: status === 402
+        ? "Acesso bloqueado por billing. Regularize a assinatura em Configuracoes > Faturamento."
+        : "Erro ao executar a operacao.",
+      code: status === 402 ? "billing_blocked" : null,
+      status,
+    };
   }
 
   if (error instanceof Error && error.message.trim()) {
-    return error.message;
+    return { message: error.message, code: null, status: null };
   }
 
-  return "Erro ao executar a operacao.";
+  return { message: "Erro ao executar a operacao.", code: null, status: null };
+};
+
+export const getEdgeFunctionErrorMessage = async (error: unknown) => {
+  const details = await getEdgeFunctionErrorDetails(error);
+  return details.message;
+};
+
+export const isBillingBlockedEdgeError = async (error: unknown) => {
+  const details = await getEdgeFunctionErrorDetails(error);
+  return details.code === "billing_blocked" || details.status === 402;
 };
 
 export const invokeEdgeFunction = async <T = unknown>(

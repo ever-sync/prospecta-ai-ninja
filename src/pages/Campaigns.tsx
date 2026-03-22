@@ -198,6 +198,8 @@ const formatFailureReason = (reason?: string | null) => {
       return 'Credenciais da Meta ausentes';
     case 'missing_webhook_target':
       return 'Webhook da campanha nao configurado';
+    case 'billing_blocked':
+      return 'Conta bloqueada por inadimplencia';
     case 'invalid_phone':
       return 'Telefone invalido para WhatsApp';
     default:
@@ -215,6 +217,8 @@ const formatBlockingReason = (reason?: string | null) => {
       return 'Campanha cancelada porque o webhook da campanha nao estava configurado.';
     case 'unsupported-channel':
       return 'Campanha cancelada porque o canal nao e suportado pelo dispatcher.';
+    case 'billing-blocked':
+      return 'Campanha cancelada porque a conta do usuario esta bloqueada por inadimplencia.';
     default:
       return reason || 'Campanha cancelada sem motivo operacional registrado.';
   }
@@ -247,6 +251,8 @@ const formatOperationReason = (reason?: string | null) => {
       return 'Webhook nao configurado';
     case 'unsupported-channel':
       return 'Canal nao suportado';
+    case 'billing-blocked':
+      return 'Conta bloqueada por inadimplencia';
     case 'plan-limit-emails':
       return 'Limite do plano para email atingido';
     case 'dispatch-error':

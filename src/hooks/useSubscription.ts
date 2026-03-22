@@ -8,6 +8,12 @@ export interface SubscriptionData {
   plan: string;
   product_id: string | null;
   subscription_end: string | null;
+  billing_status: string | null;
+  access_status: 'active' | 'grace' | 'blocked';
+  block_reason: string | null;
+  grace_until: string | null;
+  should_block: boolean;
+  source?: 'edge' | 'profile-fallback';
   usage: {
     presentations: number;
     campaigns: number;
@@ -57,6 +63,52 @@ export const useSubscription = () => {
     fetchPlans();
   }, []);
 
+  const buildProfileFallbackSubscription = useCallback(async () => {
+    if (!user) return null;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('stripe_price_id, stripe_product_id, subscription_status, subscription_current_period_end, billing_access_status, billing_block_reason, billing_grace_until')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!profile) return null;
+
+    const matchedPlan =
+      plans.find((plan) => plan.stripe_price_id && plan.stripe_price_id === profile.stripe_price_id) ||
+      plans.find((plan) => plan.stripe_product_id && plan.stripe_product_id === profile.stripe_product_id) ||
+      plans.find((plan) => plan.id === 'free') ||
+      null;
+
+    return {
+      plan: matchedPlan?.id || 'free',
+      product_id: profile.stripe_product_id || null,
+      subscription_end: profile.subscription_current_period_end || null,
+      billing_status: profile.subscription_status || null,
+      access_status: (profile.billing_access_status as SubscriptionData['access_status']) || 'active',
+      block_reason: profile.billing_block_reason || null,
+      grace_until: profile.billing_grace_until || null,
+      should_block: profile.billing_access_status === 'blocked',
+      source: 'profile-fallback' as const,
+      usage: {
+        presentations: 0,
+        campaigns: 0,
+        emails: 0,
+      },
+      limits: matchedPlan
+        ? {
+            presentations: matchedPlan.limit_presentations,
+            campaigns: matchedPlan.limit_campaigns,
+            emails: matchedPlan.limit_emails,
+          }
+        : {
+            presentations: 50,
+            campaigns: 2,
+            emails: 50,
+          },
+    };
+  }, [plans, user]);
+
   const checkSubscription = useCallback(async () => {
     if (authLoading) return;
 
@@ -69,16 +121,18 @@ export const useSubscription = () => {
     try {
       const { data, error } = await invokeEdgeFunction<SubscriptionData>('check-subscription');
       if (error) throw error;
-      setSubscription(data);
+      setSubscription({ ...data, source: 'edge' });
       lastSubscriptionErrorRef.current = null;
     } catch (err) {
       if (isUnauthorizedFunctionsError(err)) {
-        setSubscription(null);
+        const fallback = await buildProfileFallbackSubscription();
+        setSubscription(fallback);
         return;
       }
 
       const message = await getEdgeFunctionErrorMessage(err);
-      setSubscription(null);
+      const fallback = await buildProfileFallbackSubscription();
+      setSubscription(fallback);
       if (lastSubscriptionErrorRef.current !== message) {
         lastSubscriptionErrorRef.current = message;
         console.warn('Failed to check subscription:', message);
@@ -86,7 +140,7 @@ export const useSubscription = () => {
     } finally {
       setLoading(false);
     }
-  }, [authLoading, session, user]);
+  }, [authLoading, buildProfileFallbackSubscription, session, user]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -100,11 +154,12 @@ export const useSubscription = () => {
   }, [authLoading, checkSubscription, session, user]);
 
   const canUse = useCallback((resource: 'presentations' | 'campaigns' | 'emails') => {
-    if (!subscription) return true;
+    if (loading) return true;
+    if (!subscription || subscription.access_status === 'blocked') return false;
     const limit = subscription.limits[resource];
     if (limit === -1) return true;
     return subscription.usage[resource] < limit;
-  }, [subscription]);
+  }, [loading, subscription]);
 
   const getRemainingUsage = useCallback((resource: 'presentations' | 'campaigns' | 'emails') => {
     if (!subscription) return null;
@@ -133,6 +188,9 @@ export const useSubscription = () => {
     subscription,
     plans,
     loading,
+    hasBillingIssue: subscription?.access_status === 'grace' || subscription?.access_status === 'blocked',
+    isBillingBlocked: subscription?.access_status === 'blocked',
+    isBillingGrace: subscription?.access_status === 'grace',
     canUse,
     getRemainingUsage,
     startCheckout,

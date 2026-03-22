@@ -206,6 +206,10 @@ const Settings = () => {
             usageItems={usageItems}
             plans={plans}
             currentPlan={currentPlan}
+            accessStatus={subscription?.access_status || 'active'}
+            billingStatus={subscription?.billing_status || null}
+            blockReason={subscription?.block_reason || null}
+            graceUntil={subscription?.grace_until || null}
             checkoutLoading={checkoutLoading}
             onManageSubscription={handleManageSubscription}
             onUpgrade={handleUpgrade}

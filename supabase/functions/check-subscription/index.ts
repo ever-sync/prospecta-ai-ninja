@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { isPaidPlanStatus, resolveBillingAccess } from "../_shared/billing.js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,7 +18,6 @@ type PlanRow = {
   limit_emails: number;
 };
 
-const PAID_STATUSES = new Set(["active", "trialing", "past_due"]);
 const hasUsableStripeSecret = (value: string | null | undefined) =>
   !!value && (value.startsWith("sk_") || value.startsWith("rk_"));
 
@@ -78,11 +78,16 @@ serve(async (req) => {
 
     const { data: profile } = await svc
       .from("profiles")
-      .select("stripe_customer_id, stripe_price_id, stripe_product_id, subscription_status, subscription_current_period_end")
+      .select("stripe_customer_id, stripe_price_id, stripe_product_id, subscription_status, subscription_current_period_end, billing_access_status, billing_block_reason, billing_grace_until")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (profile?.subscription_status && PAID_STATUSES.has(profile.subscription_status)) {
+    let subscriptionStatus = profile?.subscription_status || null;
+    let accessStatus = profile?.billing_access_status || "active";
+    let blockReason = profile?.billing_block_reason || null;
+    let graceUntil = profile?.billing_grace_until || null;
+
+    if (subscriptionStatus && isPaidPlanStatus(subscriptionStatus)) {
       productId = profile.stripe_product_id || null;
       priceId = profile.stripe_price_id || null;
       subscriptionEnd = profile.subscription_current_period_end || null;
@@ -119,12 +124,21 @@ serve(async (req) => {
             productId = typeof firstItem?.price.product === "string" ? firstItem.price.product : null;
             priceId = firstItem?.price.id || null;
             subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+            subscriptionStatus = subscription.status;
+
+            const billingAccess = resolveBillingAccess({
+              subscriptionStatus,
+              currentPeriodEnd: subscriptionEnd,
+            });
+            accessStatus = billingAccess.accessStatus;
+            blockReason = billingAccess.blockReason;
+            graceUntil = billingAccess.graceUntil;
 
             const matchedPlan =
               (priceId ? plansMap.get(`price:${priceId}`) : null) ||
               (productId ? plansMap.get(`product:${productId}`) : null) ||
               null;
-            if (matchedPlan && PAID_STATUSES.has(subscription.status)) plan = matchedPlan.id;
+            if (matchedPlan && isPaidPlanStatus(subscription.status)) plan = matchedPlan.id;
 
             await svc
               .from("profiles")
@@ -135,6 +149,10 @@ serve(async (req) => {
                 stripe_product_id: productId,
                 subscription_status: subscription.status,
                 subscription_current_period_end: subscriptionEnd,
+                billing_access_status: accessStatus,
+                billing_block_reason: blockReason,
+                billing_grace_until: graceUntil,
+                billing_last_event_type: "check-subscription:stripe-refresh",
               } as never)
               .eq("user_id", user.id);
           }
@@ -144,6 +162,39 @@ serve(async (req) => {
       }
     } else if (plan === "free" && stripeKey) {
       console.error("Invalid STRIPE_SECRET_KEY configured for check-subscription");
+    }
+
+    if (subscriptionStatus) {
+      const resolvedBilling = resolveBillingAccess({
+        subscriptionStatus,
+        currentPeriodEnd: subscriptionEnd,
+        now: Date.now(),
+      });
+
+      accessStatus = resolvedBilling.accessStatus;
+      blockReason = resolvedBilling.blockReason;
+      graceUntil = resolvedBilling.graceUntil;
+
+      const needsBillingRefresh =
+        profile?.billing_access_status !== accessStatus ||
+        (profile?.billing_block_reason || null) !== blockReason ||
+        (profile?.billing_grace_until || null) !== graceUntil;
+
+      if (needsBillingRefresh) {
+        await svc
+          .from("profiles")
+          .update({
+            billing_access_status: accessStatus,
+            billing_block_reason: blockReason,
+            billing_grace_until: graceUntil,
+            billing_last_event_type: "check-subscription:normalize",
+          } as never)
+          .eq("user_id", user.id);
+      }
+    } else {
+      accessStatus = profile?.billing_access_status || "active";
+      blockReason = profile?.billing_block_reason || null;
+      graceUntil = profile?.billing_grace_until || null;
     }
 
     const startOfMonth = new Date();
@@ -192,6 +243,11 @@ serve(async (req) => {
         plan,
         product_id: productId,
         subscription_end: subscriptionEnd,
+        billing_status: subscriptionStatus,
+        access_status: accessStatus,
+        block_reason: blockReason,
+        grace_until: graceUntil,
+        should_block: accessStatus === "blocked",
         usage: {
           presentations: presentationCount || 0,
           campaigns: campaignCount || 0,

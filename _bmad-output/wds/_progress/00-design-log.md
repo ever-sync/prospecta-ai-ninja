@@ -283,3 +283,51 @@
 ### 2026-03-21 - Follow-up: admin feedbacks now hydrate user data without a fragile join
 - Reworked `src/components/admin/FeedbacksManager.tsx` to fetch `feedbacks` first and hydrate `profiles` in a second explicit query by `user_id`, instead of relying on a PostgREST relationship that is not defined in the generated Supabase types.
 - This keeps the superadmin feedback panel stable and ensures each feedback row can show name, email, and company whenever the matching profile exists.
+
+### 2026-03-21 - Follow-up: go-live hardening package applied locally
+- Added a new billing access contract on top of Stripe status, including a shared helper in `supabase/functions/_shared/billing.js`, a new migration for `profiles.billing_access_*`, a stricter `check-subscription` response, and `stripe-webhook` updates to maintain grace and blocked states for inadimplencia.
+- Updated the frontend to enforce billing access through `useSubscription`, `ProtectedRoute`, billing warnings in the app shell, and richer billing visibility in settings and admin.
+- Hardened `supabase/config.toml` for critical authenticated functions, expanded the onboarding checklist toward real activation steps, strengthened the marketing landing offer, and added `README.md`, `.env.example`, and `docs/architecture/go-live-checklist.md` for repeatable production setup.
+- Validation stayed green with `npm test` and `npm run build`, but remote `supabase db push` and `supabase functions deploy` were blocked by CLI auth (`403 Forbidden resource`) and missing `SUPABASE_DB_PASSWORD`.
+
+### 2026-03-21 - Follow-up: go-live publication now has a single operational entrypoint
+- Added `scripts/publish-go-live.ps1` to apply the latest migrations and deploy the critical Supabase functions in sequence, reducing the chance of partial production rollout.
+- Exposed the same flow through `npm run deploy:go-live`, documented the required `SUPABASE_DB_PASSWORD`, and added the exact command block to the root `README.md` and `docs/architecture/go-live-checklist.md`.
+
+### 2026-03-21 - Follow-up: billing enforcement now reaches the backend too
+- Extended the shared auth helper to expose normalized billing access state and to block authenticated calls with `402` when the account is in a hard billing block.
+- Applied the billing guard to the main value-generating Supabase functions (search, analysis, presentation generation, sender/integration validation, campaign dispatch, and ElevenLabs TTS), instead of relying only on the frontend gate.
+- Updated the campaign scheduler and campaign UI reason mapping to recognize `billing_blocked`, so blocked accounts do not keep retrying scheduled sends in the background.
+
+### 2026-03-21 - Follow-up: remote Supabase publish succeeded for functions, but migration history still needs repair
+- Logged into the correct Supabase account, linked the local repo to project `cccakxnoptrtdzdlwyju`, and published the critical go-live edge functions to the remote project.
+- Confirmed the public app at `https://envpro.com.br` is serving the new build with the PWA manifest and without the old broken vendor chunk references.
+- Confirmed the remote database already exposes the critical new schema pieces used by the current code (`profiles.billing_access_*` and `feedbacks`) through the REST surface.
+- `db push` is still blocked because the remote migration history uses legacy versions `001..030` while the local repo uses timestamped migrations, so schema history repair remains a separate task.
+- Production probing shows the hardened functions are live; however, two campaign dispatchers (`send-campaign-webhooks` and `whatsapp-send-batch`) still answer malformed anonymous probes with `campaign_id is required` instead of a clean auth error, so their public error surface still needs one more pass.
+
+### 2026-03-21 - Bugfix: go-live publish script is now strict and supports functions-only deploys
+- Reproduced that `npm run deploy:go-live` kept publishing edge functions even after `supabase db push` failed, because the PowerShell script did not stop on non-zero CLI exit codes.
+- Confirmed the remote dispatcher auth surface is now hardened: malformed anonymous probes return `401 Invalid JWT` on the campaign dispatchers instead of falling through to body validation.
+- Updated `scripts/publish-go-live.ps1` to check `$LASTEXITCODE`, fail hard on migration/function deploy errors, and expose an explicit `-SkipMigrations` path for code-only publishes.
+- Added `npm run deploy:functions-only`, updated the README/go-live checklist, and added a regression test to prevent the publish script from silently ignoring failed Supabase CLI commands.
+
+### 2026-03-21 - Follow-up: migration history repair is now mapped and scriptable
+- Added `scripts/check-migration-history-drift.ps1` plus `npm run supabase:check-drift` to fail fast when local and remote migration histories diverge.
+- Captured the current drift explicitly: remote legacy versions `001..030` versus local timestamped migrations `202603...`.
+- Documented the safe repair workflow, rollback path, and the exact `migration repair` commands for this repository in `docs/architecture/supabase-migration-history-repair-plan.md`.
+
+### 2026-03-21 - Follow-up: remote migration history backup is now scriptable
+- Added `scripts/backup-remote-migration-history.ps1` plus `npm run supabase:backup-history` to dump the remote `supabase_migrations` schema before any repair step.
+- Ignored `backups/` in git so operational dumps can be created locally without polluting the repository.
+- Added a fallback path for environments without Docker: the backup script now generates a SQL Editor backup file instead of failing silently.
+
+### 2026-03-21 - Bugfix: Supabase migration history drift repaired
+- Added `scripts/repair-migration-history.ps1` plus `npm run supabase:repair-history` to derive local-only and remote-only versions from `supabase migration list`, repair both sides, and validate with `db push`.
+- Executed the repair against the linked remote project: remote legacy entries `001..030` were marked reverted, local timestamped migrations were marked applied, and the recheck came back empty on both sides.
+- Confirmed the operational outcome with `db push`, which now reports `Remote database is up to date`, closing the migration-history drift that was blocking normal schema publication.
+
+### 2026-03-21 - Follow-up: comercial da envPRO foi fechado para a semana de venda
+- Ajustei a landing para posicionar a envPRO como sistema operacional de prospeccao consultiva para agencias, consultores e operacoes B2B que vendem servicos digitais.
+- Subi o preco de lancamento na comunicacao para `R$ 297/mes`, com onboarding guiado incluso e APIs cobradas direto pelos provedores.
+- Documentei o checklist comercial da semana e a oferta final em `docs/commercial/`.

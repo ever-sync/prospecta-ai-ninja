@@ -737,10 +737,14 @@ export type Database = {
           },
         ]
       }
-      profiles: {
-        Row: {
-          campaign_reply_to_email: string | null
-          campaign_sender_email: string | null
+        profiles: {
+          Row: {
+            billing_access_status: string
+            billing_block_reason: string | null
+            billing_grace_until: string | null
+            billing_last_event_type: string | null
+            campaign_reply_to_email: string | null
+            campaign_sender_email: string | null
           campaign_sender_name: string | null
           campaign_webhook_secret: string | null
           campaign_webhook_url: string | null
@@ -768,9 +772,13 @@ export type Database = {
           whatsapp_official_access_token: string | null
           whatsapp_official_phone_number_id: string | null
         }
-        Insert: {
-          campaign_reply_to_email?: string | null
-          campaign_sender_email?: string | null
+          Insert: {
+            billing_access_status?: string
+            billing_block_reason?: string | null
+            billing_grace_until?: string | null
+            billing_last_event_type?: string | null
+            campaign_reply_to_email?: string | null
+            campaign_sender_email?: string | null
           campaign_sender_name?: string | null
           campaign_webhook_secret?: string | null
           campaign_webhook_url?: string | null
@@ -798,9 +806,13 @@ export type Database = {
           whatsapp_official_access_token?: string | null
           whatsapp_official_phone_number_id?: string | null
         }
-        Update: {
-          campaign_reply_to_email?: string | null
-          campaign_sender_email?: string | null
+          Update: {
+            billing_access_status?: string
+            billing_block_reason?: string | null
+            billing_grace_until?: string | null
+            billing_last_event_type?: string | null
+            campaign_reply_to_email?: string | null
+            campaign_sender_email?: string | null
           campaign_sender_name?: string | null
           campaign_webhook_secret?: string | null
           campaign_webhook_url?: string | null

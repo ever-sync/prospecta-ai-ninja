@@ -42,7 +42,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { deriveLeadSignalSummary } from "@/lib/lead-scoring";
-import { getEdgeFunctionErrorMessage, invokeEdgeFunction } from "@/lib/invoke-edge-function";
+import { getEdgeFunctionErrorMessage, invokeEdgeFunction, isBillingBlockedEdgeError } from "@/lib/invoke-edge-function";
 import { selectFirstRow } from "@/lib/supabase/select-first-row";
 import { GeneratePresentationResponse } from "@/types/presentation";
 
@@ -196,11 +196,15 @@ const Index = () => {
     } catch (error) {
       console.error("Error searching businesses:", error);
       const message = await getEdgeFunctionErrorMessage(error);
+      const billingBlocked = await isBillingBlockedEdgeError(error);
       toast({
         title: "Erro na busca",
         description: message,
         variant: "destructive",
       });
+      if (billingBlocked) {
+        navigate("/settings?tab=faturamento");
+      }
       setBusinesses([]);
     } finally {
       setIsLoading(false);
@@ -402,6 +406,7 @@ const Index = () => {
       } catch (err) {
         console.error(`Error analyzing ${business.name}:`, err);
         const errorMessage = await getEdgeFunctionErrorMessage(err);
+        const billingBlocked = await isBillingBlockedEdgeError(err);
         setAnalysisItems((prev) =>
           prev.map((item) =>
             item.id === business.id
@@ -413,6 +418,10 @@ const Index = () => {
               : item
           )
         );
+        if (billingBlocked) {
+          navigate("/settings?tab=faturamento");
+          break;
+        }
       }
     }
   };

@@ -18,7 +18,7 @@ const toWeekKey = (isoDate: string) => {
 type AlertSeverity = "warning" | "critical";
 
 type OperationalAlert = {
-  type: "delivery_drop" | "failure_spike" | "acceptance_drop";
+  type: "delivery_drop" | "failure_spike" | "acceptance_drop" | "billing_grace" | "billing_blocked";
   severity: AlertSeverity;
   title: string;
   description: string;
@@ -100,6 +100,14 @@ serve(async (req) => {
       .from("campaign_presentations")
       .select("id", { count: "exact", head: true })
       .eq("send_status", "sent");
+    const { count: billingGraceUsers } = await svc
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("billing_access_status", "grace");
+    const { count: billingBlockedUsers } = await svc
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("billing_access_status", "blocked");
 
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
@@ -351,6 +359,26 @@ serve(async (req) => {
         baselineValue: baselineAcceptance,
       });
     }
+    if ((billingGraceUsers || 0) > 0) {
+      operationalAlerts.push({
+        type: "billing_grace",
+        severity: (billingGraceUsers || 0) >= 5 ? "critical" : "warning",
+        title: "Clientes com pagamento pendente",
+        description: "Existem assinaturas em periodo de graca e com risco de bloqueio automatico.",
+        metricValue: billingGraceUsers || 0,
+        baselineValue: 0,
+      });
+    }
+    if ((billingBlockedUsers || 0) > 0) {
+      operationalAlerts.push({
+        type: "billing_blocked",
+        severity: "critical",
+        title: "Clientes bloqueados por inadimplencia",
+        description: "Existem contas impedidas de usar a plataforma por status de billing bloqueado.",
+        metricValue: billingBlockedUsers || 0,
+        baselineValue: 0,
+      });
+    }
 
     const { data: topUsersRows } = await svc
       .from("presentations")
@@ -408,6 +436,10 @@ serve(async (req) => {
           campaigns: totalCampaigns || 0,
           views: totalViews || 0,
           emails: totalEmails || 0,
+        },
+        billing: {
+          graceUsers: billingGraceUsers || 0,
+          blockedUsers: billingBlockedUsers || 0,
         },
         thisMonth: {
           presentations: monthPresentations || 0,

@@ -6,6 +6,7 @@ const corsHeaders = {
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { pickVariantForLead } from '../_shared/campaign-variants.js';
 import { logCampaignOperationEvent } from '../_shared/campaign-operation-events.js';
+import { HttpError, requireBillingAccess } from '../_shared/auth.ts';
 
 type TemplateRow = {
   id: string;
@@ -65,20 +66,21 @@ Deno.serve(async (req) => {
     if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY is not configured');
 
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Unauthorized');
+    if (!authHeader) throw new HttpError(401, 'Unauthorized');
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     const bodyData = await req.json();
-    const { campaign_id } = bodyData;
-    if (!campaign_id) throw new Error('campaign_id is required');
-    logCampaignId = campaign_id;
 
     const isServiceRoleCall =
       !!serviceKey &&
       authHeader === `Bearer ${serviceKey}` &&
       typeof bodyData.user_id === 'string';
+
+    const serviceClient = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false },
+    });
 
     const supabase = isServiceRoleCall
       ? createClient(supabaseUrl, serviceKey, {
@@ -101,11 +103,17 @@ Deno.serve(async (req) => {
       userEmail = profile?.email || null;
     } else {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) throw new Error('Unauthorized');
+      if (authError || !user) throw new HttpError(401, 'Unauthorized');
       userId = user.id;
       userEmail = user.email || null;
     }
+
+    const { campaign_id } = bodyData;
+    if (!campaign_id) throw new HttpError(400, 'campaign_id is required');
+    logCampaignId = campaign_id;
+
     logUserId = userId;
+    await requireBillingAccess(serviceClient, userId);
 
     // Get campaign with template_id
     const { data: campaign, error: campErr } = await supabase
@@ -561,8 +569,15 @@ Deno.serve(async (req) => {
         console.error('Failed to persist campaign email operation event:', logError);
       }
     }
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Failed' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    const status = error instanceof HttpError ? error.status : 500;
+    const code = error instanceof HttpError && error.status === 402
+      ? 'billing_blocked'
+      : undefined;
+    return new Response(JSON.stringify({
+      error: error instanceof Error ? error.message : 'Failed',
+      ...(code ? { code } : {}),
+    }), {
+      status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });

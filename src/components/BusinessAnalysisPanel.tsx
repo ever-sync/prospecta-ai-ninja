@@ -28,7 +28,7 @@ import { Business } from "@/types/business";
 import { useToast } from "@/hooks/use-toast";
 import { ApproachSuggestion } from "@/components/ApproachSuggestion";
 import { deriveLeadSignalSummary } from "@/lib/lead-scoring";
-import { getEdgeFunctionErrorMessage, invokeEdgeFunction } from "@/lib/invoke-edge-function";
+import { getEdgeFunctionErrorMessage, invokeEdgeFunction, isBillingBlockedEdgeError } from "@/lib/invoke-edge-function";
 import { supabase } from "@/integrations/supabase/client";
 
 type ApiProvider = 'gemini' | 'claude_code' | 'groq' | 'openai' | 'other';
@@ -203,8 +203,9 @@ export const BusinessAnalysisPanel = ({
     } catch (error) {
       console.error(`Error fetching ${mode}:`, error);
       const message = await getEdgeFunctionErrorMessage(error);
+      const billingBlocked = await isBillingBlockedEdgeError(error);
       toast({
-        title: "Erro",
+        title: billingBlocked ? "Billing bloqueado" : "Erro",
         description: message,
         variant: "destructive",
       });
@@ -238,10 +239,12 @@ export const BusinessAnalysisPanel = ({
     } catch (error) {
       console.error("Error fetching heavy analysis:", error);
       if (activeBusinessIdRef.current !== requestedBusinessId) return;
+      const message = await getEdgeFunctionErrorMessage(error);
+      const billingBlocked = await isBillingBlockedEdgeError(error);
 
       toast({
-        title: "Erro",
-        description: await getEdgeFunctionErrorMessage(error),
+        title: billingBlocked ? "Billing bloqueado" : "Erro",
+        description: message,
         variant: "destructive",
       });
     } finally {

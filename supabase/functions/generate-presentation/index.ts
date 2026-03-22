@@ -270,7 +270,7 @@ Deno.serve(async (req) => {
       whatsappButtonLabel,
     } = await req.json();
 
-    const { user, svc } = await getAuthenticatedUserContext(req);
+    const { user, svc } = await getAuthenticatedUserContext(req, { requireBillingAccess: true });
     const llm = await resolveUserLLM(svc, user.id, provider);
 
     const selectedTemplate = normalizeTemplate(template);

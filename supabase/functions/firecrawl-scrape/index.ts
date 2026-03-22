@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { user, svc } = await getAuthenticatedUserContext(req);
+    const { user, svc } = await getAuthenticatedUserContext(req, { requireBillingAccess: true });
     const apiKey = await resolveFirecrawlApiKey(svc, user.id);
 
     let formattedUrl = url.trim();

@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { user, svc } = await getAuthenticatedUserContext(req);
+    const { user, svc } = await getAuthenticatedUserContext(req, { requireBillingAccess: true });
     const llm = await resolveUserLLM(svc, user.id, provider);
 
     const systemPrompt = `Você é um SDR e Copywriter de elite, especializado em prospecção via WhatsApp para agências de Marketing Digital e Desenvolvimento.

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { resolveBillingAccess } from "../_shared/billing.js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,7 +43,32 @@ const findUserIdForCustomer = async (customerId: string, email?: string | null, 
   return null;
 };
 
-const updateProfileFromSubscription = async (subscription: Stripe.Subscription) => {
+const buildBillingFields = ({
+  subscriptionStatus,
+  currentPeriodEnd,
+  nextPaymentAttempt = null,
+  lastEventType,
+}: {
+  subscriptionStatus: string | null | undefined;
+  currentPeriodEnd: string | null;
+  nextPaymentAttempt?: string | null;
+  lastEventType: string;
+}) => {
+  const billingAccess = resolveBillingAccess({
+    subscriptionStatus,
+    currentPeriodEnd,
+    nextPaymentAttempt,
+  });
+
+  return {
+    billing_access_status: billingAccess.accessStatus,
+    billing_block_reason: billingAccess.blockReason,
+    billing_grace_until: billingAccess.graceUntil,
+    billing_last_event_type: lastEventType,
+  };
+};
+
+const updateProfileFromSubscription = async (subscription: Stripe.Subscription, lastEventType: string) => {
   const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
   const firstItem = subscription.items.data[0];
   const priceId = firstItem?.price.id || null;
@@ -71,11 +97,16 @@ const updateProfileFromSubscription = async (subscription: Stripe.Subscription) 
       stripe_product_id: productId,
       subscription_status: subscription.status,
       subscription_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      ...buildBillingFields({
+        subscriptionStatus: subscription.status,
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
+        lastEventType,
+      }),
     } as never)
     .eq("user_id", userId);
 };
 
-const clearProfileSubscription = async (subscription: Stripe.Subscription) => {
+const clearProfileSubscription = async (subscription: Stripe.Subscription, lastEventType: string) => {
   const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
   const customerEmail =
     typeof subscription.customer === "string" ? null : subscription.customer.email;
@@ -100,6 +131,52 @@ const clearProfileSubscription = async (subscription: Stripe.Subscription) => {
       subscription_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
       stripe_price_id: null,
       stripe_product_id: null,
+      ...buildBillingFields({
+        subscriptionStatus: subscription.status,
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
+        lastEventType,
+      }),
+    } as never)
+    .eq("user_id", userId);
+};
+
+const updateProfileFromInvoice = async (invoice: Stripe.Invoice, lastEventType: string) => {
+  const customerId =
+    typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id || null;
+  if (!customerId) return;
+
+  const userId = await findUserIdForCustomer(customerId, invoice.customer_email || null, null);
+  if (!userId) {
+    console.warn("Stripe webhook: user not found for invoice", invoice.id);
+    return;
+  }
+
+  const currentPeriodEnd = invoice.period_end
+    ? new Date(invoice.period_end * 1000).toISOString()
+    : null;
+  const nextPaymentAttempt = invoice.next_payment_attempt
+    ? new Date(invoice.next_payment_attempt * 1000).toISOString()
+    : null;
+
+  const nextStatus =
+    lastEventType === "invoice.payment_failed"
+      ? "past_due"
+      : lastEventType === "invoice.paid"
+        ? "active"
+        : null;
+
+  await svc
+    .from("profiles")
+    .update({
+      stripe_customer_id: customerId,
+      ...(nextStatus ? { subscription_status: nextStatus } : {}),
+      ...(currentPeriodEnd ? { subscription_current_period_end: currentPeriodEnd } : {}),
+      ...buildBillingFields({
+        subscriptionStatus: nextStatus,
+        currentPeriodEnd,
+        nextPaymentAttempt,
+        lastEventType,
+      }),
     } as never)
     .eq("user_id", userId);
 };
@@ -140,11 +217,16 @@ serve(async (req) => {
       }
       case "customer.subscription.created":
       case "customer.subscription.updated": {
-        await updateProfileFromSubscription(event.data.object as Stripe.Subscription);
+        await updateProfileFromSubscription(event.data.object as Stripe.Subscription, event.type);
         break;
       }
       case "customer.subscription.deleted": {
-        await clearProfileSubscription(event.data.object as Stripe.Subscription);
+        await clearProfileSubscription(event.data.object as Stripe.Subscription, event.type);
+        break;
+      }
+      case "invoice.payment_failed":
+      case "invoice.paid": {
+        await updateProfileFromInvoice(event.data.object as Stripe.Invoice, event.type);
         break;
       }
       default:

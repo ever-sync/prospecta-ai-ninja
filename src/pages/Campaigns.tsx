@@ -11,6 +11,7 @@ import { CampaignSavedViewDialog } from '@/components/campaigns/CampaignSavedVie
 import { CampaignSummaryCards } from '@/components/campaigns/CampaignSummaryCards';
 import { CampaignUrgentPanel } from '@/components/campaigns/CampaignUrgentPanel';
 import { CampaignViewsCard } from '@/components/campaigns/CampaignViewsCard';
+import { UpgradePlanDialog } from '@/components/subscription/UpgradePlanDialog';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -531,7 +532,7 @@ const Campaigns = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { canUse } = useSubscription();
+  const { canUse, subscription, plans, startCheckout, loading: subscriptionLoading } = useSubscription();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -578,6 +579,9 @@ const Campaigns = () => {
   const [formSchedule, setFormSchedule] = useState('');
   const [formTemplateId, setFormTemplateId] = useState('');
   const [creating, setCreating] = useState(false);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const currentPlan = subscription?.plan || 'free';
+  const isFreePlan = !subscriptionLoading && currentPlan === 'free';
 
   const resetCampaignForm = () => {
     setEditingCampaign(null);
@@ -589,12 +593,17 @@ const Campaigns = () => {
   };
 
   useEffect(() => {
-    if (user) {
-      fetchCampaigns();
-      fetchTemplates();
-      fetchEmailSenderConfig();
+    if (!user || subscriptionLoading) return;
+    if (isFreePlan) {
+      setCampaigns([]);
+      setTemplates([]);
+      setLoading(false);
+      return;
     }
-  }, [user]);
+    fetchCampaigns();
+    fetchTemplates();
+    fetchEmailSenderConfig();
+  }, [user, subscriptionLoading, isFreePlan]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1764,8 +1773,67 @@ const Campaigns = () => {
     );
   }
 
+  if (isFreePlan) {
+    return (
+      <div className="space-y-4 p-2 lg:space-y-5 lg:p-4">
+        <UpgradePlanDialog
+          open={showUpgradeDialog}
+          onOpenChange={setShowUpgradeDialog}
+          title="Campanhas bloqueadas no plano gratuito"
+          description="Campanhas fazem parte do plano pago. Ative um plano para criar, agendar e disparar cadencias."
+          plans={plans}
+          startCheckout={startCheckout}
+        />
+
+        <div className="rounded-[28px] border border-[#ececf0] bg-white px-5 py-6 shadow-[0_14px_36px_rgba(20,20,24,0.06)] lg:px-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-[#75757d]">Orquestracao Comercial</p>
+              <h1 className="mt-1 flex items-center gap-2 text-3xl font-semibold tracking-tight text-[#1A1A1A] lg:text-4xl">
+                <Megaphone className="h-7 w-7 text-[#EF3333]" />
+                Campanhas
+              </h1>
+              <p className="mt-2 text-sm text-[#66666d] lg:text-base">
+                Este modulo fica liberado somente nos planos pagos.
+              </p>
+            </div>
+            <Button onClick={() => setShowUpgradeDialog(true)} className="h-10 rounded-xl gap-2 gradient-primary text-primary-foreground glow-primary">
+              <Plus className="h-4 w-4" />
+              Ativar plano
+            </Button>
+          </div>
+        </div>
+
+        <Card className="rounded-[28px] border border-[#f2d4d8] bg-white p-8 shadow-[0_12px_28px_rgba(20,20,24,0.05)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#b94456]">Plano gratuito</p>
+          <h2 className="mt-3 text-2xl font-semibold text-[#1A1A1A]">Campanhas bloqueadas</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-[#6d6d75]">
+            No plano gratuito voce pode gerar ate 3 apresentacoes por mes. Para criar campanhas, agendar disparos e usar templates em escala, faca upgrade do plano.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button onClick={() => setShowUpgradeDialog(true)} className="rounded-xl gradient-primary text-primary-foreground">
+              Fazer upgrade
+            </Button>
+            <Button variant="outline" className="rounded-xl" onClick={() => navigate('/settings?tab=faturamento')}>
+              Ver faturamento
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 p-2 lg:space-y-5 lg:p-4">
+      <UpgradePlanDialog
+        open={showUpgradeDialog}
+        onOpenChange={setShowUpgradeDialog}
+        title="Campanhas bloqueadas no plano gratuito"
+        description="Campanhas fazem parte do plano pago. Ative um plano para criar, agendar e disparar cadencias."
+        plans={plans}
+        startCheckout={startCheckout}
+      />
+
       <div className="rounded-[28px] border border-[#ececf0] bg-white px-5 py-6 shadow-[0_14px_36px_rgba(20,20,24,0.06)] lg:px-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

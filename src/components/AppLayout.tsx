@@ -509,7 +509,7 @@ export const AppLayout = () => {
           )}
         </div>
 
-        <div className="min-h-0 w-full flex-1 overflow-y-auto px-2 py-4">
+        <div className="scrollbar-hidden min-h-0 w-full flex-1 overflow-y-auto px-2 py-4">
           {!collapsed && (
             <p className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8f8f97]">
               Menu

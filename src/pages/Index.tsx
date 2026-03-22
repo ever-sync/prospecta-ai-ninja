@@ -21,6 +21,7 @@ import { BusinessAnalysisPanel } from "@/components/BusinessAnalysisPanel";
 import { AnalysisProgressModal, AnalysisItem } from "@/components/AnalysisProgressModal";
 import { PipelineSelectDialog } from "@/components/PipelineSelectDialog";
 import { SearchRefinementPanel } from "@/components/SearchRefinementPanel";
+import { UpgradePlanDialog } from "@/components/subscription/UpgradePlanDialog";
 import {
   Dialog,
   DialogContent,
@@ -156,8 +157,17 @@ const Index = () => {
   const [analysisTargets, setAnalysisTargets] = useState<Business[] | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { canUse, getRemainingUsage } = useSubscription();
+  const { canUse, getRemainingUsage, plans, startCheckout } = useSubscription();
   const navigate = useNavigate();
+  const [upgradeDialog, setUpgradeDialog] = useState({
+    open: false,
+    title: "",
+    description: "",
+  });
+
+  const openUpgradeDialog = (title: string, description: string) => {
+    setUpgradeDialog({ open: true, title, description });
+  };
 
   const handleSearch = async (filters: Filters) => {
     setIsLoading(true);
@@ -234,16 +244,23 @@ const Index = () => {
     if (selected.length === 0) return;
 
     if (!canUse("presentations")) {
-      toast({
-        title: "Limite atingido",
-        description: "Voce atingiu o limite de apresentacoes do seu plano. Faca upgrade em Configuracoes > Faturamento.",
-        variant: "destructive",
-      });
+      openUpgradeDialog(
+        "Limite de apresentacoes atingido",
+        "O plano gratuito permite ate 3 apresentacoes por mes. Faca upgrade para continuar gerando novas propostas.",
+      );
       return;
     }
 
     const remaining = getRemainingUsage("presentations");
     if (remaining !== null && remaining !== Infinity && selected.length > remaining) {
+      if (remaining < 1) {
+        openUpgradeDialog(
+          "Limite de apresentacoes atingido",
+          "Voce ja usou as 3 apresentacoes do plano gratuito. Ative um plano pago para continuar.",
+        );
+        return;
+      }
+
       toast({
         title: "Limite insuficiente",
         description: `Voce pode gerar mais ${remaining} apresentacao(oes). Selecione menos ou faca upgrade do plano.`,
@@ -260,21 +277,19 @@ const Index = () => {
     if (!user) return;
 
     if (!canUse("presentations")) {
-      toast({
-        title: "Limite atingido",
-        description: "Voce atingiu o limite de apresentacoes do seu plano. Faca upgrade em Configuracoes > Faturamento.",
-        variant: "destructive",
-      });
+      openUpgradeDialog(
+        "Limite de apresentacoes atingido",
+        "O plano gratuito permite ate 3 apresentacoes por mes. Faca upgrade para continuar gerando novas propostas.",
+      );
       return;
     }
 
     const remaining = getRemainingUsage("presentations");
     if (remaining !== null && remaining !== Infinity && remaining < 1) {
-      toast({
-        title: "Limite insuficiente",
-        description: "Voce nao possui apresentacoes disponiveis no momento.",
-        variant: "destructive",
-      });
+      openUpgradeDialog(
+        "Sem apresentacoes disponiveis",
+        "Voce ja usou as 3 apresentacoes do plano gratuito. Ative um plano pago para liberar novas geracoes.",
+      );
       return;
     }
 
@@ -533,6 +548,15 @@ const Index = () => {
           setShowProgress(false);
           navigate("/presentations");
         }}
+      />
+
+      <UpgradePlanDialog
+        open={upgradeDialog.open}
+        onOpenChange={(open) => setUpgradeDialog((current) => ({ ...current, open }))}
+        title={upgradeDialog.title}
+        description={upgradeDialog.description}
+        plans={plans}
+        startCheckout={startCheckout}
       />
 
       <PipelineSelectDialog

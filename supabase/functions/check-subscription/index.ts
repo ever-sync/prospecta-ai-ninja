@@ -232,11 +232,11 @@ serve(async (req) => {
     const currentPlan = plansMap.get(plan);
     const limits = currentPlan
       ? {
-          presentations: currentPlan.limit_presentations,
-          campaigns: currentPlan.limit_campaigns,
-          emails: currentPlan.limit_emails,
+          presentations: currentPlan.id === "free" ? 3 : currentPlan.limit_presentations,
+          campaigns: currentPlan.id === "free" ? 0 : currentPlan.limit_campaigns,
+          emails: currentPlan.id === "free" ? 0 : currentPlan.limit_emails,
         }
-      : { presentations: 50, campaigns: 2, emails: 50 };
+      : { presentations: 3, campaigns: 0, emails: 0 };
 
     return new Response(
       JSON.stringify({

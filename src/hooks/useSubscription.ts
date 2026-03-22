@@ -40,6 +40,22 @@ export interface PlanData {
   is_active: boolean;
 }
 
+const normalizePlanData = (plan: PlanData): PlanData =>
+  plan.id === 'free'
+    ? {
+        ...plan,
+        limit_presentations: 3,
+        limit_campaigns: 0,
+        limit_emails: 0,
+        features: [
+          '3 apresentacoes por mes',
+          'Campanhas bloqueadas no plano gratuito',
+          'Templates bloqueados no plano gratuito',
+          'Upgrade para liberar automacao comercial',
+        ],
+      }
+    : plan;
+
 export const useSubscription = () => {
   const { user, session, loading: authLoading } = useAuth();
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
@@ -58,7 +74,7 @@ export const useSubscription = () => {
         .select('*')
         .eq('is_active', true)
         .order('display_order');
-      if (data) setPlans(data as PlanData[]);
+      if (data) setPlans((data as PlanData[]).map(normalizePlanData));
     };
     fetchPlans();
   }, []);
@@ -102,9 +118,9 @@ export const useSubscription = () => {
             emails: matchedPlan.limit_emails,
           }
         : {
-            presentations: 50,
-            campaigns: 2,
-            emails: 50,
+            presentations: 3,
+            campaigns: 0,
+            emails: 0,
           },
     };
   }, [plans, user]);

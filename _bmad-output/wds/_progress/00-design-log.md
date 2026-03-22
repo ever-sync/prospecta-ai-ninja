@@ -331,3 +331,7 @@
 - Ajustei a landing para posicionar a envPRO como sistema operacional de prospeccao consultiva para agencias, consultores e operacoes B2B que vendem servicos digitais.
 - Subi o preco de lancamento na comunicacao para `R$ 297/mes`, com onboarding guiado incluso e APIs cobradas direto pelos provedores.
 - Documentei o checklist comercial da semana e a oferta final em `docs/commercial/`.
+
+### 2026-03-21 - Follow-up: material de venda operacional criado
+- Adicionei scripts de abordagem por WhatsApp, email e follow-up em `docs/commercial/outreach-scripts.md`.
+- Adicionei um roteiro de demo de 10 minutos focado em conversao e fechamento em `docs/commercial/demo-script-10min.md`.
